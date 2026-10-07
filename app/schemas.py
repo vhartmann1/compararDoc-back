@@ -288,5 +288,8 @@ class AnaliseResumo(BaseModel):
     usuario_id: str | None
     status_processamento: StatusProcessamento
     status_resultado: StatusResultado | None
+    modalidade: Modalidade | None
+    total_divergencias: int | None
+    erro: str | None
     qtd_arquivos: int
     criado_em: datetime

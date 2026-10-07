@@ -354,6 +354,9 @@ def listar_analises(
             usuario_id=a.usuario_id,
             status_processamento=a.status_processamento,
             status_resultado=a.status_resultado,
+            modalidade=a.modalidade,
+            total_divergencias=a.total_divergencias,
+            erro=a.erro,
             qtd_arquivos=contagem.get(a.id, 0),
             criado_em=_utc(a.criado_em),
         )
