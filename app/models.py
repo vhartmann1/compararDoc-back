@@ -1,4 +1,7 @@
-"""Tabelas (Postgres), criadas na subida do servidor (app/db.py)."""
+"""Tabelas (Postgres), criadas na subida do servidor (app/db.py).
+
+Sem JSON aqui: extração e resultado de cada análise ficam no MongoDB (app/mongo.py), com o mesmo id.
+"""
 
 import uuid
 from datetime import UTC, datetime
@@ -27,9 +30,13 @@ class AnaliseDB(SQLModel, table=True):
     erro: str | None = Field(default=None, sa_type=Text)
     criado_em: datetime = Field(default_factory=agora_utc, index=True, sa_type=DateTime(timezone=True))
     concluido_em: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
-    resultado_json: str | None = Field(default=None, sa_type=Text)  # ResultadoComparacao
-    extracoes_json: str | None = Field(default=None, sa_type=Text)  # dict[arquivo_id, ExtracaoArquivo] (auditoria)
-    uso_json: str | None = Field(default=None, sa_type=Text)  # Uso
+    # preenchidas no fim, quando a análise conclui
+    status_resultado: str | None = None  # OK | DIVERGENTE | INCOMPLETO
+    total_divergencias: int | None = None
+    modelo: str | None = None
+    tokens_entrada: int | None = None
+    tokens_saida: int | None = None
+    custo_usd: float | None = None
 
 
 class ArquivoDB(SQLModel, table=True):

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from app.config import settings
+from app import mongo
 from app.db import criar_tabelas, engine
 from app.models import AnaliseDB, agora_utc
 from app.routes import analises
@@ -32,6 +33,7 @@ def _marcar_interrompidas() -> None:
 async def lifespan(_: FastAPI):
     settings.storage_dir.mkdir(parents=True, exist_ok=True)
     criar_tabelas()
+    mongo.verificar()
     _marcar_interrompidas()
     yield
 

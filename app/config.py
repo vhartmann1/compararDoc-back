@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     storage_dir: Path = BASE_DIR / "storage"
     # padrão = Postgres local do docker-compose.yaml
     database_url: str = "postgresql+psycopg://comparardocs:comparardocs@localhost:5432/comparardocs"
+    # padrão = MongoDB local do docker-compose.yaml
+    mongo_url: str = "mongodb://comparardocs:comparardocs@localhost:27017"
+    mongo_db: str = "comparardocs"
     cors_origins: list[str] = ["http://localhost:3000"]
 
     max_arquivos: int = 20

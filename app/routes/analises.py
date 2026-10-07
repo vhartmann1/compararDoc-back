@@ -2,7 +2,6 @@
 
 import asyncio
 import inspect
-import json
 import logging
 import shutil
 import uuid
@@ -13,9 +12,11 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
+from pymongo.errors import PyMongoError
 from pypdf import PdfReader
 from sqlmodel import Session, func, select
 
+from app import mongo
 from app.config import settings
 from app.db import engine, get_session
 from app.models import AnaliseDB, ArquivoDB, agora_utc
@@ -45,6 +46,8 @@ TIPOS_INLINE = {"application/pdf", "image/jpeg", "image/png"}
 TAMANHO_BLOCO = 1024 * 1024
 
 ERRO_RESULTADO_ANTIGO = "Análise feita em versão anterior; envie novamente"
+ERRO_SEM_RESULTADO = "Resultado não encontrado; envie novamente"
+MENSAGEM_ERRO_GENERICA = "Não foi possível processar os documentos. Tente novamente."
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -60,21 +63,22 @@ def _utc(dt: datetime | None) -> datetime | None:
     return dt
 
 
-def _ler_resultado(analise: AnaliseDB) -> ResultadoComparacao | None:
-    """Resultado gravado; None se vazio ou em formato antigo (v1) que não valida mais."""
-    if not analise.resultado_json:
+def _ler_resultado(documento: dict | None) -> ResultadoComparacao | None:
+    """Resultado gravado no MongoDB; None se não houver ou se estiver em formato antigo (v1) que não valida mais."""
+    if not documento or not documento.get("resultado"):
         return None
     try:
-        return ResultadoComparacao.model_validate_json(analise.resultado_json)
+        return ResultadoComparacao.model_validate(documento["resultado"])
     except ValidationError:
         return None
 
 
-def _para_analise(analise: AnaliseDB, arquivos: list[ArquivoDB]) -> Analise:
-    resultado = _ler_resultado(analise)
+def _para_analise(analise: AnaliseDB, arquivos: list[ArquivoDB], documento: dict | None = None) -> Analise:
+    """`documento` é o que está no MongoDB para a análise (extração e resultado)."""
+    resultado = _ler_resultado(documento)
     erro = analise.erro
-    if analise.resultado_json and resultado is None:
-        erro = ERRO_RESULTADO_ANTIGO
+    if analise.status_processamento == "CONCLUIDA" and resultado is None:
+        erro = ERRO_RESULTADO_ANTIGO if documento and documento.get("resultado") else ERRO_SEM_RESULTADO
     return Analise(
         id=analise.id,
         processo=analise.processo,
@@ -95,12 +99,14 @@ def _para_analise(analise: AnaliseDB, arquivos: list[ArquivoDB]) -> Analise:
 
 
 def _ler_uso(analise: AnaliseDB) -> Uso | None:
-    if not analise.uso_json:
+    if analise.modelo is None:
         return None
-    try:
-        return Uso.model_validate_json(analise.uso_json)
-    except ValidationError:
-        return None
+    return Uso(
+        input_tokens=analise.tokens_entrada or 0,
+        output_tokens=analise.tokens_saida or 0,
+        custo_usd_estimado=analise.custo_usd or 0.0,
+        modelo=analise.modelo,
+    )
 
 
 def _arquivos_da_analise(session: Session, analise_id: str) -> list[ArquivoDB]:
@@ -254,6 +260,17 @@ def _atualizar_etapa(analise_id: str, etapa: str) -> None:
             session.commit()
 
 
+def _marcar_erro(analise_id: str, mensagem: str) -> None:
+    with Session(engine) as session:
+        analise = session.get(AnaliseDB, analise_id)
+        if analise is not None:
+            analise.status_processamento = "ERRO"
+            analise.erro = mensagem
+            analise.concluido_em = agora_utc()
+            session.add(analise)
+            session.commit()
+
+
 def processar_analise(analise_id: str) -> None:
     """Roda o pipeline e grava o resultado. Executa fora do request (sessão própria)."""
     with Session(engine) as session:
@@ -275,15 +292,19 @@ def processar_analise(analise_id: str) -> None:
         from app.services.extrator import ErroExtracao
 
         # ErroExtracao já traz mensagem pronta para o usuário; o resto fica genérico.
-        mensagem = str(e) if isinstance(e, ErroExtracao) else "Não foi possível processar os documentos. Tente novamente."
-        with Session(engine) as session:
-            analise = session.get(AnaliseDB, analise_id)
-            if analise is not None:
-                analise.status_processamento = "ERRO"
-                analise.erro = mensagem
-                analise.concluido_em = agora_utc()
-                session.add(analise)
-                session.commit()
+        _marcar_erro(analise_id, str(e) if isinstance(e, ErroExtracao) else MENSAGEM_ERRO_GENERICA)
+        return
+
+    # Primeiro o MongoDB, depois o Postgres: nada fica CONCLUIDA sem o documento gravado.
+    try:
+        mongo.salvar(
+            analise_id,
+            resultado=retorno.resultado.model_dump(mode="json"),
+            extracoes={arquivo_id: extracao.model_dump(mode="json") for arquivo_id, extracao in retorno.extracoes.items()},
+        )
+    except Exception:
+        logger.exception("Falha ao gravar o resultado da análise %s no MongoDB", analise_id)
+        _marcar_erro(analise_id, MENSAGEM_ERRO_GENERICA)
         return
 
     with Session(engine) as session:
@@ -293,12 +314,12 @@ def processar_analise(analise_id: str) -> None:
         analise.status_processamento = "CONCLUIDA"
         analise.etapa = "FINALIZADO"
         analise.erro = None
-        analise.resultado_json = retorno.resultado.model_dump_json()
-        analise.extracoes_json = json.dumps(
-            {arquivo_id: extracao.model_dump(mode="json") for arquivo_id, extracao in retorno.extracoes.items()},
-            ensure_ascii=False,
-        )
-        analise.uso_json = retorno.uso.model_dump_json()
+        analise.status_resultado = retorno.resultado.status
+        analise.total_divergencias = len(retorno.resultado.divergencias)
+        analise.modelo = retorno.uso.modelo
+        analise.tokens_entrada = retorno.uso.input_tokens
+        analise.tokens_saida = retorno.uso.output_tokens
+        analise.custo_usd = retorno.uso.custo_usd_estimado
         analise.concluido_em = agora_utc()
         session.add(analise)
         session.commit()
@@ -332,7 +353,7 @@ def listar_analises(
             processo=a.processo,
             usuario_id=a.usuario_id,
             status_processamento=a.status_processamento,
-            status_resultado=resultado.status if (resultado := _ler_resultado(a)) else None,
+            status_resultado=a.status_resultado,
             qtd_arquivos=contagem.get(a.id, 0),
             criado_em=_utc(a.criado_em),
         )
@@ -343,7 +364,14 @@ def listar_analises(
 @router.get("/{analise_id}", response_model=Analise)
 def obter_analise(analise_id: str, session: SessionDep) -> Analise:
     analise = _buscar_analise(session, analise_id)
-    return _para_analise(analise, _arquivos_da_analise(session, analise_id))
+    documento = None
+    if analise.status_processamento == "CONCLUIDA":
+        try:
+            documento = mongo.ler(analise_id)
+        except PyMongoError:
+            logger.exception("MongoDB indisponível ao ler a análise %s", analise_id)
+            raise HTTPException(status_code=503, detail="Não foi possível ler o resultado agora. Tente novamente em instantes.") from None
+    return _para_analise(analise, _arquivos_da_analise(session, analise_id), documento)
 
 
 @router.get("/{analise_id}/arquivos/{arquivo_id}")

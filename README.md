@@ -2,13 +2,13 @@
 
 API que lê Invoice, Packing List e BL/AWB/CRT com a Claude API e aponta o que diverge entre eles. A tela fica em `CompararDocs-Frontend`.
 
-**Stack:** Python 3.12 · FastAPI · Postgres (SQLModel) · SDK `anthropic` · uv · pytest
+**Stack:** Python 3.12 · FastAPI · Postgres (SQLModel) · MongoDB · SDK `anthropic` · uv · pytest
 
 ## Rodar
 
 ```bash
 cp .env.example .env        # preencha ANTHROPIC_API_KEY
-docker compose up -d        # Postgres local
+docker compose up -d        # Postgres e MongoDB locais
 uv sync
 uv run fastapi dev app/main.py
 ```
@@ -22,7 +22,8 @@ Documentação interativa em http://localhost:8000/docs. Sem chave, sobe em **mo
 | `ANTHROPIC_API_KEY` | vazio | Chave da Anthropic. Sem ela, modo mock. |
 | `EXTRATOR_MODO` | `auto` | `auto`, `claude` ou `mock`. |
 | `MODELO_CLAUDE` | `claude-opus-5-5` | Modelo da leitura. |
-| `DATABASE_URL` | Postgres do `docker-compose.yaml` | Banco (`postgresql+psycopg://…`). |
+| `DATABASE_URL` | Postgres do `docker-compose.yaml` | Análises e arquivos (`postgresql+psycopg://…`). |
+| `MONGO_URL` / `MONGO_DB` | MongoDB do `docker-compose.yaml` / `comparardocs` | Extração e resultado de cada análise. |
 | `STORAGE_DIR` | `storage/` | Arquivos enviados. |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | Origens liberadas (JSON). |
 | `MAX_ARQUIVOS` / `MAX_TAMANHO_MB` | `20` / `32` | Limites por análise. |
@@ -44,7 +45,7 @@ Aceita PDF, JPG, PNG, `.docx` e `.xlsx`. Tipos de entrada e saída: `app/schemas
 1. Recebe os arquivos, salva e responde na hora.
 2. O Claude **só extrai** os dados, um arquivo por chamada.
 3. O Python normaliza e **compara**: pesos, volumes, quantidade, NCM, nº da invoice, PO, partes, portos, incoterm, moeda e itens.
-4. Grava o resultado (`OK`, `DIVERGENTE` ou `INCOMPLETO`), o que foi extraído e o custo.
+4. Grava a extração e o resultado no MongoDB e, no Postgres, o status (`OK`, `DIVERGENTE` ou `INCOMPLETO`), o total de divergências e o custo.
 
 ## Testes
 
@@ -58,7 +59,8 @@ uv run pytest -q    # não chama a API
 |---|---|
 | `app/main.py`, `app/config.py` | App e configuração. |
 | `app/routes/analises.py` | Endpoints e tarefa em segundo plano. |
-| `app/db.py`, `app/models.py` | Conexão e tabelas (criadas na subida). |
+| `app/db.py`, `app/models.py` | Postgres: conexão e tabelas (criadas na subida). |
+| `app/mongo.py` | MongoDB: um documento por análise, com o mesmo id do Postgres. |
 | `app/schemas.py` | Tipos da API, da extração e do resultado. |
 | `app/services/conversor.py` | Arquivo → conteúdo enviado ao Claude. |
 | `app/services/extrator.py`, `prompts.py` | Chamada à API e instruções. |

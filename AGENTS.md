@@ -16,6 +16,7 @@ uv run pytest -q
 - Exemplos do prompt (`prompts.py` e descrições em `schemas.py`) são inventados: nunca usar dados dos casos de teste.
 - Mudou prompt ou schema da extração, o acerto precisa ser medido de novo.
 - Servidor com um processo só (a leitura roda em segundo plano dentro dele).
+- Postgres só com colunas simples: nada de JSON. Extração e resultado vão para o MongoDB (`app/mongo.py`), com o mesmo id da análise; grava primeiro no Mongo, depois no Postgres.
 - As tabelas são criadas na subida (`app/db.py`). Isso só cria tabela nova: coluna nova em tabela que já existe precisa de `ALTER TABLE` no banco.
 
 ## Custo e dados
