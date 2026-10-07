@@ -7,20 +7,31 @@ import shutil
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, get_args
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from pymongo.errors import PyMongoError
 from pypdf import PdfReader
-from sqlmodel import Session, func, select
+from sqlalchemy import ColumnElement
+from sqlmodel import Session, col, func, select
 
 from app import mongo
 from app.config import settings
 from app.db import engine, get_session
 from app.models import AnaliseDB, ArquivoDB, agora_utc
-from app.schemas import Analise, AnaliseResumo, Arquivo, ArquivoEntrada, Modalidade, ResultadoComparacao, Uso
+from app.schemas import (
+    Analise,
+    AnaliseResumo,
+    Arquivo,
+    ArquivoEntrada,
+    FiltroLista,
+    ListaAnalises,
+    Modalidade,
+    ResultadoComparacao,
+    Uso,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -329,25 +340,67 @@ def processar_analise(analise_id: str) -> None:
 # Consultas
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=list[AnaliseResumo])
+def _condicoes_busca(usuario_id: str | None, q: str | None) -> list[ColumnElement[bool]]:
+    condicoes: list[ColumnElement[bool]] = []
+    if usuario_id:
+        condicoes.append(col(AnaliseDB.usuario_id) == usuario_id)
+    termo = (q or "").strip()
+    if termo:
+        # % e _ digitados pelo usuário são texto, não curinga
+        literal = termo.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        condicoes.append(col(AnaliseDB.processo).ilike(f"%{literal}%", escape="\\"))
+    return condicoes
+
+
+def _condicao_filtro(status: FiltroLista) -> ColumnElement[bool]:
+    if status in ("PROCESSANDO", "ERRO"):
+        return col(AnaliseDB.status_processamento) == status
+    return (col(AnaliseDB.status_processamento) == "CONCLUIDA") & (col(AnaliseDB.status_resultado) == status)
+
+
+def _contar_por_filtro(session: Session, condicoes: list[ColumnElement[bool]]) -> dict[FiltroLista, int]:
+    grupos = session.exec(
+        select(AnaliseDB.status_processamento, AnaliseDB.status_resultado, func.count())
+        .where(*condicoes)
+        .group_by(AnaliseDB.status_processamento, AnaliseDB.status_resultado)
+    ).all()
+    contagem: dict[FiltroLista, int] = dict.fromkeys(get_args(FiltroLista), 0)
+    for processamento, resultado, quantidade in grupos:
+        contagem["TODAS"] += quantidade
+        # concluída sem resultado (versão anterior) só entra em TODAS
+        filtro = resultado if processamento == "CONCLUIDA" else processamento
+        if filtro in contagem:
+            contagem[filtro] += quantidade
+    return contagem
+
+
+@router.get("", response_model=ListaAnalises)
 def listar_analises(
     session: SessionDep,
     usuario_id: str | None = None,
+    status: FiltroLista = "TODAS",
+    q: Annotated[str | None, Query(max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
-) -> list[AnaliseResumo]:
-    consulta = select(AnaliseDB).order_by(AnaliseDB.criado_em.desc()).limit(limit)
-    if usuario_id:
-        consulta = consulta.where(AnaliseDB.usuario_id == usuario_id)
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ListaAnalises:
+    condicoes = _condicoes_busca(usuario_id, q)
+    contagem = _contar_por_filtro(session, condicoes)
+
+    consulta = select(AnaliseDB).where(*condicoes)
+    if status != "TODAS":
+        consulta = consulta.where(_condicao_filtro(status))
+    # id desempata análises criadas no mesmo instante, para a paginação não repetir linha
+    consulta = consulta.order_by(col(AnaliseDB.criado_em).desc(), col(AnaliseDB.id).desc()).limit(limit).offset(offset)
     analises = session.exec(consulta).all()
 
     ids = [a.id for a in analises]
-    contagem: dict[str, int] = dict(
+    arquivos: dict[str, int] = dict(
         session.exec(
-            select(ArquivoDB.analise_id, func.count()).where(ArquivoDB.analise_id.in_(ids)).group_by(ArquivoDB.analise_id)
+            select(ArquivoDB.analise_id, func.count()).where(col(ArquivoDB.analise_id).in_(ids)).group_by(ArquivoDB.analise_id)
         ).all()
     ) if ids else {}
 
-    return [
+    itens = [
         AnaliseResumo(
             id=a.id,
             processo=a.processo,
@@ -357,11 +410,12 @@ def listar_analises(
             modalidade=a.modalidade,
             total_divergencias=a.total_divergencias,
             erro=a.erro,
-            qtd_arquivos=contagem.get(a.id, 0),
+            qtd_arquivos=arquivos.get(a.id, 0),
             criado_em=_utc(a.criado_em),
         )
         for a in analises
     ]
+    return ListaAnalises(itens=itens, contagem=contagem)
 
 
 @router.get("/{analise_id}", response_model=Analise)

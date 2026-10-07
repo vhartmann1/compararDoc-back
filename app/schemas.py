@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 StatusProcessamento = Literal["PROCESSANDO", "CONCLUIDA", "ERRO"]
 Etapa = Literal["RECEBIDO", "LENDO_DOCUMENTOS", "COMPARANDO", "FINALIZADO"]
 StatusResultado = Literal["OK", "DIVERGENTE", "INCOMPLETO"]
+# Filtro da listagem: resultado das concluídas, ou o andamento das que não concluíram.
+FiltroLista = Literal["TODAS", "OK", "DIVERGENTE", "INCOMPLETO", "PROCESSANDO", "ERRO"]
 StatusCampo = Literal["OK", "DIVERGENTE", "NAO_ENCONTRADO", "INSUFICIENTE"]
 # conhecimento = BL (marítimo), AWB (aéreo) ou CRT (rodoviário)
 TipoDocumento = Literal["invoice", "packing_list", "conhecimento"]
@@ -293,3 +295,11 @@ class AnaliseResumo(BaseModel):
     erro: str | None
     qtd_arquivos: int
     criado_em: datetime
+
+
+class ListaAnalises(BaseModel):
+    """Uma página da listagem."""
+
+    itens: list[AnaliseResumo]
+    # Quantas análises batem com a busca em cada filtro (não depende do filtro nem da página).
+    contagem: dict[FiltroLista, int]

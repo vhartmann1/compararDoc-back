@@ -34,7 +34,7 @@ Documentação interativa em http://localhost:8000/docs. Sem chave, sobe em **mo
 |---|---|
 | `GET /api/health` | Status e modo do extrator. |
 | `POST /api/analises` | Cria a análise (`multipart`: `arquivos`, `processo`, `modalidade`). Responde `202` e processa em segundo plano. |
-| `GET /api/analises` | Lista, mais recentes primeiro (`usuario_id`, `limit`). |
+| `GET /api/analises` | Lista paginada, mais recentes primeiro, com a contagem por filtro (`usuario_id`, `status`, `q`, `limit`, `offset`). |
 | `GET /api/analises/{id}` | Andamento, resultado, arquivos e custo. |
 | `GET /api/analises/{id}/arquivos/{arquivo_id}` | Arquivo original. |
 
