@@ -16,12 +16,12 @@ uv run pytest -q
 - Exemplos do prompt (`prompts.py` e descrições em `schemas.py`) são inventados: nunca usar dados dos casos de teste.
 - Mudou prompt ou schema da extração, o acerto precisa ser medido de novo.
 - Servidor com um processo só (a leitura roda em segundo plano dentro dele).
-- Coluna nova no banco entra em `_adicionar_colunas_novas()` (`app/db.py`).
+- As tabelas são criadas na subida (`app/db.py`). Isso só cria tabela nova: coluna nova em tabela que já existe precisa de `ALTER TABLE` no banco.
 
 ## Custo e dados
 
 - Chamada real à API gasta crédito: só com pedido explícito. Para desenvolver, `EXTRATOR_MODO=mock`.
-- `.env`, `data/` e `storage/` nunca vão para o git.
+- `.env` e `storage/` nunca vão para o git.
 - Dado de documento real (empresa, produto, nº de documento, endereço) não entra em código, teste, comentário ou log: usar dado inventado. O que só serve nesta máquina fica em `avaliacao/` e `tests/test_casos_reais.py`, fora do git.
 
 ## Convenções

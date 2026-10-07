@@ -1,8 +1,7 @@
 # segredos
 .env
 
-# dados locais: banco e documentos enviados (dados de clientes)
-data/
+# documentos enviados (dados de clientes)
 storage/
 
 # python

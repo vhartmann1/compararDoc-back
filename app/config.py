@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     modelo_claude: str = "claude-opus-5-5"
 
     storage_dir: Path = BASE_DIR / "storage"
-    database_url: str = f"sqlite:///{BASE_DIR / 'data' / 'app.db'}"
+    # padrão = Postgres local do docker-compose.yaml
+    database_url: str = "postgresql+psycopg://comparardocs:comparardocs@localhost:5432/comparardocs"
     cors_origins: list[str] = ["http://localhost:3000"]
 
     max_arquivos: int = 20

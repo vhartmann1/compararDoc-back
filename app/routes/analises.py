@@ -14,7 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTT
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from pypdf import PdfReader
-from sqlmodel import Session, func, select, text
+from sqlmodel import Session, func, select
 
 from app.config import settings
 from app.db import engine, get_session
@@ -54,7 +54,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 # ---------------------------------------------------------------------------
 
 def _utc(dt: datetime | None) -> datetime | None:
-    # SQLite não guarda fuso; tudo é gravado em UTC.
+    # Tudo é gravado em UTC; garante o fuso na resposta mesmo se o banco devolver sem.
     if dt is not None and dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)
     return dt
@@ -104,7 +104,7 @@ def _ler_uso(analise: AnaliseDB) -> Uso | None:
 
 
 def _arquivos_da_analise(session: Session, analise_id: str) -> list[ArquivoDB]:
-    return list(session.exec(select(ArquivoDB).where(ArquivoDB.analise_id == analise_id).order_by(text("arquivos.rowid"))).all())
+    return list(session.exec(select(ArquivoDB).where(ArquivoDB.analise_id == analise_id).order_by(ArquivoDB.ordem)).all())
 
 
 def _buscar_analise(session: Session, analise_id: str) -> AnaliseDB:
@@ -211,7 +211,7 @@ def criar_analise(
 
     registros: list[ArquivoDB] = []
     try:
-        for arquivo, (media_type, ext) in zip(arquivos, tipos, strict=True):
+        for ordem, (arquivo, (media_type, ext)) in enumerate(zip(arquivos, tipos, strict=True)):
             arquivo_id = str(uuid.uuid4())
             caminho = pasta / f"{arquivo_id}{ext}"
             tamanho = _salvar(arquivo, caminho)
@@ -219,6 +219,7 @@ def criar_analise(
                 ArquivoDB(
                     id=arquivo_id,
                     analise_id=analise.id,
+                    ordem=ordem,
                     nome=Path(arquivo.filename).name,
                     media_type=media_type,
                     tamanho_bytes=tamanho,
