@@ -9,10 +9,10 @@ API que lê Invoice, Packing List e BL/AWB/CRT com a Claude API e aponta o que d
 ```bash
 cp .env.example .env        # preencha ANTHROPIC_API_KEY
 uv sync
-uv run fastapi dev app/main.py --port 8001
+uv run fastapi dev app/main.py
 ```
 
-Documentação interativa em http://localhost:8001/docs. Sem chave, sobe em **modo mock** (valores fixos, sem custo).
+Documentação interativa em http://localhost:8000/docs. Sem chave, sobe em **modo mock** (valores fixos, sem custo).
 
 ## Configuração (`.env`)
 
@@ -23,7 +23,7 @@ Documentação interativa em http://localhost:8001/docs. Sem chave, sobe em **mo
 | `MODELO_CLAUDE` | `claude-opus-5-5` | Modelo da leitura. |
 | `DATABASE_URL` | `sqlite:///…/data/app.db` | Banco. |
 | `STORAGE_DIR` | `storage/` | Arquivos enviados. |
-| `CORS_ORIGINS` | `["http://localhost:3100"]` | Origens liberadas (JSON). |
+| `CORS_ORIGINS` | `["http://localhost:3000"]` | Origens liberadas (JSON). |
 | `MAX_ARQUIVOS` / `MAX_TAMANHO_MB` | `20` / `32` | Limites por análise. |
 
 ## Endpoints

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     storage_dir: Path = BASE_DIR / "storage"
     database_url: str = f"sqlite:///{BASE_DIR / 'data' / 'app.db'}"
-    cors_origins: list[str] = ["http://localhost:3100"]
+    cors_origins: list[str] = ["http://localhost:3000"]
 
     max_arquivos: int = 20
     max_tamanho_mb: int = 32
