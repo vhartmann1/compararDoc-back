@@ -1,0 +1,364 @@
+"""Normalização determinística: pesos -> KG, NCM/HS, números de documento, nomes, portos e formatação BR."""
+
+import difflib
+import re
+import unicodedata
+
+from app.schemas import Medida
+
+KG_POR_UNIDADE: dict[str, float] = {
+    "KG": 1.0,
+    "LB": 0.45359237,
+    "MT": 1000.0,
+    "TON": 1000.0,
+    "G": 0.001,
+}
+
+# Unidades de quantidade equivalentes: unidade -> (unidade canônica, fator)
+UNIDADES_QUANTIDADE: dict[str, tuple[str, float]] = {
+    **dict.fromkeys(["PAR", "PARES", "PAIR", "PAIRS", "PRS", "PR", "PRS."], ("PARES", 1.0)),
+    **dict.fromkeys(["KG", "KGS", "KILO", "KILOS", "QUILO", "QUILOS"], ("KG", 1.0)),
+    **dict.fromkeys(
+        ["TON", "TONS", "TONELADA", "TONELADAS", "TONNE", "TONNES", "MT", "TO", "TNE", "T", "TM"], ("KG", 1000.0)
+    ),
+    **dict.fromkeys(["LB", "LBS", "POUND", "POUNDS"], ("KG", 0.45359237)),
+    **dict.fromkeys(
+        ["PC", "PCS", "PIECE", "PIECES", "UN", "UND", "UNID", "UNIDADE", "UNIDADES", "UNIT", "UNITS",
+         "PECA", "PECAS", "PZA", "PIEZAS", "EA", "EACH"],
+        ("PECAS", 1.0),
+    ),
+    **dict.fromkeys(["BAG", "BAGS", "SACO", "SACOS", "BOLSA", "BOLSAS", "SACA", "SACAS"], ("SACOS", 1.0)),
+    **dict.fromkeys(["L", "LT", "LTS", "LITRO", "LITROS", "LITER", "LITERS", "LITRE", "LITRES"], ("L", 1.0)),
+    **dict.fromkeys(["M", "MTR", "MTRS", "METRO", "METROS", "METER", "METERS"], ("M", 1.0)),
+    **dict.fromkeys(["M2", "SQM", "METRO QUADRADO", "METROS QUADRADOS"], ("M2", 1.0)),
+    **dict.fromkeys(["DZ", "DOZ", "DUZIA", "DUZIAS", "DOZEN", "DOZENS"], ("PECAS", 12.0)),
+}
+
+# Palavras ignoradas ao comparar razões sociais.
+SUFIXOS_EMPRESA = {
+    "LTD", "LTDA", "CO", "SAS", "SA", "INC", "LIMITED", "IMPORTACAO", "EXPORTACAO", "COMERCIO",
+    "E", "DE", "DA", "DO", "AND", "THE", "EIRELI", "ME", "EPP", "CORP", "LLC", "GMBH", "SRL",
+}
+SIMILARIDADE_MINIMA_NOME = 0.85
+
+PALAVRAS_PORTO = {"PORT", "PORTO", "PUERTO", "AIRPORT", "AEROPORTO", "AEROPUERTO", "OF", "DE", "DO", "DA"}
+# Sufixos de UF/país depois do nome da cidade, ex.: "NAVEGANTES SC BRASIL"
+SUFIXOS_LOCAL = {
+    "BRASIL", "BRAZIL", "BR", "CHINA", "CN", "PRC", "COLOMBIA", "CO", "USA", "US", "INDIA", "IN",
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR",
+    "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+}
+
+
+# ---------------------------------------------------------------------------
+# Pesos e números
+# ---------------------------------------------------------------------------
+
+def para_kg(medida: Medida) -> float | None:
+    """Converte a medida para KG. Unidade desconhecida ("OUTRA") => None."""
+    fator = KG_POR_UNIDADE.get(medida.unidade)
+    if fator is None:
+        return None
+    return round(medida.valor * fator, 3)
+
+
+def interpretar_numero(texto: str) -> float:
+    """Lê números em formato americano ou brasileiro: '27,200.00', '27.200,00', '46737', '1.234'.
+
+    Com '.' e ',' juntos, o que aparece por último é o decimal. Com um só tipo de separador,
+    ele é milhar se repetir ou se tiver exatamente 3 dígitos depois; senão é decimal.
+    Útil para correção manual de valores digitados pelo analista.
+    """
+    limpo = re.sub(r"[^\d.,]", "", texto)
+    if not limpo or not re.search(r"\d", limpo):
+        raise ValueError(f"Número inválido: {texto!r}")
+
+    tem_ponto, tem_virgula = "." in limpo, "," in limpo
+    if tem_ponto and tem_virgula:
+        decimal = "." if limpo.rfind(".") > limpo.rfind(",") else ","
+        milhar = "," if decimal == "." else "."
+        return float(limpo.replace(milhar, "").replace(decimal, "."))
+
+    separador = "." if tem_ponto else "," if tem_virgula else None
+    if separador is None:
+        return float(limpo)
+    partes = limpo.split(separador)
+    if len(partes) > 2 or len(partes[-1]) == 3:
+        return float(limpo.replace(separador, ""))  # separador de milhar
+    return float(limpo.replace(separador, "."))
+
+
+def unidade_quantidade(unidade: str) -> tuple[str, float]:
+    """'PAIRS' -> ('PARES', 1.0); 'TON' -> ('KG', 1000.0). Desconhecida -> (unidade normalizada, 1.0)."""
+    chave = " ".join(re.sub(r"[^A-Z0-9 ]", " ", sem_acento(unidade).upper()).split())
+    if chave in UNIDADES_QUANTIDADE:
+        return UNIDADES_QUANTIDADE[chave]
+    sem_ponto = chave.replace(" ", "")
+    if sem_ponto in UNIDADES_QUANTIDADE:
+        return UNIDADES_QUANTIDADE[sem_ponto]
+    return chave, 1.0
+
+
+# ---------------------------------------------------------------------------
+# NCM / HS
+# ---------------------------------------------------------------------------
+
+def so_digitos(codigo: str) -> str:
+    return re.sub(r"\D", "", codigo)
+
+
+def normalizar_ncm(codigo: str) -> str:
+    """Só dígitos, no máximo 8 (códigos nacionais de 10 dígitos, ex. Colômbia, viram NCM de 8)."""
+    return so_digitos(codigo)[:8]
+
+
+# ---------------------------------------------------------------------------
+# Textos
+# ---------------------------------------------------------------------------
+
+def sem_acento(texto: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c))
+
+
+def normalizar_numero_documento(numero: str) -> str:
+    """'0077032707' -> '77032707'; 'inv-2026/01' -> 'INV202601'. Só letras e dígitos, sem zeros à esquerda."""
+    limpo = re.sub(r"[^A-Z0-9]", "", sem_acento(numero).upper())
+    return limpo.lstrip("0") or limpo
+
+
+def normalizar_po(po: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", sem_acento(po).upper())
+
+
+def normalizar_nome_empresa(nome: str) -> str:
+    """'Capital Trade Importação e Exportação Ltda.' -> 'CAPITAL TRADE'."""
+    texto = re.sub(r"[^A-Z0-9 ]", " ", sem_acento(nome).upper().replace(".", ""))
+    return " ".join(p for p in texto.split() if p not in SUFIXOS_EMPRESA)
+
+
+def nomes_equivalentes(a: str, b: str) -> bool:
+    """Similaridade >= 0,85 (difflib) entre os nomes normalizados.
+
+    Também aceita quando um nome (sem espaços) começa com o outro — cobre sufixos colados por erro
+    de digitação, ex. 'CAPITAL TRADE IMPORTACAO EEXPORTACAO'.
+    """
+    na, nb = normalizar_nome_empresa(a), normalizar_nome_empresa(b)
+    if not na or not nb:
+        return na == nb
+    if difflib.SequenceMatcher(None, na, nb).ratio() >= SIMILARIDADE_MINIMA_NOME:
+        return True
+    ca, cb = na.replace(" ", ""), nb.replace(" ", "")
+    curto, longo = sorted((ca, cb), key=len)
+    return len(curto) >= 6 and longo.startswith(curto)
+
+
+def normalizar_porto(nome: str) -> str:
+    """'Port of Navegantes - SC, Brazil' -> 'NAVEGANTES'."""
+    texto = sem_acento(nome).upper()
+    texto = re.sub(r"\(.*?\)", " ", texto)  # 'SHEKOU (CHINA)'
+    texto = re.split(r",|/| - ", texto)[0]  # 'NAVEGANTES, SC' / 'NAVEGANTES - SC'
+    palavras = [p for p in re.sub(r"[^A-Z0-9 ]", " ", texto).split() if p not in PALAVRAS_PORTO]
+    while len(palavras) > 1 and palavras[-1] in SUFIXOS_LOCAL:
+        palavras.pop()
+    return " ".join(palavras)
+
+
+def normalizar_cnpj(cnpj: str | None) -> str | None:
+    digitos = so_digitos(cnpj or "")
+    return digitos or None
+
+
+# ---------------------------------------------------------------------------
+# Formatação BR
+# ---------------------------------------------------------------------------
+
+def formatar_numero(valor: float, casas: int = 2) -> str:
+    """21250 -> '21.250,00'."""
+    texto = f"{valor:,.{casas}f}"
+    return texto.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def formatar_kg(valor: float) -> str:
+    """21250.0 -> '21.250,00 kg'."""
+    return f"{formatar_numero(valor)} kg"
+
+
+def formatar_contagem(valor: float, unidade: str) -> str:
+    """53, 'CTN' -> '53 CTN'; 24.5, 'TON' -> '24,5 TON'."""
+    if float(valor).is_integer():
+        numero = formatar_numero(valor, 0)
+    else:
+        numero = formatar_numero(valor, 3).rstrip("0").rstrip(",")
+    return f"{numero} {unidade}".strip()
+
+
+def formatar_ncm(codigo: str) -> str:
+    """'39011010' -> '3901.10.10'; '390110' -> '3901.10'; '3304' -> '3304'."""
+    partes = [codigo[:4], codigo[4:6], codigo[6:8]]
+    return ".".join(p for p in partes if p)
+
+
+def formatar_cnpj(cnpj: str) -> str:
+    """14 dígitos -> '12.345.678/0001-90'; outros tamanhos ficam como vieram."""
+    d = so_digitos(cnpj)
+    if len(d) != 14:
+        return cnpj.strip()
+    return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
+
+
+# ---------------------------------------------------------------------------
+# v3: endereço, país, moeda, incoterm, itens
+# ---------------------------------------------------------------------------
+
+SIMILARIDADE_MINIMA_ENDERECO = 0.80
+SIMILARIDADE_MINIMA_DESCRICAO = 0.85
+SIMILARIDADE_MINIMA_CASAMENTO = 0.80  # casar itens sem código pela descrição
+
+# País normalizado -> código ISO de 2 letras (sinônimos comuns em documentos de comércio exterior)
+PAISES: dict[str, str] = {
+    **dict.fromkeys(["CHINA", "PRC", "CN", "CHN", "P R CHINA", "PR CHINA", "PEOPLES REPUBLIC OF CHINA",
+                     "PEOPLE S REPUBLIC OF CHINA", "REPUBLICA POPULAR DA CHINA"], "CN"),
+    **dict.fromkeys(["KOREA", "SOUTH KOREA", "REPUBLIC OF KOREA", "KOREA REPUBLIC OF", "KR", "KOR",
+                     "COREIA", "COREIA DO SUL", "COREA", "COREA DEL SUR", "ROK"], "KR"),
+    **dict.fromkeys(["BRAZIL", "BRASIL", "BR", "BRA"], "BR"),
+    **dict.fromkeys(["COLOMBIA", "CO", "COL"], "CO"),
+    **dict.fromkeys(["USA", "US", "UNITED STATES", "UNITED STATES OF AMERICA", "ESTADOS UNIDOS", "EUA"], "US"),
+    **dict.fromkeys(["INDIA", "IN", "IND"], "IN"),
+    **dict.fromkeys(["JAPAN", "JAPAO", "JAPON", "JP", "JPN"], "JP"),
+    **dict.fromkeys(["TAIWAN", "TW", "TWN", "CHINESE TAIPEI"], "TW"),
+    **dict.fromkeys(["HONG KONG", "HK", "HKG"], "HK"),
+    **dict.fromkeys(["VIETNAM", "VIET NAM", "VN", "VNM"], "VN"),
+    **dict.fromkeys(["GERMANY", "ALEMANHA", "ALEMANIA", "DE", "DEU"], "DE"),
+    **dict.fromkeys(["ITALY", "ITALIA", "IT", "ITA"], "IT"),
+    **dict.fromkeys(["SPAIN", "ESPANHA", "ESPANA", "ES", "ESP"], "ES"),
+    **dict.fromkeys(["ARGENTINA", "AR", "ARG"], "AR"),
+    **dict.fromkeys(["CHILE", "CL", "CHL"], "CL"),
+    **dict.fromkeys(["MEXICO", "MX", "MEX"], "MX"),
+    **dict.fromkeys(["PERU", "PE", "PER"], "PE"),
+    **dict.fromkeys(["THAILAND", "TAILANDIA", "TH", "THA"], "TH"),
+    **dict.fromkeys(["INDONESIA", "ID", "IDN"], "ID"),
+    **dict.fromkeys(["MALAYSIA", "MALASIA", "MY", "MYS"], "MY"),
+    **dict.fromkeys(["TURKEY", "TURKIYE", "TURQUIA", "TR", "TUR"], "TR"),
+}
+
+MOEDAS: dict[str, str] = {
+    **dict.fromkeys(["USD", "US$", "U$", "$", "US DOLLAR", "US DOLLARS", "DOLLAR", "DOLLARS", "DOLAR", "DOLARES"], "USD"),
+    **dict.fromkeys(["EUR", "€", "EURO", "EUROS"], "EUR"),
+    **dict.fromkeys(["CNY", "RMB", "YUAN"], "CNY"),
+    **dict.fromkeys(["BRL", "R$", "REAL", "REAIS"], "BRL"),
+}
+
+
+def _so_letras_numeros(texto: str) -> str:
+    return " ".join(re.sub(r"[^A-Z0-9 ]", " ", sem_acento(texto).upper()).split())
+
+
+def normalizar_pais(pais: str) -> str:
+    """'South Korea' / 'KR' / 'Republic of Korea' -> 'KR'; desconhecido -> texto normalizado."""
+    chave = _so_letras_numeros(pais)
+    if chave.startswith("THE "):
+        chave = chave[4:]
+    return PAISES.get(chave, chave)
+
+
+def normalizar_moeda(moeda: str) -> str:
+    texto = sem_acento(moeda).upper().strip()
+    return MOEDAS.get(texto, MOEDAS.get(_so_letras_numeros(texto), _so_letras_numeros(texto)))
+
+
+def normalizar_endereco(endereco: str) -> str:
+    return _so_letras_numeros(endereco.replace(".", ""))
+
+
+def enderecos_equivalentes(a: str, b: str) -> bool:
+    na, nb = normalizar_endereco(a), normalizar_endereco(b)
+    return difflib.SequenceMatcher(None, na, nb).ratio() >= SIMILARIDADE_MINIMA_ENDERECO
+
+
+def normalizar_cidade(cidade: str) -> str:
+    """'Gyeonggi-do' -> 'GYEONGGIDO'; 'Bogotá, D.C.' -> 'BOGOTADC'."""
+    return re.sub(r"[^A-Z0-9]", "", sem_acento(cidade).upper())
+
+
+def cidades_compativeis(cidade_a: str, endereco_a: str, cidade_b: str, endereco_b: str) -> bool:
+    """Mesma cidade, uma contida na outra ('BOGOTA' × 'BOGOTA D.C.') ou a cidade de um aparece no endereço
+    do outro (um documento pode dar a cidade e outro a província: 'HWASEONG-SI' × 'GYEONGGI-DO')."""
+    ca, cb = normalizar_cidade(cidade_a), normalizar_cidade(cidade_b)
+    if not ca or not cb or ca in cb or cb in ca:
+        return True
+    return ca in normalizar_cidade(endereco_b) or cb in normalizar_cidade(endereco_a)
+
+
+def enderecos_compativeis(a: tuple[str, str | None], b: tuple[str, str | None]) -> bool:
+    """(endereço, cidade): cidades diferentes => divergem, mesmo com texto parecido; senão similaridade."""
+    (texto_a, cidade_a), (texto_b, cidade_b) = a, b
+    if cidade_a and cidade_b and not cidades_compativeis(cidade_a, texto_a, cidade_b, texto_b):
+        return False
+    return enderecos_equivalentes(texto_a, texto_b)
+
+
+def normalizar_incoterm(codigo: str) -> str:
+    """'fob' / 'FOB 2020' / 'CFR-ITAPOA' -> 'FOB' / 'CFR' (as 3 primeiras letras)."""
+    letras = re.sub(r"[^A-Z]", "", sem_acento(codigo).upper())
+    return letras[:3]
+
+
+def normalizar_codigo_item(codigo: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", sem_acento(codigo).upper())
+
+
+def normalizar_lote(lote: str) -> str:
+    """'#LT2031C14-E' -> 'LT2031C14E'."""
+    return re.sub(r"[\s#\-]", "", sem_acento(lote).upper())
+
+
+def normalizar_validade(validade: str) -> str:
+    """'Exp 11/2025' -> '11/2025'; 'Exp 03/29' -> '03/2029'; '20/02/2026' -> '02/2026'; '2026-02-20' -> '02/2026'."""
+    texto = sem_acento(validade).upper()
+
+    def ano(a: str) -> str:
+        return a if len(a) == 4 else f"20{a.zfill(2)}"
+
+    if m := re.search(r"\b(\d{4})[/.\-](\d{1,2})(?:[/.\-]\d{1,2})?\b", texto):
+        return f"{int(m.group(2)):02d}/{m.group(1)}"
+    if m := re.search(r"\b\d{1,2}[/.\-](\d{1,2})[/.\-](\d{2}|\d{4})\b", texto):
+        return f"{int(m.group(1)):02d}/{ano(m.group(2))}"
+    if m := re.search(r"\b(\d{1,2})[/.\-](\d{2}|\d{4})\b", texto):
+        return f"{int(m.group(1)):02d}/{ano(m.group(2))}"
+    return _so_letras_numeros(texto)
+
+
+def normalizar_descricao(descricao: str) -> str:
+    return _so_letras_numeros(descricao)
+
+
+def normalizar_referencia(referencia: str) -> str:
+    """'Polirex ZK-455' -> 'POLIREXZK455'."""
+    return re.sub(r"[^A-Z0-9]", "", sem_acento(referencia).upper())
+
+
+def referencias_iguais(a: str, b: str) -> bool:
+    """Exatas após normalizar ('POLIREX YK 455' × 'POLIREX ZK 455' diferem). Tolera só a omissão de
+    palavras inteiras, como a marca ('ZK 455' × 'POLIREX ZK 455'); 'TRAIL-MAX 10' × 'TRAIL-MAX 100' diferem."""
+    if normalizar_referencia(a) == normalizar_referencia(b):
+        return True
+    pa, pb = set(_so_letras_numeros(a).split()), set(_so_letras_numeros(b).split())
+    return bool(pa and pb) and (pa <= pb or pb <= pa)
+
+
+def similaridade(a: str, b: str) -> float:
+    return difflib.SequenceMatcher(None, a, b).ratio()
+
+
+def descricoes_equivalentes(a: str, b: str) -> bool:
+    """Similaridade >= 0,85 após normalizar, ou uma descrição contida na outra (PL costuma abreviar)."""
+    na, nb = normalizar_descricao(a), normalizar_descricao(b)
+    if not na or not nb:
+        return na == nb
+    curto, longo = sorted((na, nb), key=len)
+    return similaridade(na, nb) >= SIMILARIDADE_MINIMA_DESCRICAO or (len(curto) >= 8 and curto in longo)
+
+
+def formatar_dinheiro(valor: float, moeda: str | None) -> str:
+    """720, 'USD' -> 'USD 720,00'."""
+    return f"{moeda} {formatar_numero(valor)}" if moeda else formatar_numero(valor)

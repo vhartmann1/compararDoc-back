@@ -1,0 +1,202 @@
+import pytest
+
+from app.schemas import Medida
+from app.services.normalizacao import (
+    enderecos_compativeis,
+    referencias_iguais,
+    formatar_cnpj,
+    formatar_contagem,
+    formatar_kg,
+    formatar_ncm,
+    interpretar_numero,
+    nomes_equivalentes,
+    normalizar_ncm,
+    normalizar_nome_empresa,
+    normalizar_numero_documento,
+    normalizar_po,
+    normalizar_porto,
+    para_kg,
+    so_digitos,
+    unidade_quantidade,
+)
+
+
+def medida(valor, unidade):
+    return Medida(valor=valor, unidade=unidade, texto_original=f"{valor} {unidade}", pagina=1)
+
+
+@pytest.mark.parametrize(
+    ("valor", "unidade", "esperado"),
+    [
+        (21200, "KG", 21200.0),
+        (46737, "LB", 21199.547),
+        (21.2, "MT", 21200.0),
+        (21.2, "TON", 21200.0),
+        (500, "G", 0.5),
+    ],
+)
+def test_para_kg(valor, unidade, esperado):
+    assert para_kg(medida(valor, unidade)) == pytest.approx(esperado, abs=0.001)
+
+
+def test_unidade_desconhecida_nao_converte():
+    assert para_kg(medida(10, "OUTRA")) is None
+
+
+@pytest.mark.parametrize(
+    ("texto", "esperado"),
+    [
+        ("27,200.00", 27200.0),
+        ("27.200,00", 27200.0),
+        ("46,737.000 LBS", 46737.0),
+        ("1.234.567,8", 1234567.8),
+        ("1,234,567", 1234567.0),
+        ("27.200", 27200.0),
+        ("27,5", 27.5),
+        ("27.5", 27.5),
+        ("46737", 46737.0),
+    ],
+)
+def test_interpretar_numero(texto, esperado):
+    assert interpretar_numero(texto) == esperado
+
+
+def test_interpretar_numero_invalido():
+    with pytest.raises(ValueError):
+        interpretar_numero("N/A")
+
+
+def test_ncm():
+    assert so_digitos("HS CODE 3901.10") == "390110"
+    assert normalizar_ncm("3901.10.10") == "39011010"
+    assert normalizar_ncm("39.04.10.20.00") == "39041020"  # código nacional de 10 dígitos
+    assert normalizar_ncm("NCM NO6402.19.00") == "64021900"
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [("PAIRS", "PRS"), ("pares", "PAIR"), ("TON", "MT"), ("PCS", "UNITS"), ("BAGS", "bolsas")],
+)
+def test_unidades_quantidade_equivalentes(a, b):
+    assert unidade_quantidade(a) == unidade_quantidade(b)
+
+
+def test_unidade_quantidade_conversao():
+    assert unidade_quantidade("TO") == ("KG", 1000.0)
+    assert unidade_quantidade("PAIRS")[0] != unidade_quantidade("PCS")[0]
+    assert unidade_quantidade("ROLLS") == ("ROLLS", 1.0)
+
+
+def test_numero_documento_e_po():
+    assert normalizar_numero_documento("0077032707") == "77032707"
+    assert normalizar_numero_documento("0070023077") == normalizar_numero_documento("70023077")
+    assert normalizar_numero_documento("ktr-273938/03") == "KTR27393803"
+    assert normalizar_po("246731-01") == "24673101"
+    assert normalizar_po(" hbpx 41357 ") == "HBPX41357"
+
+
+def test_nome_empresa():
+    assert normalizar_nome_empresa("Capital Trade Importação e Exportação Ltda.") == "CAPITAL TRADE"
+    assert normalizar_nome_empresa("SERRANA POLÍMEROS S.A.S.") == "SERRANA POLIMEROS"
+    assert nomes_equivalentes("Aurora Silk Co.", "AURORA SILK CO.")
+    assert nomes_equivalentes("CAPITAL TRADE IMPORTACAO EEXPORTACAO LTDA", "Capital Trade Importação e Exportação Ltda.")
+    assert nomes_equivalentes("Delta Fast-Run Footwear Ltd.", "DELTA FAST RUN FOOTWEAR LIMITED")
+    assert not nomes_equivalentes("Orion Pacific Trading Co., Ltd.", "Delta Fast-Run Footwear Ltd.")
+    assert not nomes_equivalentes("Capital Trade", "Plastnorte Distribuidora de Resinas")
+
+
+@pytest.mark.parametrize(
+    ("texto", "esperado"),
+    [
+        ("NAVEGANTES - SC BRASIL", "NAVEGANTES"),
+        ("Navegantes, Brazil", "NAVEGANTES"),
+        ("Port of Navegantes", "NAVEGANTES"),
+        ("Itapoá - SC", "ITAPOA"),
+        ("BEIJIN AIRPORT", "BEIJIN"),
+        ("Shekou (China)", "SHEKOU"),
+        ("Aeroporto de Viracopos", "VIRACOPOS"),
+        ("CARTAGENA - COLOMBIA", "CARTAGENA"),
+    ],
+)
+def test_porto(texto, esperado):
+    assert normalizar_porto(texto) == esperado
+
+
+def test_formatacao_br():
+    assert formatar_kg(21250) == "21.250,00 kg"
+    assert formatar_kg(0.5) == "0,50 kg"
+    assert formatar_ncm("39011010") == "3901.10.10"
+    assert formatar_ncm("390110") == "3901.10"
+    assert formatar_contagem(53, "CTN") == "53 CTN"
+    assert formatar_contagem(1500, "PCS") == "1.500 PCS"
+    assert formatar_contagem(24.5, "TON") == "24,5 TON"
+    assert formatar_cnpj("12345678000190") == "12.345.678/0001-90"
+
+
+# v3 ------------------------------------------------------------------------
+
+from app.services.normalizacao import (  # noqa: E402
+    descricoes_equivalentes,
+    enderecos_equivalentes,
+    normalizar_incoterm,
+    normalizar_lote,
+    normalizar_moeda,
+    normalizar_pais,
+    normalizar_validade,
+)
+
+
+@pytest.mark.parametrize(
+    ("texto", "esperado"),
+    [("Exp 11/2025", "11/2025"), ("Exp 03/29", "03/2029"), ("Exp 09/28 N", "09/2028"), ("20/02/2026", "02/2026"),
+     ("2026-02-20", "02/2026"), ("EXP 01/2029", "01/2029")],
+)
+def test_normalizar_validade(texto, esperado):
+    assert normalizar_validade(texto) == esperado
+
+
+def test_pais_moeda_incoterm_lote():
+    assert normalizar_pais("South Korea") == normalizar_pais("KR") == normalizar_pais("REPUBLIC OF KOREA") == "KR"
+    assert normalizar_pais("P.R. China") == normalizar_pais("CHINA") == "CN"
+    assert normalizar_moeda("€") == normalizar_moeda("euros") == "EUR"
+    assert normalizar_moeda("US$") == "USD"
+    assert normalizar_incoterm("Fob") == "FOB"
+    assert normalizar_incoterm("CFR-ITAPOA") == "CFR"
+    assert normalizar_lote("#LT2031C14-E") == normalizar_lote("LT2031 C14E")
+
+
+def test_descricao_e_endereco():
+    assert descricoes_equivalentes("POLIREX YK 455", "POLIREX YK 455 / 25 kg SA PVC RESIN")
+    assert not descricoes_equivalentes("POLIRMX HD 475 / 25 kg SA", "POLIREX YK 455")
+    assert enderecos_equivalentes("Calle 10 #20-30, Bogotá", "CALLE 10 20-30 BOGOTA")
+    assert not enderecos_equivalentes("Room 804, Hangzhou, Zhejiang", "Rua das Flores 100, Itajaí")
+
+
+@pytest.mark.parametrize(
+    ("a", "b", "esperado"),
+    [
+        (("Pudong New District, Shanghai, 200120, China", "Shanghai"),
+         ("Pudong New District, Gyeonggi-do, South Korea", "GYEONGGI-DO"), False),
+        (("Calle 10 #20-30, Bogotá D.C., Colombia", "BOGOTÁ, D.C."), ("CALLE 10 #20-30 BOGOTA COLOMBIA", "Bogota"), True),
+        (("1 Jungang-ro, Hwaseong-si, Gyeonggi-do", "HWASEONG-SI"), ("1 Jungang-ro, Hwaseong-si, Gyeonggi-do", "GYEONGGI-DO"), True),
+        (("Rua A, 10 - Seoul", None), ("RUA A 10, SEOUL", "SEOUL"), True),
+        (("Rua A, 10 - Seoul", None), ("Av. Paulista 1000, São Paulo", None), False),
+    ],
+)
+def test_enderecos_compativeis(a, b, esperado):
+    assert enderecos_compativeis(a, b) is esperado
+
+
+@pytest.mark.parametrize(
+    ("a", "b", "esperado"),
+    [
+        ("POLIREX ZK 455", "Polirex ZK-455", True),
+        ("POLIREX ZK 455", "POLIREX YK 455", False),
+        ("ZK 455", "POLIREX ZK 455", True),
+        ("Trail-Max 10", "TRAIL MAX 10", True),
+        ("Trail-Max 10", "Trail-Max 100", False),
+        ("Wind-Ride 500", "Wind-Ride 50O", False),
+    ],
+)
+def test_referencias_iguais(a, b, esperado):
+    assert referencias_iguais(a, b) is esperado

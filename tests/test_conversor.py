@@ -1,0 +1,132 @@
+"""Conversão de Word/Excel em blocos de conteúdo (sem chamar a API)."""
+
+import base64
+import io
+import zipfile
+from pathlib import Path
+
+import pytest
+from PIL import Image
+
+from app.schemas import ArquivoEntrada
+from app.services.conversor import (
+    MEDIA_DOCX,
+    MEDIA_XLSX,
+    ROTULO_FUNDO,
+    ErroConversao,
+    converter,
+)
+
+
+def entrada(caminho: Path, media_type: str | None = None) -> ArquivoEntrada:
+    media_type = media_type or (MEDIA_DOCX if caminho.suffix == ".docx" else MEDIA_XLSX)
+    return ArquivoEntrada(id="x", nome=caminho.name, caminho=caminho, media_type=media_type)
+
+
+def textos(blocos):
+    return "\n".join(b["text"] for b in blocos if b["type"] == "text")
+
+
+def imagens(blocos):
+    return [b for b in blocos if b["type"] == "image"]
+
+
+def test_imagem_grande_e_reduzida(tmp_path):
+    caminho = tmp_path / "grande.png"
+    Image.new("RGB", (5000, 3000), "white").save(caminho)
+    (bloco,) = converter(entrada(caminho, "image/png"))
+    with Image.open(io.BytesIO(base64.b64decode(bloco["source"]["data"]))) as img:
+        assert img.size == (2576, 1546)
+
+
+def test_tipo_nao_suportado(tmp_path):
+    caminho = tmp_path / "a.doc"
+    caminho.write_bytes(b"x")
+    with pytest.raises(ErroConversao, match="não suportado"):
+        converter(entrada(caminho, "application/msword"))
+
+
+def _docx_com_imagem(tmp_path, texto: str, ancora: str) -> Path:
+    """Word mínimo com uma imagem 600×800 ancorada como indicado e outra sobrando em word/media."""
+    from docx import Document
+
+    caminho = tmp_path / "a.docx"
+    doc = Document()
+    doc.add_paragraph(texto)
+    png = io.BytesIO()
+    Image.new("RGB", (600, 800), "gray").save(png, format="PNG")
+    png.seek(0)
+    doc.add_picture(png)
+    doc.save(caminho)
+    with zipfile.ZipFile(caminho) as z:
+        partes = {n: z.read(n) for n in z.namelist()}
+    xml = partes["word/document.xml"].decode()
+    if ancora == "fundo":  # inline -> anchor atrás do texto, página quase inteira
+        inicio, fim = xml.index("<wp:inline"), xml.index("</wp:inline>") + len("</wp:inline>")
+        miolo = xml[inicio:fim].replace("<wp:inline", '<wp:anchor behindDoc="1"', 1).replace("</wp:inline>", "</wp:anchor>")
+        miolo = __import__("re").sub(r'<wp:extent cx="\d+" cy="\d+"/>', '<wp:extent cx="6800000" cy="9600000"/>', miolo)
+        xml = xml[:inicio] + miolo + xml[fim:]
+    partes["word/document.xml"] = xml.encode()
+    sobra = io.BytesIO()
+    Image.new("RGB", (500, 500), "red").save(sobra, format="PNG")
+    partes["word/media/sobra.png"] = sobra.getvalue()
+    with zipfile.ZipFile(caminho, "w") as z:
+        for n, dados in partes.items():
+            z.writestr(n, dados)
+    return caminho
+
+
+def test_docx_imagem_nao_referenciada_fica_de_fora(tmp_path):
+    caminho = _docx_com_imagem(tmp_path, "curto", "normal")
+    assert len(imagens(converter(entrada(caminho)))) == 1
+
+
+def test_docx_fundo_vai_rotulado(tmp_path):
+    caminho = _docx_com_imagem(tmp_path, "BILL OF LADING " * 30, "fundo")
+    blocos = converter(entrada(caminho))
+    assert len(imagens(blocos)) == 1 and ROTULO_FUNDO.format(nome="a.docx") in textos(blocos)
+
+
+def test_docx_imagem_normal_sem_rotulo_de_fundo(tmp_path):
+    caminho = _docx_com_imagem(tmp_path, "curto", "normal")
+    blocos = converter(entrada(caminho))
+    assert "FUNDO" not in textos(blocos)
+
+
+def test_xlsx_so_imagens_dos_desenhos(tmp_path):
+    import openpyxl
+    from openpyxl.drawing.image import Image as ImagemXlsx
+
+    caminho = tmp_path / "a.xlsx"
+    livro = openpyxl.Workbook()
+    livro.active["A1"] = "INVOICE"
+    png = tmp_path / "logo.png"
+    Image.new("RGB", (300, 200), "blue").save(png)
+    livro.active.add_image(ImagemXlsx(str(png)), "B2")
+    livro.save(caminho)
+    sobra = io.BytesIO()
+    Image.new("RGB", (500, 500), "red").save(sobra, format="PNG")
+    with zipfile.ZipFile(caminho, "a") as z:
+        z.writestr("xl/media/sobra.png", sobra.getvalue())
+
+    (imagem,) = imagens(converter(entrada(caminho)))
+    with Image.open(io.BytesIO(base64.b64decode(imagem["source"]["data"]))) as img:
+        assert img.size == (300, 200)
+
+
+def test_docx_celula_mesclada_entra_uma_vez(tmp_path):
+    """Célula mesclada na vertical não pode repetir o texto (repetição gerava falso positivo de consignatário)."""
+    from docx import Document
+
+    caminho = tmp_path / "mesclada.docx"
+    doc = Document()
+    tabela = doc.add_table(rows=3, cols=2)
+    mesclada = tabela.cell(0, 0).merge(tabela.cell(2, 0))
+    mesclada.text = "SHIPPER SERRANA POLIMEROS"
+    tabela.cell(0, 1).text = "linha 1"
+    tabela.cell(1, 1).text = "linha 2"
+    tabela.cell(2, 1).text = "linha 3"
+    doc.save(caminho)
+    texto = textos(converter(entrada(caminho)))
+    assert texto.count("SERRANA") == 1
+    assert all(f"linha {n}" in texto for n in (1, 2, 3))

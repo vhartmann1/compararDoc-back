@@ -1,0 +1,17 @@
+# segredos
+.env
+
+# dados locais: banco e documentos enviados (dados de clientes)
+data/
+storage/
+
+# python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+
+# só nesta máquina: script de custo e testes que leem os casos reais
+avaliacao/
+tests/test_casos_reais.py
