@@ -14,3 +14,4 @@ __pycache__/
 # só nesta máquina: script de custo e testes que leem os casos reais
 avaliacao/
 tests/test_casos_reais.py
+.claude/worktrees/

@@ -24,7 +24,3 @@ def salvar(analise_id: str, resultado: dict, extracoes: dict) -> None:
 
 def ler(analise_id: str) -> dict | None:
     return _colecao.find_one({"_id": analise_id})
-
-
-def apagar(analise_id: str) -> None:
-    _colecao.delete_one({"_id": analise_id})
