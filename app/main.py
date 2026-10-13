@@ -36,6 +36,7 @@ async def lifespan(_: FastAPI):
     mongo.verificar()
     _marcar_interrompidas()
     yield
+    mongo.fechar()
 
 
 app = FastAPI(title="compararDocs", lifespan=lifespan)

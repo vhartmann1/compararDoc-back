@@ -1,12 +1,44 @@
-"""MongoDB: documentos de cada análise (extração e resultado), com o mesmo id do Postgres."""
+"""MongoDB: o que é aninhado demais para virar tabela. Duas coleções, no espelho das tabelas do Postgres.
 
-from pymongo import MongoClient
+    resultados   um documento por análise (_id = analises.id)
+                 status, documentos, comparacoes, itens, divergencias, avisos — o que a API devolve
+                 em `Analise.resultado` — e gravado_em
+
+    extracoes    um documento por arquivo (_id = arquivos.id)
+                 analise_id, documentos (o que foi lido do arquivo) e gravado_em
+
+Ficam separadas porque são lidas em momentos diferentes: o resultado a cada abertura de análise;
+a extração só para auditoria e para medir o acerto da leitura. Dentro de cada documento o conteúdo
+fica junto, porque é sempre lido inteiro.
+"""
+
+from datetime import datetime
+from typing import Any
+
+from pymongo import MongoClient, ReplaceOne
+from pymongo.collection import Collection
 
 from app.config import settings
 from app.models import agora_utc
 
-_cliente: MongoClient = MongoClient(settings.mongo_url, serverSelectionTimeoutMS=3000, tz_aware=True)
-_colecao = _cliente[settings.mongo_db]["analises"]
+# Tempo máximo de cada operação (conexão, envio e resposta), para nenhuma requisição ficar presa.
+TEMPO_LIMITE_MS = 10_000
+
+Documento = dict[str, Any]
+
+# Um cliente por processo: ele mantém o conjunto de conexões e é seguro entre threads.
+_cliente: MongoClient[Documento] = MongoClient(
+    settings.mongo_url,
+    appname="comparardocs-backend",
+    serverSelectionTimeoutMS=3000,
+    timeoutMS=TEMPO_LIMITE_MS,
+    # Só confirma a escrita depois de gravada em disco pela maioria dos nós (em nó único, por ele).
+    w="majority",
+    journal=True,
+    tz_aware=True,
+)
+resultados: Collection[Documento] = _cliente[settings.mongo_db]["resultados"]
+extracoes: Collection[Documento] = _cliente[settings.mongo_db]["extracoes"]
 
 
 def verificar() -> None:
@@ -14,13 +46,40 @@ def verificar() -> None:
     _cliente.admin.command("ping")
 
 
-def salvar(analise_id: str, resultado: dict, extracoes: dict) -> None:
-    _colecao.replace_one(
-        {"_id": analise_id},
-        {"_id": analise_id, "resultado": resultado, "extracoes": extracoes, "gravado_em": agora_utc()},
-        upsert=True,
-    )
+def fechar() -> None:
+    """Devolve as conexões. Roda na descida do servidor."""
+    _cliente.close()
 
 
-def ler(analise_id: str) -> dict | None:
-    return _colecao.find_one({"_id": analise_id})
+def montar_resultado(analise_id: str, resultado: Documento, gravado_em: datetime) -> Documento:
+    return {"_id": analise_id, **resultado, "gravado_em": gravado_em}
+
+
+def montar_extracoes(analise_id: str, por_arquivo: dict[str, Documento], gravado_em: datetime) -> list[Documento]:
+    """`por_arquivo` é arquivo_id -> extração; cada arquivo vira um documento, com o id dele."""
+    return [
+        {
+            "_id": arquivo_id,
+            "analise_id": analise_id,
+            "documentos": extracao.get("documentos", []),
+            "gravado_em": gravado_em,
+        }
+        for arquivo_id, extracao in por_arquivo.items()
+    ]
+
+
+def salvar(analise_id: str, resultado: Documento, por_arquivo: dict[str, Documento]) -> None:
+    """Grava (ou regrava) o que a análise produziu. Repetir a chamada não duplica nada.
+
+    As extrações vão primeiro e o resultado por último: resultado gravado significa análise completa.
+    """
+    agora = agora_utc()
+    novas = montar_extracoes(analise_id, por_arquivo, agora)
+    if novas:
+        extracoes.bulk_write([ReplaceOne({"_id": e["_id"]}, e, upsert=True) for e in novas], ordered=False)
+    resultados.replace_one({"_id": analise_id}, montar_resultado(analise_id, resultado, agora), upsert=True)
+
+
+def ler_resultado(analise_id: str) -> Documento | None:
+    """Resultado gravado para a análise, como a API devolve; None se não houver."""
+    return resultados.find_one({"_id": analise_id}, {"_id": 0, "gravado_em": 0})

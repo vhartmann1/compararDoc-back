@@ -6,6 +6,7 @@ import logging
 import shutil
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Annotated, get_args
 
@@ -74,22 +75,22 @@ def _utc(dt: datetime | None) -> datetime | None:
     return dt
 
 
-def _ler_resultado(documento: dict | None) -> ResultadoComparacao | None:
+def _ler_resultado(gravado: dict | None) -> ResultadoComparacao | None:
     """Resultado gravado no MongoDB; None se não houver ou se estiver em formato antigo (v1) que não valida mais."""
-    if not documento or not documento.get("resultado"):
+    if not gravado:
         return None
     try:
-        return ResultadoComparacao.model_validate(documento["resultado"])
+        return ResultadoComparacao.model_validate(gravado)
     except ValidationError:
         return None
 
 
-def _para_analise(analise: AnaliseDB, arquivos: list[ArquivoDB], documento: dict | None = None) -> Analise:
-    """`documento` é o que está no MongoDB para a análise (extração e resultado)."""
-    resultado = _ler_resultado(documento)
+def _para_analise(analise: AnaliseDB, arquivos: list[ArquivoDB], gravado: dict | None = None) -> Analise:
+    """`gravado` é o resultado que está no MongoDB para a análise."""
+    resultado = _ler_resultado(gravado)
     erro = analise.erro
     if analise.status_processamento == "CONCLUIDA" and resultado is None:
-        erro = ERRO_RESULTADO_ANTIGO if documento and documento.get("resultado") else ERRO_SEM_RESULTADO
+        erro = ERRO_RESULTADO_ANTIGO if gravado else ERRO_SEM_RESULTADO
     return Analise(
         id=analise.id,
         processo=analise.processo,
@@ -115,7 +116,7 @@ def _ler_uso(analise: AnaliseDB) -> Uso | None:
     return Uso(
         input_tokens=analise.tokens_entrada or 0,
         output_tokens=analise.tokens_saida or 0,
-        custo_usd_estimado=analise.custo_usd or 0.0,
+        custo_usd_estimado=float(analise.custo_usd or 0),
         modelo=analise.modelo,
     )
 
@@ -306,12 +307,12 @@ def processar_analise(analise_id: str) -> None:
         _marcar_erro(analise_id, str(e) if isinstance(e, ErroExtracao) else MENSAGEM_ERRO_GENERICA)
         return
 
-    # Primeiro o MongoDB, depois o Postgres: nada fica CONCLUIDA sem o documento gravado.
+    # Primeiro o MongoDB, depois o Postgres: nada fica CONCLUIDA sem o resultado gravado.
     try:
         mongo.salvar(
             analise_id,
             resultado=retorno.resultado.model_dump(mode="json"),
-            extracoes={arquivo_id: extracao.model_dump(mode="json") for arquivo_id, extracao in retorno.extracoes.items()},
+            por_arquivo={arquivo_id: extracao.model_dump(mode="json") for arquivo_id, extracao in retorno.extracoes.items()},
         )
     except Exception:
         logger.exception("Falha ao gravar o resultado da análise %s no MongoDB", analise_id)
@@ -330,7 +331,8 @@ def processar_analise(analise_id: str) -> None:
         analise.modelo = retorno.uso.modelo
         analise.tokens_entrada = retorno.uso.input_tokens
         analise.tokens_saida = retorno.uso.output_tokens
-        analise.custo_usd = retorno.uso.custo_usd_estimado
+        # str() primeiro: Decimal(float) carregaria o erro binário do ponto flutuante
+        analise.custo_usd = Decimal(str(retorno.uso.custo_usd_estimado))
         analise.concluido_em = agora_utc()
         session.add(analise)
         session.commit()
@@ -421,14 +423,14 @@ def listar_analises(
 @router.get("/{analise_id}", response_model=Analise)
 def obter_analise(analise_id: str, session: SessionDep) -> Analise:
     analise = _buscar_analise(session, analise_id)
-    documento = None
+    gravado = None
     if analise.status_processamento == "CONCLUIDA":
         try:
-            documento = mongo.ler(analise_id)
+            gravado = mongo.ler_resultado(analise_id)
         except PyMongoError:
             logger.exception("MongoDB indisponível ao ler a análise %s", analise_id)
             raise HTTPException(status_code=503, detail="Não foi possível ler o resultado agora. Tente novamente em instantes.") from None
-    return _para_analise(analise, _arquivos_da_analise(session, analise_id), documento)
+    return _para_analise(analise, _arquivos_da_analise(session, analise_id), gravado)
 
 
 @router.get("/{analise_id}/arquivos/{arquivo_id}")
