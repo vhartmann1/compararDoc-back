@@ -91,7 +91,7 @@ def _extrair(client: anthropic.Anthropic, arquivo: ArquivoEntrada) -> tuple[Extr
         _verificar_parada(resposta, arquivo)
         texto = "".join(b.text for b in resposta.content if b.type == "text")
         try:
-            return ExtracaoArquivo.model_validate_json(_json_da_resposta(texto)), entrada, saida, custo
+            return ExtracaoArquivo.model_validate_json(json_da_resposta(texto)), entrada, saida, custo
         except ValidationError as erro:
             if tentativa == TENTATIVAS:
                 raise ErroExtracao(
@@ -142,7 +142,7 @@ def _verificar_parada(resposta, arquivo: ArquivoEntrada) -> None:
         raise ErroExtracao(f"A resposta para {arquivo.nome} ficou grande demais e foi cortada.")
 
 
-def _json_da_resposta(texto: str) -> str:
+def json_da_resposta(texto: str) -> str:
     """Tira cercas ``` e qualquer texto fora do objeto JSON."""
     texto = re.sub(r"^```(?:json)?\s*|\s*```$", "", texto.strip())
     inicio, fim = texto.find("{"), texto.rfind("}")

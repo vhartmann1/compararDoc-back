@@ -12,9 +12,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
     anthropic_api_key: str | None = None
-    # "auto": usa Claude se houver ANTHROPIC_API_KEY, senão mock
-    extrator_modo: Literal["auto", "claude", "mock"] = "auto"
+    # "auto": usa Claude se houver ANTHROPIC_API_KEY, senão mock; "claude_code": CLI do Claude Code (teste local)
+    extrator_modo: Literal["auto", "claude", "mock", "claude_code"] = "auto"
     modelo_claude: str = "claude-opus-5-5"
+    claude_code_cli: str = "claude"
 
     storage_dir: Path = BASE_DIR / "storage"
     # padrão = Postgres local do docker-compose.yaml
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
     max_tamanho_mb: int = 32
 
     @property
-    def modo_extrator_efetivo(self) -> Literal["claude", "mock"]:
+    def modo_extrator_efetivo(self) -> Literal["claude", "mock", "claude_code"]:
         if self.extrator_modo == "auto":
             return "claude" if self.anthropic_api_key else "mock"
         return self.extrator_modo
