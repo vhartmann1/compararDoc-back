@@ -4,7 +4,6 @@ from app.schemas import Medida
 from app.services.comparacao.normalizacao import (
     embalagem,
     enderecos_compativeis,
-    referencias_iguais,
     formatar_cnpj,
     formatar_contagem,
     formatar_kg,
@@ -17,6 +16,7 @@ from app.services.comparacao.normalizacao import (
     normalizar_po,
     normalizar_porto,
     para_kg,
+    referencias_iguais,
     so_digitos,
     unidade_quantidade,
 )
