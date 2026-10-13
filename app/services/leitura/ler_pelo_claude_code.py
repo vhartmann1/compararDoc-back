@@ -1,4 +1,4 @@
-"""Mesma leitura do `extrator`, feita pela CLI do Claude Code (plano de quem está logado) em vez da API. Só teste local."""
+"""A mesma leitura de `ler_pela_api`, feita pela CLI do Claude Code (plano de quem está logado). Só teste local."""
 
 import json
 import logging

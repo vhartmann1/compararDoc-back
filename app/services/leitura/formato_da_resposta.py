@@ -1,9 +1,4 @@
-"""O que toda leitura usa, venha de onde vier: as instruções com o formato da resposta e a validação dela.
-
-Por que não structured outputs (`output_config.format`): a partir do schema v3 (itens, incoterm,
-inconsistências...) a API recusa o schema com "The compiled grammar is too large". Por isso o schema
-vai no prompt de sistema e a resposta é validada com Pydantic; se vier inválida, refaz uma vez.
-"""
+"""Instruções com o schema da resposta e a validação dela (structured outputs recusa o schema: grande demais)."""
 
 import json
 import re

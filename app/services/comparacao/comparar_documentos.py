@@ -1,8 +1,4 @@
-"""Regras de comparação Invoice × Packing List × Conhecimento (docs/CONTRATO_API.md, "Regras de comparação").
-
-Além da comparação campo a campo (categoria "comparacao"), gera divergências de coerência
-(incoterm × frete/portos), de itens (Invoice × Packing List) e internas (contradições num mesmo documento).
-"""
+"""Compara Invoice × Packing List × Conhecimento: campos, itens, coerência e inconsistências internas."""
 
 from app.schemas import (
     ArquivoEntrada,

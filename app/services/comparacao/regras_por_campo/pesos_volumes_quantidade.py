@@ -87,8 +87,7 @@ def quantidades_iguais(a: tuple[str, float], b: tuple[str, float]) -> bool:
 
 
 def nota_fator_mil(valores: list[tuple[float, str, str | None]]) -> str:
-    """Valores (total na unidade canônica, exibição, unidade do documento) que diferem por exatamente
-    1000× indicam unidade trocada — ex.: PL "24.000 TONS" (960 × 25 kg) × Invoice "24 TO"."""
+    """Totais que diferem exatamente 1000× indicam unidade trocada (toneladas × kg)."""
     totais = sorted({round(total, 6): (total, exibicao, unidade) for total, exibicao, unidade in valores}.values())
     if len(totais) != 2 or totais[0][0] <= 0 or abs(totais[1][0] / totais[0][0] - 1000) > 1e-6:
         return ""

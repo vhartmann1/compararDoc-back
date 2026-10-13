@@ -48,8 +48,7 @@ def extrair_arquivos(arquivos: list[ArquivoEntrada]) -> tuple[dict[str, Extracao
 
 
 def _aquecer_cache(client: anthropic.Anthropic) -> tuple[int, int, float]:
-    """Grava as instruções no cache (max_tokens=0: só processa a entrada, não gera resposta).
-    Falhar aqui não impede a leitura: só perde a economia."""
+    """Grava as instruções no cache antes das leituras em paralelo; se falhar, só perde a economia."""
     try:
         resposta = client.beta.messages.create(
             **_parametros([{"type": "text", "text": "."}]), max_tokens=0

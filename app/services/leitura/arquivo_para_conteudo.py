@@ -1,11 +1,4 @@
-"""Converte cada arquivo enviado em blocos de conteúdo para a Claude API.
-
-PDF -> bloco `document`; JPG/PNG -> bloco `image`;
-.docx -> texto (parágrafos e tabelas na ordem) + imagens referenciadas no documento, cabeçalhos e rodapés;
-.xlsx -> texto por planilha (células não vazias separadas por " | ") + imagens dos desenhos das planilhas.
-Ficam de fora: sobras da pasta media que nada referencia, ícones minúsculos, duplicadas, imagens
-espremidas (ilegíveis no documento). Imagens de fundo de página vão separadas e rotuladas: o texto prevalece.
-"""
+"""Converte cada arquivo enviado (PDF, imagem, Word, Excel) em blocos de conteúdo para o Claude."""
 
 import base64
 import hashlib
@@ -30,8 +23,7 @@ MEDIA_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 MEDIA_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 TIPOS_IMAGEM = {"image/jpeg", "image/png"}
 
-# Limites da API para imagens: lado maior até 2576 px (Opus 4.7+); com mais de 20 imagens na
-# mesma requisição, até 2000 px; até 5 MB por imagem (base64) e 100 imagens por requisição.
+# Limites da API: lado até 2576 px (2000 com mais de 20 imagens), 5 MB por imagem em base64, 100 por requisição.
 LADO_MAXIMO = 2576
 LADO_MAXIMO_MUITAS = 2000
 LIMITE_MUITAS_IMAGENS = 20
@@ -39,9 +31,7 @@ MAX_IMAGENS = 100
 MAX_BYTES_IMAGEM = 3_500_000  # binário; vira ~4,7 MB em base64
 # Imagens embutidas muito pequenas são ícones, linhas e logos: não ajudam e gastam tokens.
 LADO_MINIMO_EMBUTIDA = 40
-# Imagem atrás do texto (behindDoc) com pelo menos metade da área de uma A4 é fundo (ex.: formulário do BL
-# escaneado sob o texto digitado). Vai rotulada: pode ter dados que o texto não tem (consignee, "COPY"),
-# mas em conflito o texto prevalece.
+# Imagem atrás do texto com ao menos meia A4 é fundo: vai rotulada e, em conflito, o texto prevalece.
 AREA_A4_EMU = 21.0 * 29.7 * 360000**2  # 1 cm = 360.000 EMU
 FRACAO_PAGINA_FUNDO = 0.5
 ROTULO_FUNDO = (
@@ -74,9 +64,7 @@ def converter(arquivo: ArquivoEntrada) -> list[dict]:
     )
 
 
-# ---------------------------------------------------------------------------
 # Word / Excel
-# ---------------------------------------------------------------------------
 
 def _blocos_office(texto: str, caminho: Path, nome: str) -> list[dict]:
     todas = _imagens_embutidas(caminho)
@@ -113,8 +101,7 @@ def _texto_docx(caminho: Path) -> str:
 
 
 def _linhas_tabela(tabela: Table) -> list[str]:
-    """Uma linha de texto por linha da tabela. Células mescladas (na horizontal ou na vertical)
-    aparecem repetidas em python-docx: cada célula entra uma vez só, na primeira posição."""
+    """Uma linha de texto por linha da tabela; célula mesclada entra uma vez só."""
     linhas: list[str] = []
     vistas: set = set()  # os próprios elementos <w:tc> (mantê-los vivos garante identidade estável)
     for linha in tabela.rows:
@@ -162,8 +149,7 @@ class ImagemReferenciada:
 
 
 def _imagens_embutidas(caminho: Path) -> list[tuple[bytes, bool]]:
-    """Imagens referenciadas pelo documento (não as sobras da pasta media), sem duplicatas,
-    ícones minúsculos e imagens deformadas. Cada item: (dados, é_fundo)."""
+    """Imagens referenciadas pelo documento, sem duplicatas, ícones e deformadas. Cada item: (dados, é_fundo)."""
     imagens: list[tuple[bytes, bool]] = []
     vistas: set[str] = set()
     with zipfile.ZipFile(caminho) as z:
@@ -291,17 +277,14 @@ def _tamanho_exibido(el: ET.Element, pais: dict) -> tuple[int, int] | None:
 
 
 def _deformada(tamanho_exibido: tuple[int, int] | None, tamanho_real: tuple[int, int]) -> bool:
-    """Exibida com proporção muito diferente da original (ex.: 401×133 px espremida numa faixa de
-    5,3 × 0,16 cm): no documento ela não é legível, então não deve contar como conteúdo."""
+    """Exibida com proporção muito diferente da original: ilegível no documento, não conta como conteúdo."""
     if not tamanho_exibido or not all(tamanho_exibido) or not all(tamanho_real):
         return False
     proporcao = (tamanho_exibido[0] / tamanho_exibido[1]) / (tamanho_real[0] / tamanho_real[1])
     return proporcao > DISTORCAO_MAXIMA or proporcao < 1 / DISTORCAO_MAXIMA
 
 
-# ---------------------------------------------------------------------------
 # Imagens
-# ---------------------------------------------------------------------------
 
 def _bloco_imagem(dados: bytes, lado_maximo: int, nome: str) -> dict:
     media_type, dados = _preparar_imagem(dados, lado_maximo, nome)

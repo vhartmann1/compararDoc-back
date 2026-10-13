@@ -36,8 +36,7 @@ def _quantidades_comparaveis_diferentes(a: ItemAgrupado, b: ItemAgrupado) -> boo
 
 
 def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """Com referência/modelo dos dois lados, compara as referências (uma letra muda o produto:
-    'POLIREX YK 455' × 'POLIREX ZK 455'); senão, a similaridade das descrições."""
+    """Havendo referência dos dois lados, compara as referências; senão, a similaridade das descrições."""
     if a.referencia and b.referencia:
         return referencias_iguais(a.referencia, b.referencia)
     return descricoes_equivalentes(a.descricao, b.descricao)
@@ -75,8 +74,7 @@ ATRIBUTOS_ITEM = [
 
 
 def diferencas_item(linha: Linha, colunas: list[ColItens], so_conhecimento: bool) -> list[tuple[str, str]]:
-    """Lista de (nome da diferença, texto da mensagem). Com `so_conhecimento`, só contam as diferenças
-    entre o conhecimento e outra coluna (invoice × PL já foram comparados em cada par)."""
+    """(nome da diferença, mensagem); com `so_conhecimento`, só as diferenças que envolvem o conhecimento."""
     difs: list[tuple[str, str]] = []
     for atributo in ATRIBUTOS_ITEM:
         informados = [(c, linha[c.col.chave]) for c in colunas if c.col.chave in linha]

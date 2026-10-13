@@ -17,11 +17,7 @@ def _mesmo_codigo(a: ItemAgrupado, b: ItemAgrupado) -> bool:
 def casar(
     linhas: list[list[ItemAgrupado]], itens: list[ItemAgrupado], generico_nao_casa: bool = False
 ) -> tuple[list[tuple[int, ItemAgrupado]], list[int], list[ItemAgrupado]]:
-    """Casa `itens` com `linhas` (cada linha = itens já casados entre si): por código, pela descrição
-    (≥ 0,80, melhor par primeiro) e, se sobrar exatamente 1 de cada lado, um com o outro.
-    Com `generico_nao_casa` (conhecimento), item cuja descrição serve para mais de uma linha
-    (ex.: "SYNTHETIC SHOES") não casa pela descrição.
-    Devolve (casamentos (índice da linha, item), linhas que sobraram, itens que sobraram)."""
+    """Casa por código, por descrição (≥ 0,80) e o último par que sobrar; devolve (casados, linhas e itens sem par)."""
     casados: list[tuple[int, ItemAgrupado]] = []
     livres_l, livres_i = list(range(len(linhas))), list(itens)
     # 1) pelo código

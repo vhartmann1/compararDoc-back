@@ -60,9 +60,7 @@ SUFIXOS_LOCAL = {
 }
 
 
-# ---------------------------------------------------------------------------
 # Pesos e números
-# ---------------------------------------------------------------------------
 
 def para_kg(medida: Medida) -> float | None:
     """Converte a medida para KG. Unidade desconhecida ("OUTRA") => None."""
@@ -73,12 +71,7 @@ def para_kg(medida: Medida) -> float | None:
 
 
 def interpretar_numero(texto: str) -> float:
-    """Lê números em formato americano ou brasileiro: '27,200.00', '27.200,00', '46737', '1.234'.
-
-    Com '.' e ',' juntos, o que aparece por último é o decimal. Com um só tipo de separador,
-    ele é milhar se repetir ou se tiver exatamente 3 dígitos depois; senão é decimal.
-    Útil para correção manual de valores digitados pelo analista.
-    """
+    """Lê '27,200.00', '27.200,00', '46737', '1.234': o último separador é o decimal, salvo se parecer milhar."""
     limpo = re.sub(r"[^\d.,]", "", texto)
     if not limpo or not re.search(r"\d", limpo):
         raise ValueError(f"Número inválido: {texto!r}")
@@ -119,9 +112,7 @@ def unidade_quantidade(unidade: str) -> tuple[str, float]:
     return chave, 1.0
 
 
-# ---------------------------------------------------------------------------
 # NCM / HS
-# ---------------------------------------------------------------------------
 
 def so_digitos(codigo: str) -> str:
     return re.sub(r"\D", "", codigo)
@@ -132,9 +123,7 @@ def normalizar_ncm(codigo: str) -> str:
     return so_digitos(codigo)[:8]
 
 
-# ---------------------------------------------------------------------------
 # Textos
-# ---------------------------------------------------------------------------
 
 def sem_acento(texto: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c))
@@ -161,11 +150,7 @@ def normalizar_nome_empresa(nome: str) -> str:
 
 
 def nomes_equivalentes(a: str, b: str) -> bool:
-    """Similaridade >= 0,85 (difflib) entre os nomes normalizados.
-
-    Também aceita quando um nome (sem espaços) começa com o outro — cobre sufixos colados por erro
-    de digitação, ex. 'CAPITAL TRADE IMPORTACAO EEXPORTACAO'.
-    """
+    """Similaridade ≥ 0,85 entre os nomes normalizados, ou um começa com o outro (sufixo colado por erro)."""
     na, nb = normalizar_nome_empresa(a), normalizar_nome_empresa(b)
     if not na or not nb:
         return na == nb
@@ -192,9 +177,7 @@ def normalizar_cnpj(cnpj: str | None) -> str | None:
     return digitos or None
 
 
-# ---------------------------------------------------------------------------
 # Formatação BR
-# ---------------------------------------------------------------------------
 
 def formatar_numero(valor: float, casas: int = 2) -> str:
     """21250 -> '21.250,00'."""
@@ -230,9 +213,7 @@ def formatar_cnpj(cnpj: str) -> str:
     return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
 
 
-# ---------------------------------------------------------------------------
-# v3: endereço, país, moeda, incoterm, itens
-# ---------------------------------------------------------------------------
+# Endereço, país, moeda, incoterm e itens
 
 SIMILARIDADE_MINIMA_ENDERECO = 0.80
 SIMILARIDADE_MINIMA_DESCRICAO = 0.85
@@ -310,8 +291,7 @@ def normalizar_cidade(cidade: str) -> str:
 
 
 def cidades_compativeis(cidade_a: str, endereco_a: str, cidade_b: str, endereco_b: str) -> bool:
-    """Mesma cidade, uma contida na outra ('BOGOTA' × 'BOGOTA D.C.') ou a cidade de um aparece no endereço
-    do outro (um documento pode dar a cidade e outro a província: 'HWASEONG-SI' × 'GYEONGGI-DO')."""
+    """Mesma cidade, uma contida na outra, ou a cidade de um aparece no endereço do outro."""
     ca, cb = normalizar_cidade(cidade_a), normalizar_cidade(cidade_b)
     if not ca or not cb or ca in cb or cb in ca:
         return True
@@ -367,8 +347,7 @@ def normalizar_referencia(referencia: str) -> str:
 
 
 def referencias_iguais(a: str, b: str) -> bool:
-    """Exatas após normalizar ('POLIREX YK 455' × 'POLIREX ZK 455' diferem). Tolera só a omissão de
-    palavras inteiras, como a marca ('ZK 455' × 'POLIREX ZK 455'); 'TRAIL-MAX 10' × 'TRAIL-MAX 100' diferem."""
+    """Iguais após normalizar; tolera só a omissão de palavras inteiras (a marca), nunca troca de letra."""
     if normalizar_referencia(a) == normalizar_referencia(b):
         return True
     pa, pb = set(_so_letras_numeros(a).split()), set(_so_letras_numeros(b).split())

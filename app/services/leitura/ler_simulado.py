@@ -1,15 +1,4 @@
-"""Extrator falso (sem rede) para rodar API e front sem ANTHROPIC_API_KEY.
-
-- 1 arquivo: invoice + packing list + BL (pesos do BL em LBS), com divergência de peso bruto
-  (BL 21.250,00 kg × 21.200,00 kg) -> comparação "unica". v3: itens (lote divergente num item),
-  1 inconsistência interna (moeda da invoice) e 1 coerência (FOB × BL FREIGHT PREPAID).
-- 2+ arquivos: cenário parecido com o caso 4 de docs/CASOS_TESTE.md -> par-1, par-2 e consolidado:
-  2 invoices + 2 packing lists + 1 AWB (peso em LB). Divergências: peso líquido e quantidade no par 1,
-  exportador no par 2, volumes no consolidado (53 CTN × 4 DRUMS). Peso bruto 348,95 × 349,0 fica OK.
-  Com 2 arquivos: 1º = os dois pares, 2º = AWB. Com 3+: 1º = par 1, 2º = par 2, 3º = AWB, resto = "outro".
-  v3: incoterm EXW × FOB entre as invoices, AWB PREPAID (coerência), assinatura "Delta" na invoice
-  da Orion Pacific (interna) e itens (quantidade divergente no par 1).
-"""
+"""Extrator falso, sem rede: um cenário para 1 arquivo e outro para 2 ou mais, com divergências conhecidas."""
 
 from app.schemas import (
     ArquivoEntrada,
@@ -64,9 +53,7 @@ def _item(codigo: str | None, descricao: str, quantidade: float, unidade: str, p
     )
 
 
-# ---------------------------------------------------------------------------
 # Cenário com 1 arquivo (comparação única)
-# ---------------------------------------------------------------------------
 
 def _simples(pagina) -> list[DocumentoExtraido]:
     comum = dict(
@@ -123,9 +110,7 @@ def _simples(pagina) -> list[DocumentoExtraido]:
     return [invoice, pl, bl]
 
 
-# ---------------------------------------------------------------------------
-# Cenário com 2+ arquivos (parecido com o caso 4)
-# ---------------------------------------------------------------------------
+# Cenário com 2+ arquivos (dois pares e consolidado)
 
 def _par(numero: str, exportador_inv: str, cnpj_consignee: str, nw_inv: float, nw_pl: float, gw: float,
          qtd_inv: float, qtd_pl: float, ctn: int, pagina_inv: int | None, pagina_pl: int | None,
