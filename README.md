@@ -42,10 +42,15 @@ Aceita PDF, JPG, PNG, `.docx` e `.xlsx`. Tipos de entrada e saída: `app/schemas
 
 ## Como funciona
 
-1. Recebe os arquivos, salva e responde na hora.
-2. O Claude **só extrai** os dados, um arquivo por chamada.
-3. O Python normaliza e **compara**: pesos, volumes, quantidade, NCM, nº da invoice, PO, partes, portos, incoterm, moeda e itens.
-4. Grava no MongoDB a extração de cada arquivo e o resultado da análise e, no Postgres, o status (`OK`, `DIVERGENTE` ou `INCOMPLETO`), o total de divergências e o custo.
+O caminho de um envio, com o lugar de cada etapa:
+
+1. **Recebe** — `app/routes/analises.py` salva os arquivos em `storage/`, responde na hora e segue em segundo plano.
+2. **Lê** — `app/services/leitura/`: cada arquivo vira conteúdo (`arquivo_para_conteudo.py`), vai ao Claude com o prompt (`prompts.py`) e a resposta é validada (`formato_da_resposta.py`). O Claude **só extrai**, um arquivo por chamada.
+3. **Compara** — `app/services/comparacao/`: o Python escolhe os documentos, pareia invoice e packing list e aplica as regras de cada campo (`regras_por_campo/`), dos itens (`itens/`) e de coerência. Nenhuma decisão de comparação é do modelo.
+4. **Grava** — `app/mongo.py` guarda a extração de cada arquivo e o resultado; `app/db.py` guarda o status (`OK`, `DIVERGENTE` ou `INCOMPLETO`), o total de divergências e o custo.
+5. **Entrega** — a tela consulta `GET /api/analises/{id}` até a análise concluir.
+
+`app/services/pipeline.py` liga as etapas 2 e 3.
 
 ## Bancos
 
