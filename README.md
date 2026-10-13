@@ -80,7 +80,7 @@ uv run pytest -q    # não chama a API
 | `app/mongo.py` | MongoDB: coleções `resultados` (por análise) e `extracoes` (por arquivo), com os mesmos ids do Postgres. |
 | `docker/` | Arquivos usados pelo `docker-compose.yaml` (criação do usuário da aplicação no MongoDB). |
 | `app/schemas.py` | Tipos da API, da extração e do resultado. |
-| `app/services/leitura/` | Ler os documentos: `arquivo_para_conteudo.py`, `instrucoes.py`, `formato_da_resposta.py` e um leitor por modo (`ler_pela_api.py`, `ler_pelo_claude_code.py`, `ler_simulado.py`). |
+| `app/services/leitura/` | Ler os documentos: `arquivo_para_conteudo.py`, `prompts.py`, `formato_da_resposta.py` e um leitor por modo (`ler_pela_api.py`, `ler_pelo_claude_code.py`, `ler_simulado.py`). |
 | `app/services/comparacao/` | Comparar o que foi lido: `comparar_documentos.py` (entrada), `escolha_dos_documentos.py`, `pareamento_invoice_packing_list.py`, `identificacao_do_documento.py`, `colunas_da_comparacao.py`, `comparar_campos.py`, `regras_por_campo/`, `itens/`, `coerencia_incoterm_frete.py`, `inconsistencias_internas.py` e `normalizacao.py`. |
 | `app/services/pipeline.py` | Orquestra extração e comparação. |
 

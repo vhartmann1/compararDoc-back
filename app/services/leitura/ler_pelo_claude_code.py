@@ -11,7 +11,7 @@ from app.config import settings
 from app.schemas import ArquivoEntrada, ExtracaoArquivo, Uso
 from app.services.leitura.arquivo_para_conteudo import converter
 from app.services.leitura.formato_da_resposta import ESFORCO, SISTEMA, TENTATIVAS, ErroExtracao, json_da_resposta
-from app.services.leitura.instrucoes import PROMPT_USUARIO
+from app.services.leitura.prompts import PROMPT_USUARIO
 
 logger = logging.getLogger(__name__)
 

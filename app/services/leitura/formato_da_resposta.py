@@ -4,7 +4,7 @@ import json
 import re
 
 from app.schemas import ExtracaoArquivo
-from app.services.leitura.instrucoes import PROMPT_SISTEMA
+from app.services.leitura.prompts import PROMPT_SISTEMA
 
 ESFORCO = "high"  # leitura de scans: precisão importa; "medium" barateia se o acerto se mantiver
 TENTATIVAS = 2  # JSON inválido => refaz uma vez

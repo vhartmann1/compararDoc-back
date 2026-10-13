@@ -13,7 +13,7 @@ uv run pytest -q
 - O modelo só extrai; a comparação é código Python determinístico, com teste.
 - `app/schemas.py` é a fonte da verdade dos tipos. Mudou tipo da API, muda `src/types/api.ts` no frontend.
 - Não mudar a assinatura de `pipeline.processar`.
-- Exemplos do prompt (`leitura/instrucoes.py` e descrições em `schemas.py`) são inventados: nunca usar dados dos casos de teste.
+- Exemplos do prompt (`leitura/prompts.py` e descrições em `schemas.py`) são inventados: nunca usar dados dos casos de teste.
 - Mudou prompt ou schema da extração, o acerto precisa ser medido de novo.
 - Servidor com um processo só (a leitura roda em segundo plano dentro dele).
 - Postgres só com colunas simples: nada de JSON. O que é aninhado vai para o MongoDB (`app/mongo.py`), em duas coleções no espelho das tabelas: `resultados` (um documento por análise, mesmo id) e `extracoes` (um por arquivo, mesmo id). Grava primeiro no Mongo, depois no Postgres.
