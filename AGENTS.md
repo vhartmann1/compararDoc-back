@@ -16,8 +16,11 @@ uv run pytest -q
 - Exemplos do prompt (`prompts.py` e descrições em `schemas.py`) são inventados: nunca usar dados dos casos de teste.
 - Mudou prompt ou schema da extração, o acerto precisa ser medido de novo.
 - Servidor com um processo só (a leitura roda em segundo plano dentro dele).
-- Postgres só com colunas simples: nada de JSON. Extração e resultado vão para o MongoDB (`app/mongo.py`), com o mesmo id da análise; grava primeiro no Mongo, depois no Postgres.
-- As tabelas são criadas na subida (`app/db.py`). Isso só cria tabela nova: coluna nova em tabela que já existe precisa de `ALTER TABLE` no banco.
+- Postgres só com colunas simples: nada de JSON. O que é aninhado vai para o MongoDB (`app/mongo.py`), em duas coleções no espelho das tabelas: `resultados` (um documento por análise, mesmo id) e `extracoes` (um por arquivo, mesmo id). Grava primeiro no Mongo, depois no Postgres.
+- No MongoDB, coleção separa o que é lido em momentos diferentes; o que é lido junto fica no mesmo documento. Nada de nome de campo variável (id como chave). Índice só junto com a consulta que o usa: hoje tudo é buscado pelo `_id`.
+- As tabelas são criadas na subida (`app/db.py`), o que só cria tabela nova. Enquanto o projeto está em validação, os dados são descartáveis: mudou tabela ou formato de documento, muda o código e recria o banco local. Sem script de migração, campo de versão nem compatibilidade com dado antigo.
+- No Postgres, valor de lista fechada (status, etapa, modalidade) tem `CHECK`; dinheiro é `numeric`; índice acompanha a consulta que o usa.
+- A aplicação entra no MongoDB com usuário próprio (`readWrite` só no banco dela), nunca como administrador.
 
 ## Custo e dados
 
