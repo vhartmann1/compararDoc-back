@@ -23,10 +23,15 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: comparardocs
       MONGO_INITDB_ROOT_PASSWORD: comparardocs
+      # usuário da aplicação, criado por docker/mongo-usuario-da-aplicacao.js
+      MONGO_APP_DB: comparardocs
+      MONGO_APP_USER: comparardocs_app
+      MONGO_APP_PASSWORD: comparardocs_app
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+      - ./docker/mongo-usuario-da-aplicacao.js:/docker-entrypoint-initdb.d/usuario-da-aplicacao.js:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s

@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     # padrão = Postgres local do docker-compose.yaml
     database_url: str = "postgresql+psycopg://comparardocs:comparardocs@localhost:5432/comparardocs"
     # padrão = MongoDB local do docker-compose.yaml
-    mongo_url: str = "mongodb://comparardocs:comparardocs@localhost:27017"
+    # usuário da aplicação (só lê e grava no banco dela), não o administrador do container
+    mongo_url: str = "mongodb://comparardocs_app:comparardocs_app@localhost:27017/?authSource=comparardocs"
     mongo_db: str = "comparardocs"
     cors_origins: list[str] = ["http://localhost:3000"]
 
