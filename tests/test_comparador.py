@@ -193,6 +193,40 @@ def test_quantidade_unidades_equivalentes_e_diferentes():
     assert any("Quantidade em unidades" in a for a in r.avisos)
 
 
+def test_quantidade_na_mesma_unidade_em_outro_idioma_confere():
+    r = rodar([doc("invoice", numero="1", quantidade=(1200, "BOTELLAS")),
+               doc("packing_list", numero="1", quantidade=(1200, "BOTTLES"))])
+    assert campo(r.comparacoes[0], "quantidade").status == "OK"
+
+
+def volumes_em(*por_documento):
+    invoice, packing, bl = por_documento
+    return rodar([doc("invoice", numero="1", volumes=invoice), doc("packing_list", numero="1", volumes=packing)],
+                 [doc("conhecimento", subtipo="BL", volumes=bl)])
+
+
+def test_volumes_em_embalagens_de_niveis_diferentes_nao_divergem():
+    r = volumes_em((80, "CARTONS"), (80, "CAJAS"), (2, "PALLETS"))
+    assert campo(r.comparacoes[0], "volumes").status == "INSUFICIENTE"
+    assert any("Volumes em embalagens diferentes" in a for a in r.avisos)
+    assert mensagens(r, "comparacao") == []
+
+
+def test_volumes_divergem_dentro_da_mesma_embalagem():
+    r = volumes_em((80, "CARTONS"), (75, "CTNS"), (2, "PALLETS"))
+    assert campo(r.comparacoes[0], "volumes").status == "DIVERGENTE"
+
+
+def test_volumes_em_embalagem_generica_comparam_pelo_numero():
+    assert campo(volumes_em((80, "BAGS"), (80, "BAGS"), (80, "PACKAGES")).comparacoes[0], "volumes").status == "OK"
+    assert campo(volumes_em((80, "BAGS"), (80, "BAGS"), (75, "PACKAGES")).comparacoes[0], "volumes").status == "DIVERGENTE"
+
+
+def test_po_com_e_sem_o_rotulo_confere():
+    r = rodar([doc("invoice", numero="1", po="PO 15 March"), doc("packing_list", numero="1", po="15 March")])
+    assert campo(r.comparacoes[0], "po").status == "OK"
+
+
 def test_parte_por_cnpj_quando_os_dois_tem():
     r = rodar([
         doc("invoice", numero="1", consignatario=("AtlasFit Ltda", "12.345.678/0005-80")),

@@ -2,6 +2,7 @@ import pytest
 
 from app.schemas import Medida
 from app.services.normalizacao import (
+    embalagem,
     enderecos_compativeis,
     referencias_iguais,
     formatar_cnpj,
@@ -75,7 +76,11 @@ def test_ncm():
 
 @pytest.mark.parametrize(
     ("a", "b"),
-    [("PAIRS", "PRS"), ("pares", "PAIR"), ("TON", "MT"), ("PCS", "UNITS"), ("BAGS", "bolsas")],
+    [
+        ("PAIRS", "PRS"), ("pares", "PAIR"), ("TON", "MT"), ("PCS", "UNITS"), ("BAGS", "bolsas"),
+        ("BOTELLAS", "BOTTLES"), ("BT", "garrafas"), ("CAJAS", "CASES"), ("CTNS", "CAR"), ("CARTONS", "caixas"),
+        ("Pallet(s)", "PALETES"), ("MTS", "TON"),
+    ],
 )
 def test_unidades_quantidade_equivalentes(a, b):
     assert unidade_quantidade(a) == unidade_quantidade(b)
@@ -85,6 +90,14 @@ def test_unidade_quantidade_conversao():
     assert unidade_quantidade("TO") == ("KG", 1000.0)
     assert unidade_quantidade("PAIRS")[0] != unidade_quantidade("PCS")[0]
     assert unidade_quantidade("ROLLS") == ("ROLLS", 1.0)
+    assert unidade_quantidade("CASES")[0] != unidade_quantidade("PALLETS")[0] != unidade_quantidade("BOTTLES")[0]
+
+
+def test_embalagem_so_reconhece_as_especificas():
+    assert embalagem("CTNS") == "CAIXAS"
+    assert embalagem("Pallets") == "PALETES"
+    assert embalagem("PACKAGES") is None
+    assert embalagem("BOTTLES") is None
 
 
 def test_numero_documento_e_po():
@@ -93,6 +106,9 @@ def test_numero_documento_e_po():
     assert normalizar_numero_documento("ktr-273938/03") == "KTR27393803"
     assert normalizar_po("246731-01") == "24673101"
     assert normalizar_po(" hbpx 41357 ") == "HBPX41357"
+    assert normalizar_po("PO 15 March") == normalizar_po("15 March") == "15MARCH"
+    assert normalizar_po("P.O. No. 778-1") == normalizar_po("PO#7781") == normalizar_po("Purchase Order: 778-1") == "7781"
+    assert normalizar_po("POLY-778") == "POLY778"  # "PO" que faz parte do número fica
 
 
 def test_nome_empresa():
@@ -158,6 +174,8 @@ def test_normalizar_validade(texto, esperado):
 def test_pais_moeda_incoterm_lote():
     assert normalizar_pais("South Korea") == normalizar_pais("KR") == normalizar_pais("REPUBLIC OF KOREA") == "KR"
     assert normalizar_pais("P.R. China") == normalizar_pais("CHINA") == "CN"
+    assert normalizar_pais("The Netherlands") == normalizar_pais("NL") == normalizar_pais("Holanda") == "NL"
+    assert normalizar_pais("Belgium") == normalizar_pais("Bélgica") == "BE"
     assert normalizar_moeda("€") == normalizar_moeda("euros") == "EUR"
     assert normalizar_moeda("US$") == "USD"
     assert normalizar_incoterm("Fob") == "FOB"

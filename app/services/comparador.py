@@ -35,6 +35,7 @@ from app.schemas import (
 from app.services.normalizacao import (
     SIMILARIDADE_MINIMA_CASAMENTO,
     descricoes_equivalentes,
+    embalagem,
     enderecos_compativeis,
     formatar_cnpj,
     formatar_contagem,
@@ -485,6 +486,10 @@ def _status_campo(
             grupos.append(([col], valor))
     if len(grupos) == 1:
         return "OK"
+    if campo == "volumes" and _embalagens_distintas([valor for _, valor in grupos]):
+        textos = " × ".join(f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in grupos)
+        ctx.avisos.append(f"{ctx.prefixo}Volumes em embalagens diferentes ({textos}); confira manualmente.")
+        return "INSUFICIENTE"
 
     ordenados = sorted(grupos, key=lambda g: len(g[0]))  # minoria primeiro
     partes = [f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in ordenados]
@@ -573,6 +578,12 @@ def _obter_volumes(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
         return None
     unidade = c.unidade.strip().upper()
     return Valor(c.valor, formatar_contagem(c.valor, unidade), c.texto_original, f.arquivo.id, c.pagina, unidade)
+
+
+def _embalagens_distintas(valores: list[Valor]) -> bool:
+    """Cada valor numa embalagem conhecida e diferente das outras (paletes × caixas): os números não se comparam."""
+    embalagens = [embalagem(v.unidade or "") for v in valores]
+    return None not in embalagens and len(set(embalagens)) == len(embalagens)
 
 
 def _somar_volumes(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor:

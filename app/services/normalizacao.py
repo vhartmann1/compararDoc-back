@@ -19,7 +19,7 @@ UNIDADES_QUANTIDADE: dict[str, tuple[str, float]] = {
     **dict.fromkeys(["PAR", "PARES", "PAIR", "PAIRS", "PRS", "PR", "PRS."], ("PARES", 1.0)),
     **dict.fromkeys(["KG", "KGS", "KILO", "KILOS", "QUILO", "QUILOS"], ("KG", 1.0)),
     **dict.fromkeys(
-        ["TON", "TONS", "TONELADA", "TONELADAS", "TONNE", "TONNES", "MT", "TO", "TNE", "T", "TM"], ("KG", 1000.0)
+        ["TON", "TONS", "TONELADA", "TONELADAS", "TONNE", "TONNES", "MT", "MTS", "TO", "TNE", "T", "TM"], ("KG", 1000.0)
     ),
     **dict.fromkeys(["LB", "LBS", "POUND", "POUNDS"], ("KG", 0.45359237)),
     **dict.fromkeys(
@@ -28,6 +28,16 @@ UNIDADES_QUANTIDADE: dict[str, tuple[str, float]] = {
         ("PECAS", 1.0),
     ),
     **dict.fromkeys(["BAG", "BAGS", "SACO", "SACOS", "BOLSA", "BOLSAS", "SACA", "SACAS"], ("SACOS", 1.0)),
+    **dict.fromkeys(
+        ["CARTON", "CARTONS", "CTN", "CTNS", "CAR", "CASE", "CASES", "CAJA", "CAJAS", "CAIXA", "CAIXAS", "CX", "CXS",
+         "BOX", "BOXES", "CARTONE", "CARTONI"],
+        ("CAIXAS", 1.0),
+    ),
+    **dict.fromkeys(["PALLET", "PALLETS", "PALETE", "PALETES", "PALET", "PALETS", "PLT", "PLTS"], ("PALETES", 1.0)),
+    **dict.fromkeys(
+        ["BOTTLE", "BOTTLES", "BOTELLA", "BOTELLAS", "GARRAFA", "GARRAFAS", "BT", "BTL", "BTLS", "BOTTIGLIA", "BOTTIGLIE"],
+        ("GARRAFAS", 1.0),
+    ),
     **dict.fromkeys(["L", "LT", "LTS", "LITRO", "LITROS", "LITER", "LITERS", "LITRE", "LITRES"], ("L", 1.0)),
     **dict.fromkeys(["M", "MTR", "MTRS", "METRO", "METROS", "METER", "METERS"], ("M", 1.0)),
     **dict.fromkeys(["M2", "SQM", "METRO QUADRADO", "METROS QUADRADOS"], ("M2", 1.0)),
@@ -88,6 +98,16 @@ def interpretar_numero(texto: str) -> float:
     return float(limpo.replace(separador, "."))
 
 
+# Embalagens de níveis diferentes: 2 paletes e 160 caixas podem ser a mesma carga.
+EMBALAGENS = {"SACOS", "CAIXAS", "PALETES"}
+
+
+def embalagem(unidade: str) -> str | None:
+    """'CTNS' -> 'CAIXAS'; 'PACKAGES' (genérica) ou desconhecida -> None."""
+    canonica, _ = unidade_quantidade(unidade)
+    return canonica if canonica in EMBALAGENS else None
+
+
 def unidade_quantidade(unidade: str) -> tuple[str, float]:
     """'PAIRS' -> ('PARES', 1.0); 'TON' -> ('KG', 1000.0). Desconhecida -> (unidade normalizada, 1.0)."""
     chave = " ".join(re.sub(r"[^A-Z0-9 ]", " ", sem_acento(unidade).upper()).split())
@@ -126,8 +146,12 @@ def normalizar_numero_documento(numero: str) -> str:
     return limpo.lstrip("0") or limpo
 
 
+PREFIXO_PO = re.compile(r"^\s*(P\.?\s?O\.?|PURCHASE ORDER|PEDIDO)(?=[\s:#.\-0-9])\s*(N[O°º]\.?|NR\.?|NUMBER|#|:)?\s*")
+
+
 def normalizar_po(po: str) -> str:
-    return re.sub(r"[^A-Z0-9]", "", sem_acento(po).upper())
+    """'PO 15 March' e '15 March' -> '15MARCH': o rótulo na frente não faz parte do número."""
+    return re.sub(r"[^A-Z0-9]", "", PREFIXO_PO.sub("", sem_acento(po).upper()))
 
 
 def normalizar_nome_empresa(nome: str) -> str:
@@ -231,6 +255,11 @@ PAISES: dict[str, str] = {
     **dict.fromkeys(["GERMANY", "ALEMANHA", "ALEMANIA", "DE", "DEU"], "DE"),
     **dict.fromkeys(["ITALY", "ITALIA", "IT", "ITA"], "IT"),
     **dict.fromkeys(["SPAIN", "ESPANHA", "ESPANA", "ES", "ESP"], "ES"),
+    **dict.fromkeys(["NETHERLANDS", "HOLLAND", "HOLANDA", "PAISES BAIXOS", "PAISES BAJOS", "NL", "NLD"], "NL"),
+    **dict.fromkeys(["BELGIUM", "BELGICA", "BELGIQUE", "BE", "BEL"], "BE"),
+    **dict.fromkeys(["FRANCE", "FRANCA", "FRANCIA", "FR", "FRA"], "FR"),
+    **dict.fromkeys(["PORTUGAL", "PT", "PRT"], "PT"),
+    **dict.fromkeys(["UNITED KINGDOM", "UK", "GREAT BRITAIN", "REINO UNIDO", "GB", "GBR"], "GB"),
     **dict.fromkeys(["ARGENTINA", "AR", "ARG"], "AR"),
     **dict.fromkeys(["CHILE", "CL", "CHL"], "CL"),
     **dict.fromkeys(["MEXICO", "MX", "MEX"], "MX"),
