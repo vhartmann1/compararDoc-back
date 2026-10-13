@@ -20,7 +20,7 @@ Documentação interativa em http://localhost:8000/docs. Sem chave, sobe em **mo
 | Variável | Padrão | O quê |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | vazio | Chave da Anthropic. Sem ela, modo mock. |
-| `EXTRATOR_MODO` | `auto` | `auto`, `claude` ou `mock`. |
+| `EXTRATOR_MODO` | `auto` | `auto`, `claude`, `mock` ou `claude_code` (CLI do Claude Code, sem gastar a API; só teste local). |
 | `MODELO_CLAUDE` | `claude-opus-5-5` | Modelo da leitura. |
 | `DATABASE_URL` | Postgres do `docker-compose.yaml` | Análises e arquivos (`postgresql+psycopg://…`). |
 | `MONGO_URL` / `MONGO_DB` | usuário da aplicação no MongoDB do `docker-compose.yaml` / `comparardocs` | Resultado de cada análise e extração de cada arquivo. |
@@ -82,6 +82,7 @@ uv run pytest -q    # não chama a API
 | `app/schemas.py` | Tipos da API, da extração e do resultado. |
 | `app/services/conversor.py` | Arquivo → conteúdo enviado ao Claude. |
 | `app/services/extrator.py`, `prompts.py` | Chamada à API e instruções. |
+| `app/services/extrator_claude_code.py` | A mesma leitura pela CLI do Claude Code (teste local). |
 | `app/services/normalizacao.py`, `comparador.py` | Regras de comparação. |
 | `app/services/pipeline.py` | Orquestra extração e comparação. |
 

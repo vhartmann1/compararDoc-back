@@ -24,7 +24,7 @@ uv run pytest -q
 
 ## Custo e dados
 
-- Chamada real à API gasta crédito: só com pedido explícito. Para desenvolver, `EXTRATOR_MODO=mock`.
+- Chamada real à API gasta crédito: só com pedido explícito. Para desenvolver, `EXTRATOR_MODO=mock`; para ler de verdade sem gastar a API, `EXTRATOR_MODO=claude_code`.
 - `.env` e `storage/` nunca vão para o git.
 - Dado de documento real (empresa, produto, nº de documento, endereço) não entra em código, teste, comentário ou log: usar dado inventado. O que só serve nesta máquina fica em `avaliacao/` e `tests/test_casos_reais.py`, fora do git.
 
