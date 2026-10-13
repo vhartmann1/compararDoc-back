@@ -625,6 +625,24 @@ def test_item_so_de_um_lado_e_casamento_por_descricao():
     assert mensagens(r, "item") == ["Item Cycling socks: só na Invoice"]
 
 
+def test_chave_do_item_nao_repete_quando_a_descricao_so_difere_no_fim():
+    parafuso = "PARAFUSO SEXTAVADO (HEX BOLT) MARCA:ACME ACABAMENTO: ZINCADO CLASSE: 8.8 MEDIDA:{} PASSO: {}"
+    itens = [item(None, parafuso.format("M8X40", 1), 500, "BOXES"), item(None, parafuso.format("M10X60", 2), 500, "BOXES")]
+    r = rodar([doc("invoice", numero="1", itens=itens), doc("packing_list", numero="1", itens=itens)])
+    chaves = [l.chave for l in r.itens[0].linhas]
+    assert chaves == [
+        "PARAFUSO SEXTAVADO (HEX… MEDIDA:M8X40 PASSO: 1",
+        "PARAFUSO SEXTAVADO (HEX… MEDIDA:M10X60 PASSO: 2",
+    ]
+
+
+def test_chave_do_item_ganha_numero_de_ordem_quando_a_descricao_e_identica():
+    itens = [item(None, "Parafuso", 10, "PCS", lotes=["L1"]), item(None, "Parafuso", 20, "PCS", lotes=["L2"]),
+             item(None, "Porca", 5, "PCS")]
+    r = rodar([doc("invoice", numero="1", itens=itens), doc("packing_list", numero="1", itens=itens)])
+    assert [l.chave for l in r.itens[0].linhas] == ["Parafuso (1)", "Parafuso (2)", "Porca"]
+
+
 def test_pais_e_endereco_normalizados():
     r = rodar([
         doc("invoice", numero="1", exportador="X", pais_exportador="Republic of Korea", endereco_exportador="Rua A, 10 - Seoul"),

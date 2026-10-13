@@ -4,6 +4,8 @@ Além da comparação campo a campo (categoria "comparacao"), gera divergências
 (incoterm × frete/portos), de itens (Invoice × Packing List) e internas (contradições num mesmo documento).
 """
 
+import os
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -112,6 +114,7 @@ CAMPOS_SEM_AVISO_INSUFICIENTE: set[NomeCampo] = {
 INCOTERMS_EF = {"EXW", "FCA", "FAS", "FOB"}
 INCOTERMS_CD = {"CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP", "DAT"}
 TAMANHO_MAX_DESCRICAO = 60
+TAMANHO_CABECA_DESCRICAO = 24
 
 
 # ---------------------------------------------------------------------------
@@ -1124,6 +1127,37 @@ def _curta(texto: str) -> str:
     return texto if len(texto) <= TAMANHO_MAX_DESCRICAO else texto[: TAMANHO_MAX_DESCRICAO - 1].rstrip() + "…"
 
 
+def _curta_pelo_que_distingue(texto: str, parecidas: list[str]) -> str:
+    """Encurta mantendo o começo e o trecho em que `texto` difere das `parecidas`."""
+    comum = os.path.commonprefix(parecidas)
+    inicio = comum.rfind(" ") + 1
+    cabeca = texto[:TAMANHO_CABECA_DESCRICAO].rsplit(" ", 1)[0]
+    if inicio <= len(cabeca):
+        return _curta(texto)
+    resto = texto[inicio:]
+    cabe = TAMANHO_MAX_DESCRICAO - len(cabeca) - 2
+    return f"{cabeca}… {resto if len(resto) <= cabe else resto[: cabe - 1].rstrip() + '…'}"
+
+
+def _chaves_unicas(rotulos: list[tuple[str | None, str]]) -> list[str]:
+    """Chave de cada linha a partir de (código, descrição). Identifica a linha na tela: não pode repetir."""
+    chaves = [codigo or _curta(descricao) for codigo, descricao in rotulos]
+    for chave in {c for c in chaves if chaves.count(c) > 1}:
+        indices = [i for i, c in enumerate(chaves) if c == chave and not rotulos[i][0]]
+        descricoes = [" ".join(rotulos[i][1].split()) for i in indices]
+        for i, descricao in zip(indices, descricoes):
+            chaves[i] = _curta_pelo_que_distingue(descricao, descricoes)
+
+    total, ordem = Counter(chaves), Counter()
+    unicas = []
+    for chave in chaves:
+        if total[chave] > 1:
+            ordem[chave] += 1
+            chave = f"{chave} ({ordem[chave]})"
+        unicas.append(chave)
+    return unicas
+
+
 def _valor_item(item: ItemAgrupado | None) -> ValorItem | None:
     if item is None:
         return None
@@ -1159,11 +1193,15 @@ def _comparar_itens(
     colunas = base + conhecimentos
     linhas_item: list[LinhaItem] = []
     divergencias: list[Divergencia] = []
-    for linha in linhas:
-        itens_base = [linha[c.col.chave] for c in base if c.col.chave in linha]
+    bases = [[linha[c.col.chave] for c in base if c.col.chave in linha] for linha in linhas]
+    chaves = _chaves_unicas(
+        [
+            (next((x.codigo for x in [*itens_base, *linha.values()] if x.codigo), None), itens_base[0].descricao)
+            for linha, itens_base in zip(linhas, bases)
+        ]
+    )
+    for linha, itens_base, chave in zip(linhas, bases, chaves):
         primeiro = itens_base[0]
-        codigo = next((x.codigo for x in [*itens_base, *linha.values()] if x.codigo), None)
-        chave = codigo or _curta(primeiro.descricao)
         difs = _diferencas_item(linha, colunas, so_conhecimento)
         if len(base) == 2 and len(itens_base) == 1 and not so_conhecimento:
             difs.insert(0, ("ausente", "só na Invoice" if base[0].col.chave in linha else "só no Packing List"))
