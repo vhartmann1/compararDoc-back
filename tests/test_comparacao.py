@@ -6,14 +6,14 @@ from app.schemas import (
     Contagem,
     DocumentoExtraido,
     ExtracaoArquivo,
-    Incoterm,
     InconsistenciaInterna,
+    Incoterm,
     ItemExtraido,
     Medida,
     Parte,
     Texto,
 )
-from app.services.comparador import comparar
+from app.services.comparacao import comparar
 
 
 def arquivo(id_):

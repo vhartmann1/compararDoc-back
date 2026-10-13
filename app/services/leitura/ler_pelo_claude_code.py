@@ -9,9 +9,9 @@ from pydantic import ValidationError
 
 from app.config import settings
 from app.schemas import ArquivoEntrada, ExtracaoArquivo, Uso
-from app.services.conversor import converter
-from app.services.extrator import ESFORCO, SISTEMA, TENTATIVAS, ErroExtracao, json_da_resposta
-from app.services.prompts import PROMPT_USUARIO
+from app.services.leitura.arquivo_para_conteudo import converter
+from app.services.leitura.formato_da_resposta import ESFORCO, SISTEMA, TENTATIVAS, ErroExtracao, json_da_resposta
+from app.services.leitura.instrucoes import PROMPT_USUARIO
 
 logger = logging.getLogger(__name__)
 

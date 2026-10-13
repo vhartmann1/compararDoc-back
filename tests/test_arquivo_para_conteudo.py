@@ -9,7 +9,7 @@ import pytest
 from PIL import Image
 
 from app.schemas import ArquivoEntrada
-from app.services.conversor import (
+from app.services.leitura.arquivo_para_conteudo import (
     MEDIA_DOCX,
     MEDIA_XLSX,
     ROTULO_FUNDO,

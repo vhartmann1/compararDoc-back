@@ -4,9 +4,10 @@ from collections.abc import Callable
 
 from app.config import settings
 from app.schemas import ArquivoEntrada, Etapa, Modalidade, ResultadoPipeline
-from app.services import comparador, extrator, extrator_claude_code, extrator_mock
+from app.services.comparacao import comparar
+from app.services.leitura import ler_pela_api, ler_pelo_claude_code, ler_simulado
 
-EXTRATORES = {"claude": extrator, "mock": extrator_mock, "claude_code": extrator_claude_code}
+EXTRATORES = {"claude": ler_pela_api, "mock": ler_simulado, "claude_code": ler_pelo_claude_code}
 
 
 def processar(
@@ -23,5 +24,5 @@ def processar(
     extracoes, uso = EXTRATORES[settings.modo_extrator_efetivo].extrair_arquivos(arquivos)
 
     avisar("COMPARANDO")
-    resultado = comparador.comparar([(a, extracoes[a.id]) for a in arquivos], modalidade)
+    resultado = comparar([(a, extracoes[a.id]) for a in arquivos], modalidade)
     return ResultadoPipeline(resultado=resultado, extracoes=extracoes, uso=uso)

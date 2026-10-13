@@ -1,7 +1,7 @@
 import pytest
 
 from app.schemas import Medida
-from app.services.normalizacao import (
+from app.services.comparacao.normalizacao import (
     embalagem,
     enderecos_compativeis,
     referencias_iguais,
@@ -151,7 +151,7 @@ def test_formatacao_br():
 
 # v3 ------------------------------------------------------------------------
 
-from app.services.normalizacao import (  # noqa: E402
+from app.services.comparacao.normalizacao import (  # noqa: E402
     descricoes_equivalentes,
     enderecos_equivalentes,
     normalizar_incoterm,

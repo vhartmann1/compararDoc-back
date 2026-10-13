@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.extrator import _uso
+from app.services.leitura.ler_pela_api import _uso
 
 
 def resposta(modelo, entrada, gravados, lidos, saida):

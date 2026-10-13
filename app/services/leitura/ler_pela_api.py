@@ -1,13 +1,6 @@
-"""Extração com a Claude API: uma requisição por arquivo, saída JSON validada contra ExtracaoArquivo.
+"""Extração com a Claude API: uma requisição por arquivo, saída JSON validada contra ExtracaoArquivo."""
 
-Por que não structured outputs (`output_config.format`): a partir do schema v3 (itens, incoterm,
-inconsistências...) a API recusa o schema com "The compiled grammar is too large". Por isso o schema
-vai no prompt de sistema e a resposta é validada com Pydantic; se vier inválida, refaz uma vez.
-"""
-
-import json
 import logging
-import re
 from concurrent.futures import ThreadPoolExecutor
 
 import anthropic
@@ -15,14 +8,14 @@ from pydantic import ValidationError
 
 from app.config import settings
 from app.schemas import ArquivoEntrada, ExtracaoArquivo, Uso
-from app.services.conversor import converter
-from app.services.prompts import PROMPT_SISTEMA, PROMPT_USUARIO
+from app.services.leitura.arquivo_para_conteudo import converter
+from app.services.leitura.formato_da_resposta import ESFORCO, SISTEMA, TENTATIVAS, ErroExtracao, json_da_resposta
+from app.services.leitura.instrucoes import PROMPT_USUARIO
 
 logger = logging.getLogger(__name__)
 
 MAX_WORKERS = 4
 MAX_TOKENS = 16000
-ESFORCO = "high"  # leitura de scans: precisão importa; "medium" barateia se o acerto se mantiver
 
 # US$ por milhão de tokens: (entrada, saída, leitura do cache). Gravar no cache custa 1,25× a entrada (TTL 5 min).
 PRECOS = {
@@ -31,22 +24,10 @@ PRECOS = {
 }
 PRECO_PADRAO = PRECOS["claude-opus-5-5"]
 MULTIPLICADOR_GRAVACAO_CACHE = 1.25
-TENTATIVAS = 2  # JSON inválido => refaz uma vez
-
-SISTEMA = (
-    f"{PROMPT_SISTEMA}\n## Formato da resposta\n"
-    "Responda só com um objeto JSON válido (sem texto antes ou depois, sem ```), que siga exatamente este "
-    "JSON Schema — todos os campos presentes, null quando não houver valor:\n"
-    f"{json.dumps(ExtracaoArquivo.model_json_schema(), ensure_ascii=False)}\n"
-)
 
 
 # As instruções são iguais em toda chamada: ficam em cache e, repetidas em até 5 min, custam só a leitura.
 SISTEMA_COM_CACHE = [{"type": "text", "text": SISTEMA, "cache_control": {"type": "ephemeral"}}]
-
-
-class ErroExtracao(Exception):
-    pass
 
 
 def extrair_arquivos(arquivos: list[ArquivoEntrada]) -> tuple[dict[str, ExtracaoArquivo], Uso]:
@@ -140,13 +121,6 @@ def _verificar_parada(resposta, arquivo: ArquivoEntrada) -> None:
         raise ErroExtracao(f"A Claude se recusou a ler {arquivo.nome}." + (f" Motivo: {motivo}" if motivo else ""))
     if resposta.stop_reason == "max_tokens":
         raise ErroExtracao(f"A resposta para {arquivo.nome} ficou grande demais e foi cortada.")
-
-
-def json_da_resposta(texto: str) -> str:
-    """Tira cercas ``` e qualquer texto fora do objeto JSON."""
-    texto = re.sub(r"^```(?:json)?\s*|\s*```$", "", texto.strip())
-    inicio, fim = texto.find("{"), texto.rfind("}")
-    return texto[inicio : fim + 1] if inicio >= 0 and fim > inicio else texto
 
 
 def _uso(resposta) -> tuple[int, int, float]:

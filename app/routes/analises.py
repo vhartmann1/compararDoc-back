@@ -301,7 +301,7 @@ def processar_analise(analise_id: str) -> None:
             retorno = asyncio.run(retorno)
     except Exception as e:
         logger.exception("Falha ao processar a análise %s", analise_id)
-        from app.services.extrator import ErroExtracao
+        from app.services.leitura.formato_da_resposta import ErroExtracao
 
         # ErroExtracao já traz mensagem pronta para o usuário; o resto fica genérico.
         _marcar_erro(analise_id, str(e) if isinstance(e, ErroExtracao) else MENSAGEM_ERRO_GENERICA)
