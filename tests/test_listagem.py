@@ -38,7 +38,7 @@ def session():
                 analise(6, "proc-006", "PROCESSANDO"),
                 analise(7, "PROC-007", "CONCLUIDA", None),  # versão anterior, sem resultado
                 ArquivoDB(id="f1", analise_id="a2", nome="x.pdf", caminho="x.pdf", media_type="application/pdf", tamanho_bytes=1),
-                ArquivoDB(id="f2", analise_id="a2", nome="y.pdf", caminho="y.pdf", media_type="application/pdf", tamanho_bytes=1),
+                ArquivoDB(id="f2", analise_id="a2", ordem=1, nome="y.pdf", caminho="y.pdf", media_type="application/pdf", tamanho_bytes=1),
             ]
         )
         s.commit()
