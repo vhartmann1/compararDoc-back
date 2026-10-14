@@ -42,6 +42,11 @@ def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
     return descricoes_equivalentes(a.descricao, b.descricao)
 
 
+def _descricao_generica(x: ItemAgrupado) -> bool:
+    """'SYNTHETIC YARN', 'BOTTLED WINE': categoria, não o produto (sem referência nem número)."""
+    return not x.referencia and not any(ch.isdigit() for ch in x.descricao)
+
+
 def _exibir_descricao(x: ItemAgrupado) -> str:
     """Descrição curta; com a referência entre parênteses se ela não estiver na descrição."""
     if x.referencia and normalizar_referencia(x.referencia) not in normalizar_referencia(x.descricao):
@@ -79,6 +84,8 @@ def diferencas_item(linha: Linha, colunas: list[ColItens], so_conhecimento: bool
     for atributo in ATRIBUTOS_ITEM:
         informados = [(c, linha[c.col.chave]) for c in colunas if c.col.chave in linha]
         informados = [(c, x) for c, x in informados if atributo.informado(x)]
+        if atributo.nome == "descricao":
+            informados = [(c, x) for c, x in informados if not (c.conhecimento and _descricao_generica(x))]
         diferentes = any(
             not atributo.iguais(x, y)
             for n, (c1, x) in enumerate(informados)

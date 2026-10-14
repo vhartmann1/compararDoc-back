@@ -135,6 +135,14 @@ def normalizar_numero_documento(numero: str) -> str:
     return limpo.lstrip("0") or limpo
 
 
+def numero_sem_serie(numero: str) -> str:
+    """'FT A26/000123' e 'GR A26/000123' -> 'A26000123': a série (tipo do documento) na frente não é o número."""
+    partes = sem_acento(numero).upper().split(None, 1)
+    if len(partes) == 2 and re.fullmatch(r"[A-Z]{1,4}\.?", partes[0]) and re.search(r"\d", partes[1]):
+        return normalizar_numero_documento(partes[1])
+    return normalizar_numero_documento(numero)
+
+
 PREFIXO_PO = re.compile(r"^\s*(P\.?\s?O\.?|PURCHASE ORDER|PEDIDO)(?=[\s:#.\-0-9])\s*(N[O°º]\.?|NR\.?|NUMBER|#|:)?\s*")
 
 
@@ -161,8 +169,24 @@ def nomes_equivalentes(a: str, b: str) -> bool:
     return len(curto) >= 6 and longo.startswith(curto)
 
 
+# Terminal ou nome alternativo -> porto (o BL costuma citar o terminal; a invoice, a cidade)
+PORTOS_EQUIVALENTES = {
+    **dict.fromkeys(["XINGANG", "TIANJIN XINGANG", "XINGANG TIANJIN", "TIANJINXINGANG"], "TIANJIN"),
+    **dict.fromkeys(["YANTIAN", "SHEKOU", "CHIWAN", "DA CHAN BAY"], "SHENZHEN"),
+    **dict.fromkeys(["NANSHA", "HUANGPU"], "GUANGZHOU"),
+    **dict.fromkeys(["YANGSHAN", "WAIGAOQIAO"], "SHANGHAI"),
+    **dict.fromkeys(["BEILUN", "NINGBO ZHOUSHAN"], "NINGBO"),
+}
+
+
 def normalizar_porto(nome: str) -> str:
-    """'Port of Navegantes - SC, Brazil' -> 'NAVEGANTES'."""
+    """Nome do porto para comparar: 'XINGANG' e 'Tianjin, China' -> 'TIANJIN'."""
+    porto = nome_do_porto(nome)
+    return PORTOS_EQUIVALENTES.get(porto, porto)
+
+
+def nome_do_porto(nome: str) -> str:
+    """Nome do porto como o documento escreve, sem rótulo e sem país: 'Port of Navegantes - SC, Brazil' -> 'NAVEGANTES'."""
     texto = sem_acento(nome).upper()
     texto = re.sub(r"\(.*?\)", " ", texto)  # 'SHEKOU (CHINA)'
     texto = re.split(r",|/| - ", texto)[0]  # 'NAVEGANTES, SC' / 'NAVEGANTES - SC'
@@ -250,6 +274,7 @@ PAISES: dict[str, str] = {
     **dict.fromkeys(["MALAYSIA", "MALASIA", "MY", "MYS"], "MY"),
     **dict.fromkeys(["TURKEY", "TURKIYE", "TURQUIA", "TR", "TUR"], "TR"),
 }
+SIGLAS_PAISES = set(PAISES.values())
 
 MOEDAS: dict[str, str] = {
     **dict.fromkeys(["USD", "US$", "U$", "$", "US DOLLAR", "US DOLLARS", "DOLLAR", "DOLLARS", "DOLAR", "DOLARES"], "USD"),
@@ -325,6 +350,10 @@ def normalizar_incoterm(codigo: str) -> str:
 
 
 def normalizar_codigo_item(codigo: str) -> str:
+    """'4200000001004 TW' -> '4200000001004': a sigla do país de origem no fim não faz parte do código."""
+    partes = sem_acento(codigo).upper().rsplit(None, 1)
+    if len(partes) == 2 and partes[1] in SIGLAS_PAISES and re.search(r"\d", partes[0]):
+        codigo = partes[0]
     return re.sub(r"[^A-Z0-9]", "", sem_acento(codigo).upper())
 
 

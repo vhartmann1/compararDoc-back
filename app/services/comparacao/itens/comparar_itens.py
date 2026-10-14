@@ -4,7 +4,7 @@ from app.schemas import Coluna, ComparacaoItens, Divergencia, LinhaItem, ValorIt
 from app.services.comparacao.colunas_da_comparacao import coluna_soma, colunas_conhecimento, colunas_par, listar_pares
 from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.identificacao_do_documento import ref_documento
-from app.services.comparacao.itens.agrupar_por_codigo import agrupar_itens
+from app.services.comparacao.itens.agrupar_linhas_do_mesmo_item import agrupar_itens
 from app.services.comparacao.itens.casar_itens import casar, casar_base
 from app.services.comparacao.itens.chave_da_linha import chaves_unicas
 from app.services.comparacao.itens.diferencas_do_item import diferencas_item

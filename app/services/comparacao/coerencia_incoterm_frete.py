@@ -4,7 +4,7 @@ from app.schemas import Divergencia
 from app.services.comparacao.colunas_da_comparacao import listar_pares
 from app.services.comparacao.constantes import INCOTERMS_CD, INCOTERMS_EF
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.normalizacao import normalizar_incoterm, normalizar_porto
+from app.services.comparacao.normalizacao import nome_do_porto, normalizar_incoterm, normalizar_porto
 from app.services.comparacao.tipos import Fonte
 
 
@@ -45,7 +45,8 @@ def _coerencia_incoterm(fonte: Fonte, par: list[Fonte], conhecimentos: list[Font
     inc = fonte.doc.incoterm
     sigla = normalizar_incoterm(inc.codigo)
     local = normalizar_porto(inc.local) if inc.local else ""
-    exibicao = f"{sigla} {local}".strip()
+    local_exibido = nome_do_porto(inc.local) if inc.local else ""
+    exibicao = f"{sigla} {local_exibido}".strip()
     nome = nome_doc(fonte)
     resultado: list[tuple[str, str]] = []
 
@@ -68,14 +69,14 @@ def _coerencia_incoterm(fonte: Fonte, par: list[Fonte], conhecimentos: list[Font
         if local in destinos:
             resultado.append((
                 "par",
-                f"Incoterm {exibicao} ({nome}): {sigla} indica local de embarque/origem, mas {local} é o destino",
+                f"Incoterm {exibicao} ({nome}): {sigla} indica local de embarque/origem, mas {local_exibido} é o destino",
             ))
     if local and sigla in INCOTERMS_CD:
         for c in conhecimentos:
-            destino = normalizar_porto(c.doc.porto_destino.valor) if c.doc.porto_destino else ""
-            if destino and destino != local:
+            destino = c.doc.porto_destino.valor if c.doc.porto_destino else ""
+            if destino and normalizar_porto(destino) != local:
                 resultado.append((
                     "conhecimento",
-                    f"Incoterm {exibicao} ({nome}) × porto de descarga do {nome_doc(c)} {destino}",
+                    f"Incoterm {exibicao} ({nome}) × porto de descarga do {nome_doc(c)} {nome_do_porto(destino)}",
                 ))
     return resultado

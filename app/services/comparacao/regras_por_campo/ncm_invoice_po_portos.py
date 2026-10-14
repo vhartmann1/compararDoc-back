@@ -6,7 +6,9 @@ from app.services.comparacao.normalizacao import (
     normalizar_ncm,
     normalizar_numero_documento,
     normalizar_po,
+    nome_do_porto,
     normalizar_porto,
+    numero_sem_serie,
 )
 from app.services.comparacao.regras_por_campo.regra import primeira_pagina, texto_soma, valor_conjunto
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -39,10 +41,20 @@ def obter_numero_invoice(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | N
         numeros = [doc.numero] if doc.numero else []
     else:
         numeros = list(doc.invoices_referenciadas)
-        # PL que não cita invoice usa o próprio número como referência (costuma ser o mesmo da invoice)
-        if doc.tipo == "packing_list" and doc.numero and not numeros:
-            numeros.append(doc.numero)
+        # PL que não cita invoice: o próprio número só vale se for o da invoice pareada ou quase (erro de digitação)
+        par = f.invoice_par
+        if doc.tipo == "packing_list" and doc.numero and not numeros and par and par.numero:
+            proprio, da_invoice = numero_sem_serie(doc.numero), numero_sem_serie(par.numero)
+            if proprio == da_invoice:
+                numeros.append(par.numero)
+            elif _quase_iguais(proprio, da_invoice):
+                numeros.append(doc.numero)
     return valor_conjunto(numeros, normalizar_numero_documento, f, primeira_pagina(f))
+
+
+def _quase_iguais(a: str, b: str) -> bool:
+    """Mesmo tamanho e no máximo 2 caracteres diferentes: 'KTR27393806' × 'KTR27393803'."""
+    return len(a) == len(b) >= 6 and sum(x != y for x, y in zip(a, b)) <= 2
 
 
 def obter_po(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
@@ -56,10 +68,10 @@ def obter_porto(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     valor = valor_conjunto([porto.valor], normalizar_porto, f, porto.pagina)
     if valor:
         valor.texto_original = porto.valor
-        valor.exibicao = normalizar_porto(porto.valor)
+        valor.exibicao = nome_do_porto(porto.valor)
     return valor
 
 
 def juntar_porto(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor:
     chave = frozenset().union(*(v.chave for v in valores))
-    return Valor(chave, " / ".join(sorted(chave)), texto_soma(valores), None, None)
+    return Valor(chave, " / ".join(sorted({v.exibicao for v in valores})), texto_soma(valores), None, None)

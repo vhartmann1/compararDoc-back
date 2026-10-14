@@ -6,7 +6,7 @@ from app.services.comparacao.normalizacao import (
     normalizar_incoterm,
     normalizar_moeda,
     normalizar_pais,
-    normalizar_porto,
+    nome_do_porto,
 )
 from app.services.comparacao.regras_por_campo.regra import texto_soma, valor_conjunto
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -56,7 +56,7 @@ def obter_moeda(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
 def _exibir_incoterm(f: Fonte) -> str:
     inc = f.doc.incoterm
     sigla = normalizar_incoterm(inc.codigo)
-    local = normalizar_porto(inc.local) if inc.local else ""
+    local = nome_do_porto(inc.local) if inc.local else ""
     return f"{sigla} {local}".strip()
 
 

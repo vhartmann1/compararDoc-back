@@ -45,3 +45,30 @@ def test_caso_4_estrutura():
     assert [c.rotulo for c in consolidado.colunas] == ["Soma das 2 invoices", "Soma dos 2 packing lists", "AWB 123-4567 8901"]
     assert consolidado.titulo == "Soma das 2 invoices × Soma dos 2 packing lists × AWB 123-4567 8901"
     assert r.status == "DIVERGENTE"
+
+
+def test_documentos_sem_numero_e_com_totais_diferentes_sao_documentos_diferentes():
+    r = rodar(
+        [doc("invoice", 100, 110, numero="A1"), doc("packing_list", 100, 110, refs=["A1"])],
+        [doc("invoice", 50, 60, numero="B2"), doc("packing_list", 50, 60, refs=["B2"])],
+    )
+    assert not any("Mais de um documento" in a for a in r.avisos)
+    assert campo(r.comparacoes[0], "peso_bruto").status == "OK"
+
+
+def test_o_mesmo_documento_sem_numero_enviado_duas_vezes_conta_uma():
+    pl = doc("packing_list", 100, 110, refs=["A1"])
+    r = rodar([doc("invoice", 100, 110, numero="A1"), pl], [pl])
+    assert any("Mais de um documento Packing List" in a for a in r.avisos)
+
+
+def test_invoice_e_packing_list_com_o_mesmo_numero_e_series_diferentes_formam_par():
+    r = rodar([doc("invoice", 100, 110, numero="FT A26/000123"), doc("packing_list", 100, 110, numero="GR A26/000123")])
+    assert not any("sem packing list" in a or "sem invoice" in a for a in r.avisos)
+    assert campo(r.comparacoes[0], "numero_invoice").status != "DIVERGENTE"
+    assert campo(r.comparacoes[0], "peso_bruto").status == "OK"
+
+
+def test_numero_proprio_do_packing_list_nao_vira_divergencia_de_invoice():
+    r = rodar([doc("invoice", 100, 110, numero="91234567"), doc("packing_list", 100, 110, numero="80765432")])
+    assert campo(r.comparacoes[0], "numero_invoice").status != "DIVERGENTE"

@@ -129,7 +129,8 @@ def test_nome_empresa():
         ("Port of Navegantes", "NAVEGANTES"),
         ("Itapoá - SC", "ITAPOA"),
         ("BEIJIN AIRPORT", "BEIJIN"),
-        ("Shekou (China)", "SHEKOU"),
+        ("Shekou (China)", "SHENZHEN"),
+        ("TIANJIN XINGANG", "TIANJIN"),
         ("Aeroporto de Viracopos", "VIRACOPOS"),
         ("CARTAGENA - COLOMBIA", "CARTAGENA"),
     ],
@@ -226,3 +227,10 @@ def test_enderecos_compativeis(a, b, esperado):
 )
 def test_referencias_iguais(a, b, esperado):
     assert referencias_iguais(a, b) is esperado
+
+
+def test_numero_sem_serie():
+    from app.services.comparacao.normalizacao import numero_sem_serie
+
+    assert numero_sem_serie("FT A26/000123") == numero_sem_serie("GR A26/000123") == "A26000123"
+    assert numero_sem_serie("SU26081EA") == "SU26081EA"

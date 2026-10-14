@@ -23,3 +23,13 @@ def test_ncm_posicao_redundante_no_mesmo_documento_e_ignorada():
 def test_po_com_e_sem_o_rotulo_confere():
     r = rodar([doc("invoice", numero="1", po="PO 15 March"), doc("packing_list", numero="1", po="15 March")])
     assert campo(r.comparacoes[0], "po").status == "OK"
+
+
+def test_porto_e_terminal_com_outro_nome_conferem():
+    r = rodar([
+        doc("invoice", numero="1", origem="Tianjin, China"),
+        doc("packing_list", numero="1", origem="TIANJIN XINGANG"),
+    ], [doc("conhecimento", subtipo="BL", origem="XINGANG")])
+    assert campo(r.comparacoes[0], "porto_origem").status == "OK"
+    valores = campo(r.comparacoes[0], "porto_origem").valores
+    assert [valores[k].exibicao for k in ("invoice", "packing_list", "conhecimento")] == ["TIANJIN", "TIANJIN XINGANG", "XINGANG"]

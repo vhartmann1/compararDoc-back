@@ -2,6 +2,7 @@
 
 from app.schemas import DocumentoExtraido
 from app.services.comparacao.identificacao_do_documento import nome_doc, numero_normalizado
+from app.services.comparacao.normalizacao import numero_sem_serie
 from app.services.comparacao.tipos import Fonte
 
 
@@ -42,4 +43,6 @@ def _pl_da_invoice(pl: DocumentoExtraido, inv: DocumentoExtraido) -> bool:
     if not numero:
         return False
     citados = {numero_normalizado(n) for n in pl.invoices_referenciadas}
-    return numero == numero_normalizado(pl.numero) or numero in citados
+    if numero == numero_normalizado(pl.numero) or numero in citados:
+        return True
+    return bool(pl.numero) and numero_sem_serie(inv.numero) == numero_sem_serie(pl.numero)

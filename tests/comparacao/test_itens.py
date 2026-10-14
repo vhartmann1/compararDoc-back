@@ -1,3 +1,4 @@
+from app.services.comparacao.itens.chave_da_linha import chaves_unicas
 from tests.comparacao.apoio import campo, doc, item, mensagens, rodar
 from tests.comparacao.cenarios import caso_1, caso_6_v3
 
@@ -62,10 +63,7 @@ def test_chave_do_item_nao_repete_quando_a_descricao_so_difere_no_fim():
 
 
 def test_chave_do_item_ganha_numero_de_ordem_quando_a_descricao_e_identica():
-    itens = [item(None, "Parafuso", 10, "PCS", lotes=["L1"]), item(None, "Parafuso", 20, "PCS", lotes=["L2"]),
-             item(None, "Porca", 5, "PCS")]
-    r = rodar([doc("invoice", numero="1", itens=itens), doc("packing_list", numero="1", itens=itens)])
-    assert [l.chave for l in r.itens[0].linhas] == ["Parafuso (1)", "Parafuso (2)", "Porca"]
+    assert chaves_unicas([(None, "Parafuso"), (None, "Parafuso"), (None, "Porca")]) == ["Parafuso (1)", "Parafuso (2)", "Porca"]
 
 
 def test_referencia_diferente_por_uma_letra_diverge():
@@ -100,3 +98,33 @@ def test_referencias_com_numero_diferente_divergem():
          doc("packing_list", numero="1", itens=[item("B", "Shoes Trail-Max 100", 5, "PAIRS", referencia="Trail-Max 100")])],
     )
     assert r.itens[0].linhas[0].diferencas == ["descricao"]
+
+
+def test_linhas_sem_codigo_com_a_mesma_descricao_sao_o_mesmo_item():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item(None, "Barra redonda inox 6000mm", 30, "PCS")]),
+        doc("packing_list", numero="1", itens=[
+            item(None, "Barra redonda inox 6000mm", 10, "PCS"),
+            item(None, "BARRA REDONDA INOX 6000MM", 20, "PCS"),
+        ]),
+    ])
+    [linha] = r.itens[0].linhas
+    assert linha.status == "OK"
+    assert linha.valores["packing_list"].quantidade == "30 PCS"
+
+
+def test_sigla_do_pais_no_fim_do_codigo_e_o_mesmo_item():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item("4200000001004 TW", "Bicicleta aro 29 tam. S", 2, "PCE")]),
+        doc("packing_list", numero="1", itens=[item("4200000001004", "Bicicleta aro 29 tam. S", 2, "PCE")]),
+    ])
+    [linha] = r.itens[0].linhas
+    assert linha.status == "OK"
+
+
+def test_tamanho_no_fim_do_codigo_continua_sendo_outro_item():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item("CAM-100 XL", "Camiseta", 2, "PCS"), item("CAM-100 XS", "Camiseta", 3, "PCS")]),
+        doc("packing_list", numero="1", itens=[item("CAM-100 XL", "Camiseta", 2, "PCS"), item("CAM-100 XS", "Camiseta", 3, "PCS")]),
+    ])
+    assert [l.status for l in r.itens[0].linhas] == ["OK", "OK"]

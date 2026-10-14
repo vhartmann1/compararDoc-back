@@ -1,18 +1,26 @@
-"""Agrupa por código as linhas de item de cada coluna."""
+"""Junta as linhas do mesmo item em cada coluna: mesmo código ou, sem código, mesma descrição."""
 
 from app.schemas import ItemExtraido
 from app.services.comparacao.itens.tipos import ItemAgrupado
-from app.services.comparacao.normalizacao import formatar_contagem, normalizar_codigo_item, unidade_quantidade
+from app.services.comparacao.normalizacao import (
+    formatar_contagem,
+    normalizar_codigo_item,
+    normalizar_descricao,
+    unidade_quantidade,
+)
 from app.services.comparacao.tipos import Fonte
 
 
 def agrupar_itens(fontes: list[Fonte]) -> list[ItemAgrupado]:
-    """Agrupa por código as linhas de todos os documentos da coluna (vários, quando é uma soma)."""
+    """Agrupa as linhas de todos os documentos da coluna (vários, quando é uma soma)."""
     grupos: dict[str, list[tuple[ItemExtraido, str]]] = {}
     linhas = [(item, f.arquivo.id) for f in fontes for item in f.doc.itens]
     for i, (item, arquivo_id) in enumerate(linhas):
         codigo = normalizar_codigo_item(item.codigo) if item.codigo else ""
-        grupos.setdefault(codigo or f"#sem-codigo-{i}", []).append((item, arquivo_id))
+        descricao = normalizar_descricao(item.descricao)
+        grupos.setdefault(codigo or (f"#descricao-{descricao}" if descricao else f"#linha-{i}"), []).append(
+            (item, arquivo_id)
+        )
     return [_juntar_linhas([l for l, _ in g], g[0][1]) for g in grupos.values()]
 
 

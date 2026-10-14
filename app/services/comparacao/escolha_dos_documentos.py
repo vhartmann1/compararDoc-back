@@ -22,7 +22,7 @@ def escolher_documentos(
         # mesmo tipo e mesmo número => fica 1: original > copia > draft > desconhecida; empate => último enviado
         por_numero: dict[str, list[Fonte]] = {}
         for f in fontes:
-            por_numero.setdefault(numero_normalizado(f.doc.numero), []).append(f)
+            por_numero.setdefault(_chave_de_duplicata(f), []).append(f)
         escolhidos[tipo] = []
         for mesmas in por_numero.values():
             melhor = max(mesmas, key=lambda f: (PRIORIDADE_VERSAO[f.doc.versao], f.ordem))
@@ -35,6 +35,15 @@ def escolher_documentos(
                 )
         escolhidos[tipo].sort(key=lambda f: f.ordem)
     return escolhidos
+
+
+def _chave_de_duplicata(f: Fonte) -> tuple:
+    """Mesmo número = mesmo documento; sem número, só se cita as mesmas invoices e tem os mesmos totais."""
+    if numero := numero_normalizado(f.doc.numero):
+        return (numero,)
+    d = f.doc
+    totais = tuple((m.valor, m.unidade) if m else None for m in (d.peso_bruto_total, d.peso_liquido_total, d.volumes_total))
+    return ("", tuple(sorted(numero_normalizado(n) for n in d.invoices_referenciadas)), totais)
 
 
 def _descrever(f: Fonte) -> str:

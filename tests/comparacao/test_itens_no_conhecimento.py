@@ -75,3 +75,12 @@ def test_conhecimento_com_descricao_que_serve_para_varios_itens_so_aviso():
     )
     assert all(l.valores["conhecimento"] is None and l.status == "OK" for l in r.itens[0].linhas)
     assert "AWB descreve 'SYNTHETIC SHOES'; não foi possível relacionar aos itens." in r.avisos
+
+
+def test_descricao_generica_do_conhecimento_casado_pelo_codigo_nao_diverge():
+    r = rodar(
+        [doc("invoice", numero="1", itens=[item("A1", "Fio de polietileno 8000 dtex azul", 10, "KG")]),
+         doc("packing_list", numero="1", itens=[item("A1", "Fio de polietileno 8000 dtex azul", 10, "KG")])],
+        [doc("conhecimento", subtipo="BL", itens=[item("A1", "Synthetic yarn")])],
+    )
+    assert all(l.status == "OK" for i in r.itens for l in i.linhas)
