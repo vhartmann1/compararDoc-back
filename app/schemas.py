@@ -121,7 +121,7 @@ class DocumentoExtraido(BaseModel):
     invoices_referenciadas: list[str] = Field(
         description="Números de invoice citados no documento (ex.: PL ou BL que mencionam 'Invoice No.')"
     )
-    po: str | None = Field(description="Número do pedido (PO / Purchase Order / Order No.)")
+    po: str | None = Field(description="Número do pedido do comprador (PO / Purchase Order / Your Order)")
     incoterm: Incoterm | None
     frete: Texto | None = Field(description="Pagamento do frete no documento: 'PREPAID' ou 'COLLECT' (normalize)")
     moeda: Texto | None = Field(description="Moeda dos valores, código ISO: 'USD', 'EUR', 'CNY'...")

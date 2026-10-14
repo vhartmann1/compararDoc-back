@@ -45,8 +45,9 @@ conhecimento costumam citar.
 dizem "Invoice No. 123", "Factura No."). Copie cada número como aparece; se aparecer em duas \
 formas (ex.: "70012345 / 0070012345"), liste as duas. Numa invoice, deixe [] (o número dela vai em \
 `numero`).
-- `po`: número do pedido (PO, Purchase Order, Order No., Pedido). Não é o Sales Order do vendedor \
-quando houver um campo PO separado.
+- `po`: número do pedido do comprador (PO, Purchase Order, Pedido, "Your Order", "Your Ref.", \
+"Customer Ref."). Se o documento traz também a referência interna do vendedor ("Our Ref.", "Our Order", \
+Sales Order, "Order No." do vendedor), use a do comprador; só use a do vendedor se for a única.
 - `versao`: `original` se o documento se identifica como ORIGINAL; `draft` se for rascunho (DRAFT, \
 "for approval"); `copia` se for COPY / NON-NEGOTIABLE COPY / cópia; `desconhecida` se não der \
 para saber (comum em Word/Excel).
@@ -78,7 +79,9 @@ Não é o número de volumes.
 - `ncms`: os códigos de classificação fiscal do documento, um item por código distinto, copiados \
 como estão (ex.: "3901.10.10", "HS 390110"). Se o documento identifica explicitamente o NCM \
 (Mercosul) — ex.: "NCM: 3904.10.10" — liste só o(s) NCM; senão liste os HS Codes / posições \
-arancelarias que aparecerem.
+arancelarias que aparecerem. No **conhecimento**, os códigos que aparecem no meio da descrição da \
+mercadoria (ex.: "390110 Polyethylene resin", "390120 Polyethylene film") também contam: liste todos, \
+não só a linha marcada "NCM".
 
 - `incoterm`: a condição de venda (Incoterm, Price Terms, Terms of Delivery, Condición de entrega). \
 `codigo` = só a sigla (EXW, FCA, FAS, FOB, CFR, CIF, CPT, CIP, DAP, DPU, DDP); `local` = só o nome da \
@@ -104,7 +107,8 @@ preenchidos se aparecerem.
 - `emitente_assinatura`: a empresa que aparece assinando/carimbando o documento (nome no rodapé, \
 na área de assinatura ou "for and on behalf of"), se houver; senão null.
 - `itens`: as linhas de mercadoria de invoice e packing list, na ordem do documento, uma entrada por \
-linha da tabela. No **conhecimento** (BL/AWB/CRT), extraia também a(s) mercadoria(s) do campo \
+linha da tabela. Não liste como item paletes, embalagens, frete, seguro nem serviços (seções como \
+"Additionals" ou "Packing material"), mesmo que tenham código e linha própria. No **conhecimento** (BL/AWB/CRT), extraia também a(s) mercadoria(s) do campo \
 "Description of goods" / "Nature and quantity of goods": uma entrada por produto descrito, com a \
 descrição/referência comercial como aparece; se o texto traz uma referência/modelo comercial além do \
 nome genérico, comece a `descricao` por ela (ex.: "POLYETHYLENE RESIN - REF: LUMIPOL HD 450" => \
