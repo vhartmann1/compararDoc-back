@@ -154,6 +154,7 @@ def test_formatacao_br():
 from app.services.comparacao.normalizacao import (  # noqa: E402
     descricoes_equivalentes,
     enderecos_equivalentes,
+    palavras_do_endereco,
     normalizar_incoterm,
     normalizar_lote,
     normalizar_moeda,
@@ -188,6 +189,13 @@ def test_descricao_e_endereco():
     assert not descricoes_equivalentes("POLIRMX HD 475 / 25 kg SA", "POLIREX YK 455")
     assert enderecos_equivalentes("Calle 10 #20-30, Bogotá", "CALLE 10 20-30 BOGOTA")
     assert not enderecos_equivalentes("Room 804, Hangzhou, Zhejiang", "Rua das Flores 100, Itajaí")
+
+
+def test_endereco_em_outra_ordem_e_com_o_pais_abreviado_e_o_mesmo():
+    assert enderecos_equivalentes("Kanaalweg 12, 4811 AB Breda, The Netherlands", "Kanaalweg 12, Breda, 4811 AB, NL")
+    assert enderecos_equivalentes("Via Roma 5, 20121 Milano, Italy", "VIA ROMA 5 MILANO 20121 ITALIA")
+    assert not enderecos_equivalentes("Kanaalweg 12, 4811 AB Breda, NL", "Havenstraat 3, 4811 AB Breda, NL")
+    assert palavras_do_endereco("Kanaalweg 12, The Netherlands") == {"KANAALWEG", "12", "NL"}
 
 
 @pytest.mark.parametrize(

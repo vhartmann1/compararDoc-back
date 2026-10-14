@@ -41,3 +41,11 @@ def test_caso_4_incoterms_diferentes_entre_invoices():
     assert ("Consolidado — Incoterm: Invoice L30514262 FOB BEIJIN × Invoice L30518777 EXW BEIJIN"
             in mensagens(r, "comparacao"))
     assert campo(r.comparacoes[0], "incoterm").status == "INSUFICIENTE"  # só a invoice tem
+
+
+def test_endereco_do_exportador_em_outra_ordem_confere():
+    r = rodar([
+        doc("invoice", numero="1", exportador="Alfa BV", endereco_exportador="Kanaalweg 12, 4811 AB Breda, The Netherlands"),
+        doc("packing_list", numero="1", exportador="Alfa BV", endereco_exportador="Kanaalweg 12, Breda, 4811 AB, NL"),
+    ])
+    assert campo(r.comparacoes[0], "endereco_exportador").status == "OK"

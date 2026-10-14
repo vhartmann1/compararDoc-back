@@ -280,9 +280,21 @@ def normalizar_endereco(endereco: str) -> str:
     return _so_letras_numeros(endereco.replace(".", ""))
 
 
+def palavras_do_endereco(endereco: str) -> set[str]:
+    """Palavras do endereço, com o país pela sigla ('THE NETHERLANDS' e 'NL' viram 'NL')."""
+    texto = f" {normalizar_endereco(endereco)} "
+    for nome in sorted(PAISES, key=len, reverse=True):
+        texto = texto.replace(f" {nome} ", f" {PAISES[nome]} ")
+    return set(texto.split()) - {"THE"}
+
+
 def enderecos_equivalentes(a: str, b: str) -> bool:
+    """Texto parecido na mesma ordem, ou as mesmas palavras em outra ordem."""
     na, nb = normalizar_endereco(a), normalizar_endereco(b)
-    return difflib.SequenceMatcher(None, na, nb).ratio() >= SIMILARIDADE_MINIMA_ENDERECO
+    if difflib.SequenceMatcher(None, na, nb).ratio() >= SIMILARIDADE_MINIMA_ENDERECO:
+        return True
+    pa, pb = palavras_do_endereco(a), palavras_do_endereco(b)
+    return bool(pa | pb) and len(pa & pb) / len(pa | pb) >= SIMILARIDADE_MINIMA_ENDERECO
 
 
 def normalizar_cidade(cidade: str) -> str:
