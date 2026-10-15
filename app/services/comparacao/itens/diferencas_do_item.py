@@ -8,6 +8,7 @@ from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado, Linha
 from app.services.comparacao.normalizacao import (
     descricoes_equivalentes,
+    normalizar_codigo_item,
     normalizar_descricao,
     normalizar_lote,
     normalizar_referencia,
@@ -36,9 +37,11 @@ def _quantidades_comparaveis_diferentes(a: ItemAgrupado, b: ItemAgrupado) -> boo
 
 
 def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """Havendo referência dos dois lados, compara as referências; senão, a similaridade das descrições."""
+    """Compara as referências; sem elas, o mesmo código basta; senão, a semelhança das descrições."""
     if a.referencia and b.referencia:
         return referencias_iguais(a.referencia, b.referencia)
+    if a.codigo and b.codigo and normalizar_codigo_item(a.codigo) == normalizar_codigo_item(b.codigo):
+        return True
     return descricoes_equivalentes(a.descricao, b.descricao)
 
 

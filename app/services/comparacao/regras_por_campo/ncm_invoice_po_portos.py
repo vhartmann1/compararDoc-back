@@ -61,6 +61,16 @@ def obter_po(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     return valor_conjunto([f.doc.po] if f.doc.po else [], normalizar_po, f, primeira_pagina(f))
 
 
+def pos_iguais(a: frozenset, b: frozenset) -> bool:
+    """Cada PO tem par do outro lado: igual ou com letras a mais na frente ('ACME11426' × '11426')."""
+    return all(any(_mesmo_po(x, y) for y in b) for x in a) and all(any(_mesmo_po(y, x) for x in a) for y in b)
+
+
+def _mesmo_po(x: str, y: str) -> bool:
+    maior, menor = (x, y) if len(x) >= len(y) else (y, x)
+    return x == y or (len(menor) >= 3 and maior.endswith(menor) and maior[: -len(menor)].isalpha())
+
+
 def obter_porto(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     porto = f.doc.porto_origem if campo == "porto_origem" else f.doc.porto_destino
     if porto is None:

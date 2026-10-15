@@ -128,3 +128,12 @@ def test_tamanho_no_fim_do_codigo_continua_sendo_outro_item():
         doc("packing_list", numero="1", itens=[item("CAM-100 XL", "Camiseta", 2, "PCS"), item("CAM-100 XS", "Camiseta", 3, "PCS")]),
     ])
     assert [l.status for l in r.itens[0].linhas] == ["OK", "OK"]
+
+
+def test_mesmo_codigo_com_descricao_escrita_de_outro_jeito_nao_diverge():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item("700100", "CHAPA DE ACO INOX GRAU 304 - 2X1/2", 10, "PCS")]),
+        doc("packing_list", numero="1", itens=[item("700100", "GRAU 304 - 2X1/2 - NORMA X9", 10, "PCS")]),
+    ])
+    [linha] = r.itens[0].linhas
+    assert linha.status == "OK"

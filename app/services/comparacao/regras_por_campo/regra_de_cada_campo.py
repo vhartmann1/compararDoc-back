@@ -21,6 +21,7 @@ from app.services.comparacao.regras_por_campo.ncm_invoice_po_portos import (
     obter_numero_invoice,
     obter_po,
     obter_porto,
+    pos_iguais,
 )
 from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import (
     obter_peso,
@@ -41,7 +42,7 @@ REGRAS: dict[NomeCampo, Regra] = {
     "quantidade": Regra(obter_quantidade, somar_quantidade, quantidades_iguais),
     "ncm": Regra(obter_ncm, juntar_ncm, lambda a, b: set(a) == set(b)),
     "numero_invoice": Regra(obter_numero_invoice, juntar_conjunto, conjuntos_iguais),
-    "po": Regra(obter_po, juntar_conjunto, conjuntos_iguais),
+    "po": Regra(obter_po, juntar_conjunto, pos_iguais),
     "incoterm": Regra(obter_incoterm, juntar_conjunto, conjuntos_iguais),
     "moeda": Regra(obter_moeda, juntar_conjunto, conjuntos_iguais),
     "exportador": Regra(obter_parte, juntar_partes, listas_de_partes_iguais),

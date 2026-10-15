@@ -33,3 +33,13 @@ def test_porto_e_terminal_com_outro_nome_conferem():
     assert campo(r.comparacoes[0], "porto_origem").status == "OK"
     valores = campo(r.comparacoes[0], "porto_origem").valores
     assert [valores[k].exibicao for k in ("invoice", "packing_list", "conhecimento")] == ["TIANJIN", "TIANJIN XINGANG", "XINGANG"]
+
+
+def test_po_com_nome_do_cliente_na_frente_confere():
+    r = rodar([doc("invoice", numero="1", po="114/26"), doc("packing_list", numero="1", po="ACME 114/26")])
+    assert campo(r.comparacoes[0], "po").status == "OK"
+
+
+def test_po_com_numero_diferente_continua_divergindo():
+    r = rodar([doc("invoice", numero="1", po="HBPX41357"), doc("packing_list", numero="1", po="HBPX41458")])
+    assert campo(r.comparacoes[0], "po").status == "DIVERGENTE"

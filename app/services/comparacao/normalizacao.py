@@ -174,8 +174,9 @@ PORTOS_EQUIVALENTES = {
     **dict.fromkeys(["XINGANG", "TIANJIN XINGANG", "XINGANG TIANJIN", "TIANJINXINGANG"], "TIANJIN"),
     **dict.fromkeys(["YANTIAN", "SHEKOU", "CHIWAN", "DA CHAN BAY"], "SHENZHEN"),
     **dict.fromkeys(["NANSHA", "HUANGPU"], "GUANGZHOU"),
-    **dict.fromkeys(["YANGSHAN", "WAIGAOQIAO"], "SHANGHAI"),
+    **dict.fromkeys(["YANGSHAN", "WAIGAOQIAO", "SHANGAI"], "SHANGHAI"),
     **dict.fromkeys(["BEILUN", "NINGBO ZHOUSHAN"], "NINGBO"),
+    **dict.fromkeys(["TANJUNG PRIOK"], "JAKARTA"),
 }
 
 
