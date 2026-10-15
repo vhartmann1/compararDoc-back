@@ -130,3 +130,36 @@ def test_docx_celula_mesclada_entra_uma_vez(tmp_path):
     texto = textos(converter(entrada(caminho)))
     assert texto.count("SERRANA") == 1
     assert all(f"linha {n}" in texto for n in (1, 2, 3))
+
+
+def _wmf() -> bytes:
+    """Cabeçalho WMF válido: o Pillow abre (lê o tamanho), mas não decodifica fora do Windows."""
+    import struct
+
+    cabecalho = b"\xd7\xcd\xc6\x9a" + struct.pack("<hhhhhHI", 0, 0, 0, 2000, 1000, 1440, 0)
+    soma = 0
+    for (palavra,) in struct.iter_unpack("<H", cabecalho):
+        soma ^= palavra
+    return cabecalho + struct.pack("<H", soma) + b"\x01\x00\x09\x00\x00\x03" + b"\x00" * 12
+
+
+def test_xlsx_com_imagem_que_nao_decodifica_segue_com_o_texto(tmp_path):
+    import openpyxl
+    from openpyxl.drawing.image import Image as ImagemXlsx
+
+    caminho = tmp_path / "a.xlsx"
+    livro = openpyxl.Workbook()
+    livro.active["A1"] = "PACKING LIST"
+    png = tmp_path / "logo.png"
+    Image.new("RGB", (300, 200), "blue").save(png)
+    livro.active.add_image(ImagemXlsx(str(png)), "B2")
+    livro.save(caminho)
+    with zipfile.ZipFile(caminho) as z:
+        partes = {n: z.read(n) for n in z.namelist()}
+    [midia] = [n for n in partes if n.startswith("xl/media/")]
+    partes[midia] = _wmf()
+    with zipfile.ZipFile(caminho, "w") as z:
+        for n, dados in partes.items():
+            z.writestr(n, dados)
+    blocos = converter(entrada(caminho))
+    assert "PACKING LIST" in textos(blocos) and imagens(blocos) == []

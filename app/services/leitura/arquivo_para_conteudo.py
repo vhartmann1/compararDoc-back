@@ -166,9 +166,10 @@ def _imagens_embutidas(caminho: Path) -> list[tuple[bytes, bool]]:
 
 
 def _legivel(dados: bytes, ref: ImagemReferenciada) -> bool:
-    """Nem ícone minúsculo, nem espremida no documento, nem formato que o Pillow não lê."""
+    """Nem ícone minúsculo, nem espremida no documento, nem formato que o Pillow não decodifica (ex.: WMF)."""
     try:
         with Image.open(io.BytesIO(dados)) as img:
+            img.load()
             return min(img.size) >= LADO_MINIMO_EMBUTIDA and not _deformada(ref.tamanho_exibido, img.size)
     except OSError:
         return False
