@@ -19,12 +19,16 @@ def escolher_documentos(
     for tipo, fontes in por_tipo.items():
         if not fontes:
             avisos.append(f"Documento não encontrado nos arquivos enviados: {NOME_TIPO[tipo]}.")
-        # mesmo tipo e mesmo número => fica 1: original > copia > draft > desconhecida; empate => último enviado
-        por_numero: dict[str, list[Fonte]] = {}
+        # mesmo documento => fica 1: original > copia > draft > desconhecida; empate => último enviado
+        grupos: list[list[Fonte]] = []
         for f in fontes:
-            por_numero.setdefault(_chave_de_duplicata(f), []).append(f)
+            grupo = next((g for g in grupos if _mesmo_documento(g[0], f)), None)
+            if grupo:
+                grupo.append(f)
+            else:
+                grupos.append([f])
         escolhidos[tipo] = []
-        for mesmas in por_numero.values():
+        for mesmas in grupos:
             melhor = max(mesmas, key=lambda f: (PRIORIDADE_VERSAO[f.doc.versao], f.ordem))
             escolhidos[tipo].append(melhor)
             ignorados = [f for f in mesmas if f is not melhor]
@@ -37,13 +41,21 @@ def escolher_documentos(
     return escolhidos
 
 
-def _chave_de_duplicata(f: Fonte) -> tuple:
-    """Mesmo número = mesmo documento; sem número, só se cita as mesmas invoices e tem os mesmos totais."""
-    if numero := numero_normalizado(f.doc.numero):
-        return (numero,)
-    d = f.doc
-    totais = tuple((m.valor, m.unidade) if m else None for m in (d.peso_bruto_total, d.peso_liquido_total, d.volumes_total))
-    return ("", tuple(sorted(numero_normalizado(n) for n in d.invoices_referenciadas)), totais)
+def _mesmo_documento(a: Fonte, b: Fonte) -> bool:
+    """Mesmo número; se um deles não tem número, os mesmos totais."""
+    na, nb = numero_normalizado(a.doc.numero), numero_normalizado(b.doc.numero)
+    if na and nb:
+        return na == nb
+    ra = {numero_normalizado(n) for n in a.doc.invoices_referenciadas}
+    rb = {numero_normalizado(n) for n in b.doc.invoices_referenciadas}
+    if ra and rb and ra != rb:
+        return False
+    pares = [(x.valor, y.valor) for x, y in zip(_totais(a), _totais(b)) if x and y]
+    return len(pares) >= 2 and all(abs(x - y) < 1e-6 for x, y in pares)
+
+
+def _totais(f: Fonte) -> tuple:
+    return f.doc.peso_bruto_total, f.doc.peso_liquido_total, f.doc.volumes_total
 
 
 def _descrever(f: Fonte) -> str:

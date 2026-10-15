@@ -72,3 +72,12 @@ def test_invoice_e_packing_list_com_o_mesmo_numero_e_series_diferentes_formam_pa
 def test_numero_proprio_do_packing_list_nao_vira_divergencia_de_invoice():
     r = rodar([doc("invoice", 100, 110, numero="91234567"), doc("packing_list", 100, 110, numero="80765432")])
     assert campo(r.comparacoes[0], "numero_invoice").status != "DIVERGENTE"
+
+
+def test_mesmo_documento_em_dois_formatos_um_sem_numero_conta_uma_vez():
+    r = rodar(
+        [doc("invoice", 100, 110, numero="A1", volumes=(20, "CTNS")), doc("packing_list", 100, 110, volumes=(20, "CTNS"))],
+        [doc("invoice", 100, 110, volumes=(20, "CARTONS")), doc("packing_list", 100, 110, volumes=(20, "CARTONS"))],
+    )
+    assert campo(r.comparacoes[0], "peso_bruto").status == "OK"
+    assert any("Mais de um documento Invoice" in a for a in r.avisos)
