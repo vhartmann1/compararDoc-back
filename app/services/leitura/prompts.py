@@ -44,18 +44,21 @@ conhecimento costumam citar.
 - `invoices_referenciadas`: números de invoice citados no documento (ex.: packing list ou BL que \
 dizem "Invoice No. 123", "Factura No."). Copie cada número como aparece; se aparecer em duas \
 formas (ex.: "70012345 / 0070012345"), liste as duas. Numa invoice, deixe [] (o número dela vai em \
-`numero`).
+`numero`). Proforma ("PI", "Proforma Invoice") e contrato ("Sales Contract", "S/C No.") não são invoice: \
+não liste.
 - `po`: número do pedido do comprador (PO, Purchase Order, Pedido, "Your Order", "Your Ref.", \
 "Customer Ref."). Se o documento traz também a referência interna do vendedor ("Our Ref.", "Our Order", \
-Sales Order, "Order No." do vendedor), use a do comprador; só use a do vendedor se for a única.
+Sales Order, "Order No." do vendedor), use a do comprador; só use a do vendedor se for a única. \
+Número de proforma ("PI") ou de contrato não é PO.
 - `versao`: `original` se o documento se identifica como ORIGINAL; `draft` se for rascunho (DRAFT, \
 "for approval"); `copia` se for COPY / NON-NEGOTIABLE COPY / cópia; `desconhecida` se não der \
 para saber (comum em Word/Excel).
 - `exportador`: o vendedor / shipper / exportador (quem emite a invoice ou consta como Shipper). \
 `nome` como aparece; `cnpj`: CNPJ/Tax ID/NIT/RUC se aparecer junto do nome, senão null.
 - `consignatario`: o campo Consignee. Se não houver "Consignee", use "Ship to"; se também não \
-houver, "Sold to"/comprador/importador. Num BL "To order of X", o consignatário é X. `cnpj` \
-como acima.
+houver, o "Importer"/importador. Só sem nenhum desses use o comprador ("To:", "Sold to", \
+"Bill to", "Customer", "Messrs."): quando o documento traz comprador e importador, o \
+consignatário é o importador. Num BL "To order of X", o consignatário é X. `cnpj` como acima.
 - `porto_origem` e `porto_destino`: só o nome da cidade/porto/aeroporto, sem país, UF, "Port of" \
 ou "Airport" (ex.: "NINGBO", "SANTOS", "HAMBURG"). Origem = porto/aeroporto de embarque \
 (Port of Loading, From, Airport of Departure); destino = porto/aeroporto de descarga ou destino \
