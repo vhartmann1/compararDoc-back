@@ -36,6 +36,7 @@ Documentação interativa em http://localhost:8000/docs. Sem chave, sobe em **mo
 | `POST /api/analises` | Cria a análise (`multipart`: `arquivos`, `processo`, `modalidade`). Responde `202` e processa em segundo plano. |
 | `GET /api/analises` | Lista paginada, mais recentes primeiro, com a contagem por filtro (`usuario_id`, `status`, `q`, `limit`, `offset`). |
 | `GET /api/analises/{id}` | Andamento, resultado, arquivos e custo. |
+| `POST /api/analises/{id}/refazer-conferencia` | Refaz a conferência com as leituras já gravadas, sem ler de novo. |
 | `GET /api/analises/{id}/arquivos/{arquivo_id}` | Arquivo original. |
 
 Aceita PDF, JPG, PNG, `.docx` e `.xlsx`. Tipos de entrada e saída: `app/schemas.py`. Ainda sem login.

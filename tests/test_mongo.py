@@ -51,7 +51,9 @@ def colecoes_temporarias(monkeypatch):
 
 def test_grava_e_le_o_resultado_como_a_api_devolve(colecoes_temporarias):
     mongo.salvar("analise-1", RESULTADO, POR_ARQUIVO)
-    assert mongo.ler_resultado("analise-1") == RESULTADO
+    gravado = mongo.ler_resultado("analise-1")
+    assert {k: v for k, v in gravado.items() if k != "gravado_em"} == RESULTADO
+    assert gravado["gravado_em"] is not None
     assert mongo.ler_resultado("nao-existe") is None
 
 
@@ -69,3 +71,15 @@ def test_regravar_substitui_em_vez_de_duplicar(colecoes_temporarias):
     assert mongo.resultados.count_documents({}) == 1
     assert mongo.extracoes.count_documents({}) == 2
     assert mongo.ler_resultado("analise-1")["status"] == "DIVERGENTE"
+
+
+def test_le_as_extracoes_gravadas_por_arquivo(colecoes_temporarias):
+    mongo.salvar("analise-1", RESULTADO, POR_ARQUIVO)
+    assert mongo.ler_extracoes(["arquivo-b", "nao-existe"]) == {"arquivo-b": {"documentos": [{"tipo": "invoice"}]}}
+
+
+def test_regravar_so_o_resultado_mantem_as_extracoes(colecoes_temporarias):
+    mongo.salvar("analise-1", RESULTADO, POR_ARQUIVO)
+    mongo.salvar_resultado("analise-1", {**RESULTADO, "status": "DIVERGENTE"})
+    assert mongo.ler_resultado("analise-1")["status"] == "DIVERGENTE"
+    assert mongo.extracoes.count_documents({}) == 2

@@ -80,6 +80,18 @@ def salvar(analise_id: str, resultado: Documento, por_arquivo: dict[str, Documen
     resultados.replace_one({"_id": analise_id}, montar_resultado(analise_id, resultado, agora), upsert=True)
 
 
+def salvar_resultado(analise_id: str, resultado: Documento) -> datetime:
+    """Regrava só o resultado; devolve quando gravou."""
+    agora = agora_utc()
+    resultados.replace_one({"_id": analise_id}, montar_resultado(analise_id, resultado, agora), upsert=True)
+    return agora
+
+
 def ler_resultado(analise_id: str) -> Documento | None:
-    """Resultado gravado para a análise, como a API devolve; None se não houver."""
-    return resultados.find_one({"_id": analise_id}, {"_id": 0, "gravado_em": 0})
+    """Resultado gravado para a análise, como a API devolve, mais `gravado_em`; None se não houver."""
+    return resultados.find_one({"_id": analise_id}, {"_id": 0})
+
+
+def ler_extracoes(arquivo_ids: list[str]) -> dict[str, Documento]:
+    """arquivo_id -> extração gravada; arquivo sem extração fica de fora."""
+    return {e["_id"]: {"documentos": e["documentos"]} for e in extracoes.find({"_id": {"$in": arquivo_ids}})}

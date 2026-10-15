@@ -27,6 +27,7 @@ from app.schemas import (
     AnaliseResumo,
     Arquivo,
     ArquivoEntrada,
+    ExtracaoArquivo,
     FiltroLista,
     ListaAnalises,
     Modalidade,
@@ -101,6 +102,7 @@ def _para_analise(analise: AnaliseDB, arquivos: list[ArquivoDB], gravado: dict |
         erro=erro,
         criado_em=_utc(analise.criado_em),
         concluido_em=_utc(analise.concluido_em),
+        conferido_em=_utc(gravado.get("gravado_em")) if resultado and gravado else None,
         arquivos=[
             Arquivo(id=a.id, nome=a.nome, media_type=a.media_type, tamanho_bytes=a.tamanho_bytes, paginas=a.paginas)
             for a in arquivos
@@ -431,6 +433,46 @@ def obter_analise(analise_id: str, session: SessionDep) -> Analise:
             logger.exception("MongoDB indisponível ao ler a análise %s", analise_id)
             raise HTTPException(status_code=503, detail="Não foi possível ler o resultado agora. Tente novamente em instantes.") from None
     return _para_analise(analise, _arquivos_da_analise(session, analise_id), gravado)
+
+
+@router.post("/{analise_id}/refazer-conferencia", response_model=Analise)
+def refazer_conferencia(analise_id: str, session: SessionDep) -> Analise:
+    """Refaz a conferência com as leituras gravadas, sem ler os documentos de novo."""
+    from app.services.comparacao import comparar
+
+    analise = _buscar_analise(session, analise_id)
+    if analise.status_processamento != "CONCLUIDA":
+        raise HTTPException(status_code=409, detail="Só dá para refazer a conferência de uma análise concluída.")
+    arquivos = _arquivos_da_analise(session, analise_id)
+    try:
+        gravadas = mongo.ler_extracoes([a.id for a in arquivos])
+    except PyMongoError:
+        logger.exception("MongoDB indisponível ao ler as extrações da análise %s", analise_id)
+        raise HTTPException(status_code=503, detail="Não foi possível refazer a conferência agora. Tente novamente em instantes.") from None
+    try:
+        entradas = [
+            (
+                ArquivoEntrada(id=a.id, nome=a.nome, caminho=Path(a.caminho), media_type=a.media_type),
+                ExtracaoArquivo.model_validate(gravadas[a.id]),
+            )
+            for a in arquivos
+        ]
+    except (KeyError, ValidationError):
+        raise HTTPException(status_code=409, detail="A leitura desta análise não está disponível; envie novamente.") from None
+
+    resultado = comparar(entradas, analise.modalidade).model_dump(mode="json")
+    # Primeiro o MongoDB, depois o Postgres, como no processamento
+    try:
+        conferido_em = mongo.salvar_resultado(analise_id, resultado)
+    except PyMongoError:
+        logger.exception("Falha ao gravar a conferência refeita da análise %s", analise_id)
+        raise HTTPException(status_code=503, detail="Não foi possível refazer a conferência agora. Tente novamente em instantes.") from None
+    analise.status_resultado = resultado["status"]
+    analise.total_divergencias = len(resultado["divergencias"])
+    session.add(analise)
+    session.commit()
+    session.refresh(analise)
+    return _para_analise(analise, arquivos, {**resultado, "gravado_em": conferido_em})
 
 
 @router.get("/{analise_id}/arquivos/{arquivo_id}")

@@ -279,6 +279,7 @@ class Analise(BaseModel):
     erro: str | None
     criado_em: datetime
     concluido_em: datetime | None
+    conferido_em: datetime | None  # quando o resultado foi gravado; muda ao refazer a conferência
     arquivos: list[Arquivo]
     resultado: ResultadoComparacao | None
     uso: Uso | None
