@@ -9,7 +9,7 @@ from app.services.comparacao.itens.casar_itens import casar, casar_base
 from app.services.comparacao.itens.chave_da_linha import chaves_unicas
 from app.services.comparacao.itens.diferencas_do_item import diferencas_item
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado
-from app.services.comparacao.tipos import Fonte
+from app.services.comparacao.tipos import Col, Fonte
 
 
 def comparar_todos_os_itens(
@@ -29,7 +29,7 @@ def comparar_todos_os_itens(
             divergencias.extend(divs)
 
     for comparacao_id, prefixo, inv, pl in listar_pares(grupos):
-        base = [ColItens(c, agrupar_itens(c.fontes)) for c in colunas_par(inv, pl)]
+        base = _agrupar_par(colunas_par(inv, pl))
         extras = cols_conhecimento if comparacao_id == "unica" else []
         gerar(comparacao_id, prefixo, [c for c in base if c.itens], extras, so_conhecimento=False)
 
@@ -45,6 +45,15 @@ def comparar_todos_os_itens(
         # invoice × PL já foram comparados em cada par: aqui só interessa o que envolve o conhecimento
         gerar("consolidado", "Consolidado — ", [c for c in base if c.itens], cols_conhecimento, so_conhecimento=True)
     return resultado, divergencias
+
+
+def _agrupar_par(colunas: list[Col]) -> list[ColItens]:
+    """Se um documento não traz código nenhum, o outro também é agrupado pela descrição: só assim os totais se casam."""
+    base = [ColItens(c, agrupar_itens(c.fontes)) for c in colunas]
+    sem_codigo = [all(not item.codigo for item in ci.itens) for ci in base]
+    if len(base) == 2 and any(sem_codigo) and not all(sem_codigo):
+        base = [ci if sem else ColItens(ci.col, agrupar_itens(ci.col.fontes, por_descricao=True)) for ci, sem in zip(base, sem_codigo)]
+    return base
 
 
 def _valor_item(item: ItemAgrupado | None) -> ValorItem | None:

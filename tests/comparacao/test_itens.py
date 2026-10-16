@@ -137,3 +137,31 @@ def test_mesmo_codigo_com_descricao_escrita_de_outro_jeito_nao_diverge():
     ])
     [linha] = r.itens[0].linhas
     assert linha.status == "OK"
+
+
+def test_mesma_descricao_com_referencias_diferentes_nao_diverge():
+    r = rodar(
+        [doc("invoice", numero="1", itens=[item("AB-100", "CAIXA DE SOM 2.0 REF:AB-100", 10, "PCS", referencia="MODELO 2.0")]),
+         doc("packing_list", refs=["1"], itens=[item("AB-100", "CAIXA DE SOM 2.0 REF:AB-100", 10, "PCS", referencia="AB-100")])],
+    )
+    assert not mensagens(r, "item")
+
+
+def test_descricao_que_e_o_comeco_da_outra_nao_diverge():
+    r = rodar(
+        [doc("invoice", numero="1", itens=[item(None, "Celula de carga modelo XL-20, capacidade 10 MN com cabo de 20 m", 1, "PCS")]),
+         doc("packing_list", refs=["1"], itens=[item(None, "Celula de carga modelo XL-20", 1, "PCS")])],
+    )
+    assert not mensagens(r, "item")
+
+
+def test_invoice_sem_codigo_com_descricoes_repetidas_casa_pelo_total_da_descricao():
+    r = rodar(
+        [doc("invoice", numero="1", itens=[item(None, "TORNEIRA COM ACESSORIOS", 200, "PCS"),
+                                           item(None, "TORNEIRA COM ACESSORIOS", 107, "PCS"),
+                                           item(None, "CUBA DE CERAMICA", 92, "PCS")]),
+         doc("packing_list", refs=["1"], itens=[item("TA-1", "TORNEIRA COM ACESSORIOS", 200, "PCS"),
+                                                item("TA-2", "TORNEIRA COM ACESSORIOS", 107, "PCS"),
+                                                item("CC-1", "CUBA DE CERAMICA", 92, "PCS")])],
+    )
+    assert not mensagens(r, "item")

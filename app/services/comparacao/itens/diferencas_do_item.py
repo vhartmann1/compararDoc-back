@@ -1,5 +1,6 @@
 """Diferenças entre os atributos de um item nos documentos."""
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -14,6 +15,7 @@ from app.services.comparacao.normalizacao import (
     normalizar_referencia,
     normalizar_validade,
     referencias_iguais,
+    sem_acento,
 )
 from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import nota_fator_mil
 
@@ -37,12 +39,25 @@ def _quantidades_comparaveis_diferentes(a: ItemAgrupado, b: ItemAgrupado) -> boo
 
 
 def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """Compara as referências; sem elas, o mesmo código basta; senão, a semelhança das descrições."""
+    """Mesma descrição com o mesmo código basta; senão as referências; sem elas, o código; por fim a semelhança."""
+    mesmo_codigo = bool(a.codigo and b.codigo and normalizar_codigo_item(a.codigo) == normalizar_codigo_item(b.codigo))
+    if _uma_comeca_a_outra(a.descricao, b.descricao) and (mesmo_codigo or not (a.referencia and b.referencia)):
+        return True  # a "referência" lida difere (modelo × código do fabricante), mas o item é o mesmo
     if a.referencia and b.referencia:
         return referencias_iguais(a.referencia, b.referencia)
-    if a.codigo and b.codigo and normalizar_codigo_item(a.codigo) == normalizar_codigo_item(b.codigo):
+    if mesmo_codigo:
         return True
     return descricoes_equivalentes(a.descricao, b.descricao)
+
+
+def _uma_comeca_a_outra(a: str, b: str) -> bool:
+    """'CELULA DE CARGA MODELO XL-20' começa 'CELULA DE CARGA MODELO XL-20, CAPACIDADE 10 MN…': o documento só abreviou."""
+    curta, longa = sorted((_palavras(a), _palavras(b)), key=len)
+    return len(curta) >= 3 and longa[: len(curta)] == curta
+
+
+def _palavras(descricao: str) -> list[str]:
+    return re.findall(r"[A-Z0-9]+", sem_acento(descricao).upper())
 
 
 def _descricao_generica(x: ItemAgrupado) -> bool:

@@ -11,24 +11,33 @@ from app.services.comparacao.normalizacao import (
 from app.services.comparacao.tipos import Fonte
 
 
-def agrupar_itens(fontes: list[Fonte]) -> list[ItemAgrupado]:
-    """Agrupa as linhas de todos os documentos da coluna (vários, quando é uma soma)."""
+def agrupar_itens(fontes: list[Fonte], por_descricao: bool = False) -> list[ItemAgrupado]:
+    """Agrupa as linhas de todos os documentos da coluna (vários, quando é uma soma); `por_descricao` junta códigos que dividem a mesma descrição."""
     grupos: dict[str, list[tuple[ItemExtraido, str]]] = {}
     linhas = [(item, f.arquivo.id) for f in fontes for item in f.doc.itens]
+    repetidas = _descricoes_com_varios_codigos(linhas) if por_descricao else set()
     for i, (item, arquivo_id) in enumerate(linhas):
-        codigo = normalizar_codigo_item(item.codigo) if item.codigo else ""
         descricao = normalizar_descricao(item.descricao)
+        codigo = normalizar_codigo_item(item.codigo) if item.codigo and descricao not in repetidas else ""
         grupos.setdefault(codigo or (f"#descricao-{descricao}" if descricao else f"#linha-{i}"), []).append(
             (item, arquivo_id)
         )
     return [_juntar_linhas([l for l, _ in g], g[0][1]) for g in grupos.values()]
 
 
+def _descricoes_com_varios_codigos(linhas: list[tuple[ItemExtraido, str]]) -> set[str]:
+    codigos: dict[str, set[str]] = {}
+    for item, _ in linhas:
+        if item.codigo:
+            codigos.setdefault(normalizar_descricao(item.descricao), set()).add(normalizar_codigo_item(item.codigo))
+    return {descricao for descricao, cods in codigos.items() if len(cods) > 1}
+
+
 def _juntar_linhas(linhas: list[ItemExtraido], arquivo_id: str) -> ItemAgrupado:
     quantidade, exibicao = _somar_quantidades_itens(linhas)
     unidades = {(l.unidade or "").strip().upper() for l in linhas}
     return ItemAgrupado(
-        codigo=next((l.codigo.strip() for l in linhas if l.codigo and l.codigo.strip()), None),
+        codigo=" / ".join(dict.fromkeys(l.codigo.strip() for l in linhas if l.codigo and l.codigo.strip())) or None,
         descricao=linhas[0].descricao.strip(),
         referencia=next((l.referencia.strip() for l in linhas if l.referencia and l.referencia.strip()), None),
         quantidade=quantidade,
