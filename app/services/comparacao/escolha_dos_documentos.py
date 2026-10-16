@@ -1,7 +1,9 @@
 """Escolha dos documentos: entre duplicatas do mesmo número, fica a melhor versão."""
 
+import re
+
 from app.schemas import ArquivoEntrada, ExtracaoArquivo, TipoDocumento
-from app.services.comparacao.constantes import NOME_TIPO, PRIORIDADE_VERSAO, TIPOS
+from app.services.comparacao.constantes import NOME_TIPO, PRIORIDADE_FORMATO, PRIORIDADE_VERSAO, TIPOS
 from app.services.comparacao.identificacao_do_documento import nome_doc, numero_normalizado
 from app.services.comparacao.tipos import Fonte
 
@@ -14,12 +16,14 @@ def escolher_documentos(
         for j, doc in enumerate(extracao.documentos):
             if doc.tipo in por_tipo:
                 por_tipo[doc.tipo].append(Fonte(arquivo, doc, (i, j)))
+        if extracao.documentos and all(d.tipo not in por_tipo for d in extracao.documentos):
+            lidos = ", ".join(dict.fromkeys(d.subtipo or "documento de outro tipo" for d in extracao.documentos))
+            avisos.append(f"{arquivo.nome} não entrou na comparação: não é invoice, packing list nem conhecimento ({lidos}).")
 
     escolhidos: dict[TipoDocumento, list[Fonte]] = {}
     for tipo, fontes in por_tipo.items():
         if not fontes:
             avisos.append(f"Documento não encontrado nos arquivos enviados: {NOME_TIPO[tipo]}.")
-        # mesmo documento => fica 1: original > copia > draft > desconhecida; empate => último enviado
         grupos: list[list[Fonte]] = []
         for f in fontes:
             grupo = next((g for g in grupos if _mesmo_documento(g[0], f)), None)
@@ -29,9 +33,9 @@ def escolher_documentos(
                 grupos.append([f])
         escolhidos[tipo] = []
         for mesmas in grupos:
-            melhor = max(mesmas, key=lambda f: (PRIORIDADE_VERSAO[f.doc.versao], f.ordem))
+            melhor, *ignorados = sorted(mesmas, key=_preferencia, reverse=True)
+            melhor.duplicatas = ignorados
             escolhidos[tipo].append(melhor)
-            ignorados = [f for f in mesmas if f is not melhor]
             if ignorados:
                 avisos.append(
                     f"Mais de um documento {nome_doc(melhor)}; usado {_descrever(melhor)}. "
@@ -39,6 +43,27 @@ def escolher_documentos(
                 )
         escolhidos[tipo].sort(key=lambda f: f.ordem)
     return escolhidos
+
+
+def _preferencia(f: Fonte) -> tuple:
+    """Mesmo documento => fica 1: não proforma, versão, revisão mais nova pelo nome, PDF antes de Excel/Word, último enviado."""
+    return (
+        not PROFORMA.search(f.arquivo.nome),  # proforma com o número da invoice nunca vale mais que ela
+        PRIORIDADE_VERSAO[f.doc.versao],
+        revisao_pelo_nome(f.arquivo.nome),
+        PRIORIDADE_FORMATO.get(f.arquivo.media_type, 0),
+        f.ordem,
+    )
+
+
+PROFORMA = re.compile(r"(?i)pro[\s_-]?forma")
+REVISAO = re.compile(r"(?i)(?<![A-Z])(rev(?:is(?:ed|ad[oa]|ao|ão))?|ajustad[oa]|corrigid[oa]|final(?:is)?)(?![A-Z])[\s._-]*(\d+)?")
+
+
+def revisao_pelo_nome(nome: str) -> tuple[int, int]:
+    """'CI REV-1.pdf' > 'CI.pdf'; 'PL REV.2' > 'PL REV.1': o nome do arquivo é o que diz qual versão é a mais nova."""
+    marcas = REVISAO.findall(nome)
+    return (1, max(int(n or 0) for _, n in marcas)) if marcas else (0, 0)
 
 
 def _mesmo_documento(a: Fonte, b: Fonte) -> bool:

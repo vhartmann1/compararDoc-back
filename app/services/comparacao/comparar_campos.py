@@ -1,6 +1,7 @@
 """Comparação campo a campo e status de cada campo."""
 
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 from app.schemas import CampoComparado, Coluna, Comparacao, Divergencia, NomeCampo, StatusCampo, ValorCampo
@@ -18,7 +19,7 @@ from app.services.comparacao.regras_por_campo.exportador_consignatario import co
 from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import embalagens_distintas, nota_fator_mil
 from app.services.comparacao.regras_por_campo.regra import Regra
 from app.services.comparacao.regras_por_campo.regra_de_cada_campo import REGRAS
-from app.services.comparacao.tipos import Col, Contexto, Valor
+from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
 
 def comparar_colunas(ctx: Contexto, colunas: list[Col]) -> Comparacao:
@@ -44,8 +45,22 @@ def comparar_colunas(ctx: Contexto, colunas: list[Col]) -> Comparacao:
     )
 
 
+def _valor_do_documento(ctx: Contexto, f: Fonte, campo: NomeCampo, regra: Regra) -> Valor | None:
+    """Valor do documento escolhido; se ele não traz o campo, o da primeira duplicata que traz."""
+    valor = regra.obter(f, campo, ctx)
+    for dup in f.duplicatas:
+        if valor is not None:
+            break
+        valor = regra.obter(replace(dup, invoice_par=f.invoice_par), campo, ctx)
+        if valor is not None:
+            aviso = f"{ROTULOS[campo]} de {nome_doc(f)} tirado de {dup.arquivo.nome} (o arquivo usado não traz)."
+            if aviso not in ctx.avisos:
+                ctx.avisos.append(aviso)
+    return valor
+
+
 def _valor_coluna(ctx: Contexto, col: Col, campo: NomeCampo, regra: Regra) -> Valor | None:
-    valores = [regra.obter(f, campo, ctx) for f in col.fontes]
+    valores = [_valor_do_documento(ctx, f, campo, regra) for f in col.fontes]
     if not col.soma or len(valores) == 1:
         return valores[0]
     presentes = [v for v in valores if v is not None]

@@ -1,3 +1,10 @@
+from pathlib import Path
+
+import pytest
+
+from app.schemas import ArquivoEntrada, ExtracaoArquivo
+from app.services.comparacao import comparar
+from app.services.comparacao.escolha_dos_documentos import revisao_pelo_nome
 from tests.comparacao.apoio import campo, doc, rodar
 from tests.comparacao.cenarios import caso_4
 
@@ -81,3 +88,79 @@ def test_mesmo_documento_em_dois_formatos_um_sem_numero_conta_uma_vez():
     )
     assert campo(r.comparacoes[0], "peso_bruto").status == "OK"
     assert any("Mais de um documento Invoice" in a for a in r.avisos)
+
+
+@pytest.mark.parametrize(
+    ("antigo", "revisado"),
+    [
+        ("CI 001.pdf", "CI 001 REV-1.pdf"),
+        ("PL 001 REV.1.pdf", "PL 001 REV.2.pdf"),
+        ("HBL DRAFT.pdf", "HBL DRAFT (2 - ajustado).pdf"),
+        ("INVOICE.pdf", "INVOICE REVISED.xlsx"),
+        ("OHBL.pdf", "OHBL final.pdf"),
+    ],
+)
+def test_revisao_pelo_nome_do_arquivo(antigo, revisado):
+    assert revisao_pelo_nome(revisado) > revisao_pelo_nome(antigo)
+
+
+def test_nome_com_rev_no_meio_de_palavra_nao_e_revisao():
+    assert revisao_pelo_nome("PREVIEW BREVE.pdf") == (0, 0)
+
+
+def _enviar(*arquivos_e_docs):
+    """(nome do arquivo, media_type, documentos) na ordem do envio."""
+    entradas = []
+    for i, (nome, media, docs) in enumerate(arquivos_e_docs):
+        arquivo = ArquivoEntrada(id=f"a{i}", nome=nome, caminho=Path(f"/tmp/{nome}"), media_type=media)
+        entradas.append((arquivo, ExtracaoArquivo(documentos=docs)))
+    return comparar(entradas)
+
+
+PDF, XLSX = "application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@pytest.mark.parametrize("pdf_primeiro", [True, False])
+def test_mesmo_documento_em_pdf_e_excel_usa_o_pdf_em_qualquer_ordem(pdf_primeiro):
+    pdf = ("CI.pdf", PDF, [doc("invoice", 100, 110, ["69101000"], numero="A1")])
+    excel = ("CI.xlsx", XLSX, [doc("invoice", 100, 110, ["39221000"], numero="A1")])
+    pl = ("PL.pdf", PDF, [doc("packing_list", 100, 110, refs=["A1"])])
+    r = _enviar(*([pdf, excel] if pdf_primeiro else [excel, pdf]), pl)
+    assert any("usado original (CI.pdf" in a for a in r.avisos)
+    assert campo(r.comparacoes[0], "ncm").valores["invoice"].exibicao == "6910.10.00"
+
+
+def test_versao_vale_mais_que_o_formato():
+    r = _enviar(
+        ("INV.xlsx", XLSX, [doc("invoice", 100, 110, numero="A1", versao="draft")]),
+        ("INV.pdf", PDF, [doc("invoice", 100, 110, numero="A1", versao="original")]),
+    )
+    assert any("usado original (INV.pdf" in a for a in r.avisos)
+
+
+def test_campo_que_falta_no_documento_usado_vem_da_duplicata():
+    r = _enviar(
+        ("CI.xlsx", XLSX, [doc("invoice", 100, 110, ["69101000"], numero="A1")]),
+        ("CI.pdf", PDF, [doc("invoice", 100, 110, numero="A1")]),
+        ("PL.pdf", PDF, [doc("packing_list", 100, 110, ["69101000"], refs=["A1"])]),
+    )
+    ncm = campo(r.comparacoes[0], "ncm")
+    assert ncm.status == "OK"
+    assert ncm.valores["invoice"].arquivo_id == "a0"
+    assert "NCM de Invoice A1 tirado de CI.xlsx (o arquivo usado não traz)." in r.avisos
+
+
+def test_proforma_com_o_numero_da_invoice_nao_vence_a_invoice():
+    r = _enviar(
+        ("INVOICE.pdf", PDF, [doc("invoice", 100, 110, numero="A1")]),
+        ("PROFORMA INVOICE.pdf", PDF, [doc("invoice", 100, 110, numero="A1")]),
+    )
+    assert any("usado original (INVOICE.pdf" in a for a in r.avisos)
+
+
+def test_arquivo_que_nao_e_invoice_pl_nem_conhecimento_gera_aviso():
+    r = _enviar(
+        ("INV.pdf", PDF, [doc("invoice", 100, 110, numero="A1")]),
+        ("COMPROVANTE.pdf", PDF, [doc("outro", subtipo="COMPROVANTE DE IMPORTACAO")]),
+    )
+    assert "COMPROVANTE.pdf não entrou na comparação: não é invoice, packing list nem conhecimento (COMPROVANTE DE IMPORTACAO)." in r.avisos
