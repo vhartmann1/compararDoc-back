@@ -27,6 +27,7 @@ Documentação interativa em http://localhost:8000/docs. Sem chave, sobe em **mo
 | `STORAGE_DIR` | `storage/` | Arquivos enviados. |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | Origens liberadas (JSON). |
 | `MAX_ARQUIVOS` / `MAX_TAMANHO_MB` | `20` / `32` | Limites por análise. |
+| `LEITURAS_SIMULTANEAS` | `8` | Análises lidas ao mesmo tempo; as outras esperam a vez. Ajustar ao limite da API do Claude. |
 
 ## Endpoints
 

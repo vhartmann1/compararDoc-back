@@ -28,6 +28,8 @@ class Settings(BaseSettings):
 
     max_arquivos: int = 20
     max_tamanho_mb: int = 32
+    # Análises lidas ao mesmo tempo; as outras esperam a vez (respeita o limite da API do Claude)
+    leituras_simultaneas: int = 8
 
     @property
     def modo_extrator_efetivo(self) -> Literal["claude", "mock", "claude_code"]:

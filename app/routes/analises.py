@@ -5,6 +5,7 @@ import inspect
 import logging
 import shutil
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -62,7 +63,8 @@ ERRO_RESULTADO_ANTIGO = "Análise feita em versão anterior; envie novamente"
 ERRO_SEM_RESULTADO = "Resultado não encontrado; envie novamente"
 MENSAGEM_ERRO_GENERICA = "Não foi possível processar os documentos. Tente novamente."
 
-SessionDep = Annotated[Session, Depends(get_session)]
+# A sessão fecha quando a rota termina: a leitura em segundo plano não segura conexão do banco
+SessionDep = Annotated[Session, Depends(get_session, scope="function")]
 
 
 # ---------------------------------------------------------------------------
@@ -257,7 +259,7 @@ def criar_analise(
     session.commit()
     session.refresh(analise)
 
-    background_tasks.add_task(processar_analise, analise.id)
+    background_tasks.add_task(agendar_processamento, analise.id)
     return _para_analise(analise, registros)
 
 
@@ -283,6 +285,15 @@ def _marcar_erro(analise_id: str, mensagem: str) -> None:
             analise.concluido_em = agora_utc()
             session.add(analise)
             session.commit()
+
+
+# Threads só da leitura: fora das que atendem as requisições, para a tela não travar com muitas análises
+_leituras = ThreadPoolExecutor(max_workers=settings.leituras_simultaneas, thread_name_prefix="leitura")
+
+
+async def agendar_processamento(analise_id: str) -> None:
+    """Põe a análise na vez das leituras; passando do limite, ela espera ainda como PROCESSANDO."""
+    await asyncio.get_running_loop().run_in_executor(_leituras, processar_analise, analise_id)
 
 
 def processar_analise(analise_id: str) -> None:
