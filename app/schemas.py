@@ -76,6 +76,13 @@ class Parte(BaseModel):
     pagina: int | None
 
 
+class ValorMonetario(BaseModel):
+    valor: float = Field(description="Número já interpretado, ex. '26,130.00' -> 26130.0")
+    moeda: str | None = Field(description="Código ISO da moeda desse valor, ex. 'USD'; null se não houver")
+    texto_original: str = Field(description="Texto exatamente como aparece no documento")
+    pagina: int | None
+
+
 class Incoterm(BaseModel):
     codigo: str = Field(description="Sigla Incoterms: EXW, FCA, FAS, FOB, CFR, CIF, CPT, CIP, DAP, DPU, DDP")
     local: str | None = Field(description="Só o nome da cidade/porto que acompanha o incoterm, ex. 'SANTOS'")
@@ -132,8 +139,36 @@ class DocumentoExtraido(BaseModel):
     versao: Versao
     exportador: Parte | None = Field(description="Shipper / exportador / vendedor")
     consignatario: Parte | None = Field(description="Consignee / importador / 'ship to' no Brasil")
+    fabricante: Parte | None = Field(default=None, description="Manufacturer / Producer / Fabricante, quando o documento cita")
+    adquirente: Parte | None = Field(
+        default=None, description="Comprador/cliente quando é outro que não o consignatário (Buyer, Sold to, Adquirente)"
+    )
+    notify: Parte | None = Field(default=None, description="Notify party (no conhecimento e às vezes na invoice)")
     porto_origem: Texto | None = Field(description="Só o nome da cidade/porto/aeroporto de embarque, ex. 'NINGBO'")
-    porto_destino: Texto | None = Field(description="Só o nome da cidade/porto/aeroporto de destino, ex. 'PARANAGUA'")
+    porto_destino: Texto | None = Field(
+        description="Só o nome do porto/aeroporto de destino; no conhecimento, o de descarga, ex. 'PARANAGUA'"
+    )
+    local_entrega: Texto | None = Field(
+        default=None, description="No conhecimento: Place of Delivery, só o nome da cidade/porto, ex. 'CURITIBA'"
+    )
+    pais_procedencia: Texto | None = Field(default=None, description="Country of provenance/shipment, em inglês maiúsculo")
+    pais_aquisicao: Texto | None = Field(default=None, description="Country of acquisition, em inglês maiúsculo")
+    modalidade_pagamento: Texto | None = Field(
+        default=None, description="Condição de pagamento como escrita, ex. '30% T/T in advance, 70% against BL copy'"
+    )
+    valor_total: ValorMonetario | None = Field(default=None, description="Valor total da invoice (mercadoria)")
+    valor_frete: ValorMonetario | None = Field(default=None, description="Valor do frete informado no documento")
+    valor_seguro: ValorMonetario | None = Field(default=None, description="Valor do seguro informado no documento")
+    assinatura_manuscrita: bool | None = Field(
+        default=None, description="Há assinatura feita à mão (não só carimbo ou nome digitado)? null se não der para ver"
+    )
+    embalagem_madeira: Texto | None = Field(
+        default=None, description="Declaração sobre embalagem de madeira como escrita, ex. 'WOODEN PACKING: NOT APPLICABLE'"
+    )
+    free_time: Texto | None = Field(default=None, description="Free time informado, como escrito, ex. '14 DAYS AT DESTINATION'")
+    to_order_of: bool | None = Field(
+        default=None, description="No conhecimento: o consignee começa com 'TO ORDER OF' (ou 'TO THE ORDER OF')?"
+    )
     peso_liquido_total: Medida | None
     peso_bruto_total: Medida | None
     volumes_total: Contagem | None = Field(description="Total de volumes/embalagens (cartons, pallets, drums...)")

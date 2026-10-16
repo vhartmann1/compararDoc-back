@@ -59,10 +59,36 @@ para saber (comum em Word/Excel).
 houver, o "Importer"/importador. Só sem nenhum desses use o comprador ("To:", "Sold to", \
 "Bill to", "Customer", "Messrs."): quando o documento traz comprador e importador, o \
 consignatário é o importador. Num BL "To order of X", o consignatário é X. `cnpj` como acima.
+- `fabricante`: o fabricante, quando o documento o cita em campo próprio ("Manufacturer", "Producer", \
+"Fabricante", "Made by"), com nome, endereço, cidade e país como aparecem (endereço null se não houver). \
+Se o documento diz "same as exporter"/"same as seller", copie os dados do exportador. Sem menção => null.
+- `adquirente`: o comprador/cliente quando é uma empresa diferente do consignatário ("Buyer", "Sold to", \
+"Bill to", "Customer", "Adquirente", "Delivered to"), com nome, CNPJ e endereço. Se comprador e \
+consignatário forem a mesma empresa, ou não houver comprador, null.
+- `notify`: o "Notify party" / "Notify", com nome, CNPJ e endereço como aparecem; null se não houver.
+- `to_order_of`: só no conhecimento: true se o campo Consignee começa com "TO ORDER OF" / "TO THE ORDER OF"; \
+false se o consignee é uma empresa direta; null em invoice e packing list.
 - `porto_origem` e `porto_destino`: só o nome da cidade/porto/aeroporto, sem país, UF, "Port of" \
 ou "Airport" (ex.: "NINGBO", "SANTOS", "HAMBURG"). Origem = porto/aeroporto de embarque \
-(Port of Loading, From, Airport of Departure); destino = porto/aeroporto de descarga ou destino \
-final no Brasil (Port of Discharge, To, Airport of Destination).
+(Port of Loading, From, Airport of Departure). Destino: na invoice e no packing list, o destino como escrito \
+("Destination", "To", "Port of Discharge", "Discharge port", "Final destination", "Shipped to"); procure \
+no cabeçalho e no rodapé, inclusive em frases como "from X to Y"; no **conhecimento**, só o porto/aeroporto de **descarga** (Port of \
+Discharge, Airport of Destination) — não o local de entrega.
+- `local_entrega`: só no conhecimento: o "Place of Delivery" (local de entrega), só o nome, como acima. \
+Mesmo que seja igual ao de descarga, preencha. Não use "Final destination (for the merchant's reference)". \
+Em invoice e packing list, null.
+- `pais_procedencia` e `pais_aquisicao`: país de procedência ("Country of Provenance", "Country of Shipment", \
+"País de procedencia") e de aquisição ("Country of Acquisition"), em inglês maiúsculo, só se o documento \
+disser; não deduza do endereço.
+- `modalidade_pagamento`: a condição de pagamento como escrita ("Payment terms", "Terms of payment", \
+"Forma de pago"), ex.: "T/T 30 DAYS AFTER BL DATE"; null se não houver.
+- `valor_total`: na invoice, o valor total da mercadoria (o total da coluna de valores / "Total amount"), \
+com a moeda; se houver total da mercadoria e total com frete/seguro, use o da mercadoria. Null em packing \
+list e conhecimento.
+- `valor_frete` e `valor_seguro`: o valor do frete ("Freight", "Ocean freight", "Flete") e do seguro \
+("Insurance") quando o documento informa um valor, com a moeda. No conhecimento, só o frete básico do quadro \
+de fretes (linha "Ocean freight"/"Air freight"/"Frete"), nunca taxas (THC, BAF, documentação, AFRMM, \
+tratamento de embalagem de madeira) nem a soma delas. Sem valor de frete => null.
 - `peso_liquido_total` e `peso_bruto_total`: o **total** do documento (soma de todos os itens / \
 containers), não o peso de um item. Se só houver pesos por item e nenhum total, deixe null.
   - `valor`: o número interpretado. "27,200.00" (americano) e "27.200,00" (brasileiro/europeu) \
@@ -95,7 +121,8 @@ mesmo que pareça errado. Sem incoterm no documento => null (BL/AWB normalmente 
 "FREIGHT PREPAID", "FREIGHT COLLECT", "FLETE PAGADO", e os códigos do AWB "PP" (prepaid) e "CC"/"COLL" \
 (collect) marcados nos campos WT/VAL ou Other, ou o valor lançado em "Total Prepaid" × "Total Collect". \
 Num BL, "Freight payable at destination" = COLLECT. Sem informação => null. Em invoice/PL quase sempre null.
-- `moeda`: a moeda dos valores, código ISO (USD, EUR, CNY, BRL...). Se o documento usa mais de uma \
+- `moeda`: a moeda dos valores da mercadoria, código ISO (USD, EUR, CNY, BRL...). No conhecimento, null \
+(a moeda do frete vai em `valor_frete.moeda`). Se o documento usa mais de uma \
 moeda para os mesmos valores, use a da coluna de preços e registre a contradição em \
 `inconsistencias_internas`. Packing list sem valores => null.
 - `pais_origem`: país de origem da mercadoria (Country of Origin, Origin, Made in, País de origen), \
@@ -109,6 +136,11 @@ mesmo que outro documento diga diferente. Para o consignatário, endereço, cida
 preenchidos se aparecerem.
 - `emitente_assinatura`: a empresa que aparece assinando/carimbando o documento (nome no rodapé, \
 na área de assinatura ou "for and on behalf of"), se houver; senão null.
+- `assinatura_manuscrita`: true se há uma assinatura feita à mão (traço de caneta/rubrica) no documento; \
+false se só há carimbo, nome digitado ou nada; null em Word/Excel ou se não der para ver.
+- `embalagem_madeira`: a declaração sobre embalagem de madeira como escrita (ex.: "WOODEN PACKAGE: TREATED \
+AND CERTIFIED", "NO WOOD PACKING MATERIAL"); null se o documento não fala disso.
+- `free_time`: o free time informado (ex.: "10 DAYS FREE TIME AT DESTINATION"), como escrito; null se não houver.
 - `itens`: as linhas de mercadoria de invoice e packing list, na ordem do documento, uma entrada por \
 linha da tabela. Não liste como item paletes, embalagens, frete, seguro nem serviços (seções como \
 "Additionals" ou "Packing material"), mesmo que tenham código e linha própria. No **conhecimento** (BL/AWB/CRT), extraia também a(s) mercadoria(s) do campo \
