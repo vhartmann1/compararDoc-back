@@ -9,6 +9,7 @@ from app.services.comparacao.itens.casar_itens import casar, casar_base
 from app.services.comparacao.itens.chave_da_linha import chaves_unicas
 from app.services.comparacao.itens.diferencas_do_item import diferencas_item
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado
+from app.services.comparacao.normalizacao import normalizar_codigo_item
 from app.services.comparacao.tipos import Col, Fonte
 
 
@@ -53,6 +54,9 @@ def _agrupar_par(colunas: list[Col]) -> list[ColItens]:
     sem_codigo = [all(not item.codigo for item in ci.itens) for ci in base]
     if len(base) == 2 and any(sem_codigo) and not all(sem_codigo):
         base = [ci if sem else ColItens(ci.col, agrupar_itens(ci.col.fontes, por_descricao=True)) for ci, sem in zip(base, sem_codigo)]
+    elif len(base) == 2:  # variantes de um lado ('7700100 010') contra o código base do outro ('7700100')
+        codigos = [{normalizar_codigo_item(i.codigo) for i in ci.itens if i.codigo} for ci in base]
+        base = [ColItens(ci.col, agrupar_itens(ci.col.fontes, codigos_base=codigos[1 - n])) for n, ci in enumerate(base)]
     return base
 
 

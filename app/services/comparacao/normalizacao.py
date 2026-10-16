@@ -320,9 +320,19 @@ def enderecos_equivalentes(a: str, b: str) -> bool:
     if difflib.SequenceMatcher(None, na, nb).ratio() >= SIMILARIDADE_MINIMA_ENDERECO:
         return True
     pa, pb = palavras_do_endereco(a), palavras_do_endereco(b)
+    pa, pb = _sem_abreviacoes(pa, pb), _sem_abreviacoes(pb, pa)
     if pa | pb and len(pa & pb) / len(pa | pb) >= SIMILARIDADE_MINIMA_ENDERECO:
         return True
     return _contido_com_mais_detalhe(pa, pb) or _contido_com_mais_detalhe(pb, pa)
+
+
+def _sem_abreviacoes(palavras: set[str], outras: set[str]) -> set[str]:
+    """'ON' vira 'ONTARIO' se o outro endereço traz 'ONTARIO': sigla de estado/província é o começo do nome."""
+    def completa(p: str) -> str:
+        if p in outras or not p.isalpha() or len(p) < 2:
+            return p
+        return next((o for o in sorted(outras) if o.startswith(p) and o.isalpha()), p)
+    return {completa(p) for p in palavras}
 
 
 def _contido_com_mais_detalhe(curto: set[str], longo: set[str]) -> bool:

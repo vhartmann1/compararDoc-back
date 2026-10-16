@@ -1,5 +1,7 @@
 """Junta as linhas do mesmo item em cada coluna: mesmo código ou, sem código, mesma descrição."""
 
+from dataclasses import replace
+
 from app.schemas import ItemExtraido
 from app.services.comparacao.itens.tipos import ItemAgrupado
 from app.services.comparacao.normalizacao import (
@@ -11,18 +13,37 @@ from app.services.comparacao.normalizacao import (
 from app.services.comparacao.tipos import Fonte
 
 
-def agrupar_itens(fontes: list[Fonte], por_descricao: bool = False) -> list[ItemAgrupado]:
-    """Agrupa as linhas de todos os documentos da coluna (vários, quando é uma soma); `por_descricao` junta códigos que dividem a mesma descrição."""
+def agrupar_itens(
+    fontes: list[Fonte], por_descricao: bool = False, codigos_base: set[str] | None = None
+) -> list[ItemAgrupado]:
+    """Agrupa as linhas da coluna; opcionalmente junta códigos de mesma descrição ou variantes do código base."""
     grupos: dict[str, list[tuple[ItemExtraido, str]]] = {}
+    bases: dict[str, str] = {}
     linhas = [(item, f.arquivo.id) for f in fontes for item in f.doc.itens]
     repetidas = _descricoes_com_varios_codigos(linhas) if por_descricao else set()
     for i, (item, arquivo_id) in enumerate(linhas):
         descricao = normalizar_descricao(item.descricao)
         codigo = normalizar_codigo_item(item.codigo) if item.codigo and descricao not in repetidas else ""
+        base = codigo_base(item.codigo, codigos_base) if codigo and codigos_base else None
+        if base:
+            codigo = normalizar_codigo_item(base)
+            bases[codigo] = base
         grupos.setdefault(codigo or (f"#descricao-{descricao}" if descricao else f"#linha-{i}"), []).append(
             (item, arquivo_id)
         )
-    return [_juntar_linhas([l for l, _ in g], g[0][1]) for g in grupos.values()]
+    agrupados = []
+    for chave, g in grupos.items():
+        item = _juntar_linhas([l for l, _ in g], g[0][1])
+        agrupados.append(replace(item, codigo=bases[chave]) if chave in bases else item)
+    return agrupados
+
+
+def codigo_base(codigo: str, codigos_do_outro: set[str]) -> str | None:
+    """'7700100 010' -> '7700100' quando o outro documento usa só o código base; senão None."""
+    partes = codigo.strip().split()
+    if len(partes) < 2 or normalizar_codigo_item(codigo) in codigos_do_outro:
+        return None
+    return partes[0] if normalizar_codigo_item(partes[0]) in codigos_do_outro else None
 
 
 def _descricoes_com_varios_codigos(linhas: list[tuple[ItemExtraido, str]]) -> set[str]:

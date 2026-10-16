@@ -244,3 +244,7 @@ def test_endereco_com_mais_detalhe_de_um_lado_e_o_mesmo():
 def test_registro_chines_com_letras_nao_vira_cnpj():
     assert formatar_cnpj("91110000MA0123B45X") == "91110000MA0123B45X"  # 14 dígitos com as letras tiradas
     assert formatar_cnpj("07872326000158") == "07.872.326/0001-58"
+
+
+def test_endereco_com_sigla_da_provincia_e_o_nome_completo_confere():
+    assert enderecos_equivalentes("12 Maple Road, Lakeview, ON K1A 0B1, Canada", "12 MAPLE ROAD, LAKEVIEW ONTARIO, CANADA K1A 0B1")

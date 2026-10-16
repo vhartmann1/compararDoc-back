@@ -165,3 +165,12 @@ def test_invoice_sem_codigo_com_descricoes_repetidas_casa_pelo_total_da_descrica
                                                 item("CC-1", "CUBA DE CERAMICA", 92, "PCS")])],
     )
     assert not mensagens(r, "item")
+
+
+def test_variantes_com_sufixo_casam_com_o_codigo_base_do_outro_documento():
+    r = rodar(
+        [doc("invoice", numero="1", itens=[item("7700100 010", "CAMISA CICLISMO PRETA", 10, "PCS"),
+                                           item("7700100 020", "CAMISA CICLISMO AZUL", 5, "PCS")]),
+         doc("packing_list", refs=["1"], itens=[item("7700100", "CAMISA CICLISMO", 15, "PCS")])],
+    )
+    assert not mensagens(r, "item")
