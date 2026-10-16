@@ -51,3 +51,18 @@ def juntar_conjunto(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: 
 
 def conjuntos_iguais(a: frozenset, b: frozenset) -> bool:
     return a == b
+
+
+def com_alternativas_iguais(a: tuple, b: tuple, iguais: Callable[[Any, Any], bool]) -> bool:
+    """Itens terminam em `alternativo` (ex.: fabricante); um lado pode bater com a alternativa do outro."""
+
+    def cobre(x: tuple, y: tuple) -> bool:
+        principais = [i for i in x if not i[-1]]
+        return bool(principais) and all(any(iguais(p, j) for j in y) for p in principais)
+
+    def tem_alternativa(x: tuple) -> bool:
+        return any(i[-1] for i in x)
+
+    mutuo = cobre(a, b) and cobre(b, a)
+    pela_alternativa = (cobre(a, b) and tem_alternativa(b)) or (cobre(b, a) and tem_alternativa(a))
+    return mutuo or pela_alternativa

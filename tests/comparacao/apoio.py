@@ -26,7 +26,7 @@ def doc(tipo, liquido=None, bruto=None, ncms=(), versao="original", unidade="KG"
         subtipo=None, refs=(), po=None, exportador=None, consignatario=None, origem=None, destino=None,
         volumes=None, quantidade=None, incoterm=None, frete=None, moeda=None, pais_origem=None,
         endereco_exportador=None, pais_exportador=None, assinatura=None, itens=(), internas=(),
-        cidade_exportador=None):
+        cidade_exportador=None, entrega=None, fabricante=None):
     def m(v):
         return None if v is None else Medida(valor=v, unidade=unidade, texto_original=f"{v} {unidade}", pagina=pagina)
 
@@ -52,7 +52,8 @@ def doc(tipo, liquido=None, bruto=None, ncms=(), versao="original", unidade="KG"
         tipo=tipo, subtipo=subtipo, paginas=[pagina] if pagina else [], numero=numero, invoices_referenciadas=list(refs), po=po,
         versao=versao, exportador=parte(exportador, endereco_exportador, pais_exportador, cidade_exportador),
         consignatario=parte(consignatario),
-        porto_origem=texto(origem), porto_destino=texto(destino),
+        porto_origem=texto(origem), porto_destino=texto(destino), local_entrega=texto(entrega),
+        fabricante=parte(fabricante[0], *fabricante[1:]) if fabricante else None,
         peso_liquido_total=m(liquido), peso_bruto_total=m(bruto),
         volumes_total=contagem(volumes), quantidade_total=contagem(quantidade),
         ncms=[CodigoNcm(codigo=c, pagina=pagina) for c in ncms],

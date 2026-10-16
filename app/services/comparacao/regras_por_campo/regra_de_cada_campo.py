@@ -8,6 +8,7 @@ from app.services.comparacao.regras_por_campo.endereco_pais_moeda_incoterm impor
     obter_incoterm,
     obter_moeda,
     obter_pais,
+    paises_do_exportador_iguais,
 )
 from app.services.comparacao.regras_por_campo.exportador_consignatario import (
     juntar_partes,
@@ -15,6 +16,7 @@ from app.services.comparacao.regras_por_campo.exportador_consignatario import (
     obter_parte,
 )
 from app.services.comparacao.regras_por_campo.ncm_invoice_po_portos import (
+    destinos_iguais,
     juntar_ncm,
     juntar_porto,
     obter_ncm,
@@ -47,9 +49,9 @@ REGRAS: dict[NomeCampo, Regra] = {
     "moeda": Regra(obter_moeda, juntar_conjunto, conjuntos_iguais),
     "exportador": Regra(obter_parte, juntar_partes, listas_de_partes_iguais),
     "endereco_exportador": Regra(obter_endereco, juntar_enderecos, listas_de_enderecos_iguais),
-    "pais_exportador": Regra(obter_pais, juntar_conjunto, conjuntos_iguais),
+    "pais_exportador": Regra(obter_pais, juntar_conjunto, paises_do_exportador_iguais),
     "consignatario": Regra(obter_parte, juntar_partes, listas_de_partes_iguais),
     "pais_origem": Regra(obter_pais, juntar_conjunto, conjuntos_iguais),
     "porto_origem": Regra(obter_porto, juntar_porto, conjuntos_iguais),
-    "porto_destino": Regra(obter_porto, juntar_porto, conjuntos_iguais),
+    "porto_destino": Regra(obter_porto, juntar_porto, destinos_iguais),
 }

@@ -39,6 +39,8 @@ ROTULOS: dict[NomeCampo, str] = {
 }
 
 CAMPOS_SEMPRE_VISIVEIS: set[NomeCampo] = {"peso_liquido", "peso_bruto", "ncm"}
+# No conhecimento a moeda é a do frete, não a da mercadoria: não entra na comparação
+CAMPOS_FORA_DO_CONHECIMENTO: set[NomeCampo] = {"moeda"}
 
 CAMPOS_SOMADOS: set[NomeCampo] = {"peso_liquido", "peso_bruto", "volumes", "quantidade"}
 

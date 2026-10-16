@@ -2,6 +2,8 @@
 
 from app.schemas import NomeCampo
 from app.services.comparacao.normalizacao import (
+    SIGLAS_PAISES,
+    normalizar_pais,
     formatar_ncm,
     normalizar_ncm,
     normalizar_numero_documento,
@@ -73,13 +75,23 @@ def _mesmo_po(x: str, y: str) -> bool:
 
 def obter_porto(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     porto = f.doc.porto_origem if campo == "porto_origem" else f.doc.porto_destino
-    if porto is None:
+    entrega = f.doc.local_entrega if campo == "porto_destino" and f.doc.tipo == "conhecimento" else None
+    porto = porto or entrega
+    if porto is None or normalizar_pais(porto.valor) in SIGLAS_PAISES:  # "To: Brazil" é país, não porto
         return None
-    valor = valor_conjunto([porto.valor], normalizar_porto, f, porto.pagina)
+    nomes = [porto.valor] + ([entrega.valor] if entrega and entrega is not porto else [])
+    valor = valor_conjunto(nomes, normalizar_porto, f, porto.pagina)
     if valor:
         valor.texto_original = porto.valor
         valor.exibicao = nome_do_porto(porto.valor)
+        if len(valor.chave) > 1:  # conhecimento: descarga e entrega diferentes
+            valor.exibicao += f" (entrega: {nome_do_porto(entrega.valor)})"
     return valor
+
+
+def destinos_iguais(a: frozenset, b: frozenset) -> bool:
+    """Destino confere com a descarga ou com o local de entrega do conhecimento."""
+    return a <= b or b <= a
 
 
 def juntar_porto(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor:

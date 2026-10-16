@@ -7,6 +7,7 @@ from typing import Any
 from app.schemas import CampoComparado, Coluna, Comparacao, Divergencia, NomeCampo, StatusCampo, ValorCampo
 from app.services.comparacao.constantes import (
     CAMPOS_DIVERGENTES_NA_SOMA,
+    CAMPOS_FORA_DO_CONHECIMENTO,
     CAMPOS_SEM_AVISO_INSUFICIENTE,
     CAMPOS_SEMPRE_VISIVEIS,
     CAMPOS_SOMADOS,
@@ -60,6 +61,8 @@ def _valor_do_documento(ctx: Contexto, f: Fonte, campo: NomeCampo, regra: Regra)
 
 
 def _valor_coluna(ctx: Contexto, col: Col, campo: NomeCampo, regra: Regra) -> Valor | None:
+    if campo in CAMPOS_FORA_DO_CONHECIMENTO and all(f.doc.tipo == "conhecimento" for f in col.fontes):
+        return None
     valores = [_valor_do_documento(ctx, f, campo, regra) for f in col.fontes]
     if not col.soma or len(valores) == 1:
         return valores[0]

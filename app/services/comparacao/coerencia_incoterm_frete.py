@@ -4,7 +4,7 @@ from app.schemas import Divergencia
 from app.services.comparacao.colunas_da_comparacao import listar_pares
 from app.services.comparacao.constantes import INCOTERMS_CD, INCOTERMS_EF
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.normalizacao import nome_do_porto, normalizar_incoterm, normalizar_porto
+from app.services.comparacao.normalizacao import SIGLAS_PAISES, nome_do_porto, normalizar_incoterm, normalizar_pais, normalizar_porto
 from app.services.comparacao.tipos import Fonte
 
 
@@ -62,21 +62,32 @@ def _coerencia_incoterm(fonte: Fonte, par: list[Fonte], conhecimentos: list[Font
                     f"(frete por conta do {quem}; esperado {esperado})",
                 ))
 
+    destinos = {normalizar_porto(f.doc.porto_destino.valor) for f in par + conhecimentos if f.doc.porto_destino}
     if local and sigla in INCOTERMS_EF:
-        destinos = {
-            normalizar_porto(f.doc.porto_destino.valor) for f in par + conhecimentos if f.doc.porto_destino
-        }
         if local in destinos:
             resultado.append((
                 "par",
                 f"Incoterm {exibicao} ({nome}): {sigla} indica local de embarque/origem, mas {local_exibido} é o destino",
             ))
+    # "FOB INDONESIA" nomeia país, não porto: não dá para conferir
+    if local and sigla in INCOTERMS_PORTO_DE_EMBARQUE and normalizar_pais(inc.local) not in SIGLAS_PAISES:
+        origens = {f.doc.porto_origem.valor for f in par + conhecimentos if f.doc.porto_origem}
+        if origens and local not in {normalizar_porto(o) for o in origens} and local not in destinos:
+            resultado.append((
+                "par",
+                f"Incoterm {exibicao} ({nome}) × porto de embarque {' / '.join(sorted(nome_do_porto(o) for o in origens))}",
+            ))
     if local and sigla in INCOTERMS_CD:
         for c in conhecimentos:
             destino = c.doc.porto_destino.valor if c.doc.porto_destino else ""
-            if destino and normalizar_porto(destino) != local:
+            entrega = c.doc.local_entrega.valor if c.doc.local_entrega else ""
+            if destino and local not in {normalizar_porto(destino), normalizar_porto(entrega) if entrega else ""}:
                 resultado.append((
                     "conhecimento",
                     f"Incoterm {exibicao} ({nome}) × porto de descarga do {nome_doc(c)} {nome_do_porto(destino)}",
                 ))
     return resultado
+
+
+# FOB e FAS nomeiam o porto de embarque; EXW e FCA costumam nomear fábrica ou armazém e não entram
+INCOTERMS_PORTO_DE_EMBARQUE = {"FOB", "FAS"}
