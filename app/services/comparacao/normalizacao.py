@@ -231,9 +231,9 @@ def formatar_ncm(codigo: str) -> str:
 
 
 def formatar_cnpj(cnpj: str) -> str:
-    """14 dígitos -> '12.345.678/0001-90'; outros tamanhos ficam como vieram."""
+    """14 dígitos -> '12.345.678/0001-90'; outros tamanhos e códigos com letras (registro chinês) ficam como vieram."""
     d = so_digitos(cnpj)
-    if len(d) != 14:
+    if len(d) != 14 or re.search(r"[A-Za-z]", cnpj):
         return cnpj.strip()
     return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
 
@@ -315,12 +315,20 @@ def palavras_do_endereco(endereco: str) -> set[str]:
 
 
 def enderecos_equivalentes(a: str, b: str) -> bool:
-    """Texto parecido na mesma ordem, ou as mesmas palavras em outra ordem."""
+    """Texto parecido na mesma ordem, as mesmas palavras em outra ordem, ou um é o outro com mais detalhe."""
     na, nb = normalizar_endereco(a), normalizar_endereco(b)
     if difflib.SequenceMatcher(None, na, nb).ratio() >= SIMILARIDADE_MINIMA_ENDERECO:
         return True
     pa, pb = palavras_do_endereco(a), palavras_do_endereco(b)
-    return bool(pa | pb) and len(pa & pb) / len(pa | pb) >= SIMILARIDADE_MINIMA_ENDERECO
+    if pa | pb and len(pa & pb) / len(pa | pb) >= SIMILARIDADE_MINIMA_ENDERECO:
+        return True
+    return _contido_com_mais_detalhe(pa, pb) or _contido_com_mais_detalhe(pb, pa)
+
+
+def _contido_com_mais_detalhe(curto: set[str], longo: set[str]) -> bool:
+    """'NO 88 LIANHUA ROAD SHANGHAI 201100 CN' ⊂ '2F NO 88 LIANHUA ROAD MINHANG DISTRICT SHANGHAI', fora CEP e país."""
+    essencial = {p for p in curto if p not in SIGLAS_PAISES and not re.fullmatch(r"\d{5,}", p)}
+    return len(essencial) >= 3 and any(ch.isdigit() for p in essencial for ch in p) and essencial <= longo
 
 
 def normalizar_cidade(cidade: str) -> str:

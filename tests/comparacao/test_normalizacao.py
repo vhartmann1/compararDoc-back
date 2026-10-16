@@ -234,3 +234,13 @@ def test_numero_sem_serie():
 
     assert numero_sem_serie("FT A26/000123") == numero_sem_serie("GR A26/000123") == "A26000123"
     assert numero_sem_serie("SU26081EA") == "SU26081EA"
+
+
+def test_endereco_com_mais_detalhe_de_um_lado_e_o_mesmo():
+    assert enderecos_equivalentes("2F No 88 Lianhua Road Minhang District Shanghai", "No 88 Lianhua Road Shanghai 201100 China")
+    assert not enderecos_equivalentes("Shanghai, China", "No 88 Lianhua Road Shanghai")
+
+
+def test_registro_chines_com_letras_nao_vira_cnpj():
+    assert formatar_cnpj("91110000MA0123B45X") == "91110000MA0123B45X"  # 14 dígitos com as letras tiradas
+    assert formatar_cnpj("07872326000158") == "07.872.326/0001-58"

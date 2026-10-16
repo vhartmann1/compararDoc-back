@@ -1,5 +1,7 @@
 """Regras de endereço, país, moeda e incoterm."""
 
+import re
+
 from app.schemas import NomeCampo
 from app.services.comparacao.normalizacao import (
     enderecos_compativeis,
@@ -43,6 +45,8 @@ def obter_pais(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
         texto, pagina = (parte.pais, parte.pagina) if parte else (None, None)
     else:
         texto, pagina = (f.doc.pais_origem.valor, f.doc.pais_origem.pagina) if f.doc.pais_origem else (None, None)
+        if texto:  # 'JAPAN / MALAYSIA': cada país é um valor do conjunto, em qualquer ordem
+            return valor_conjunto(re.split(r"\s*(?:/|,|;|&|\bAND\b)\s*", texto, flags=re.IGNORECASE), normalizar_pais, f, pagina)
     return valor_conjunto([texto] if texto else [], normalizar_pais, f, pagina)
 
 

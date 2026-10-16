@@ -49,3 +49,8 @@ def test_endereco_do_exportador_em_outra_ordem_confere():
         doc("packing_list", numero="1", exportador="Alfa BV", endereco_exportador="Kanaalweg 12, Breda, 4811 AB, NL"),
     ])
     assert campo(r.comparacoes[0], "endereco_exportador").status == "OK"
+
+
+def test_pais_de_origem_com_varios_paises_em_outra_ordem_confere():
+    r = rodar([doc("invoice", numero="1", pais_origem="Japan / Malaysia"), doc("packing_list", numero="1", pais_origem="MALAYSIA, JAPAN")])
+    assert campo(r.comparacoes[0], "pais_origem").status == "OK"
