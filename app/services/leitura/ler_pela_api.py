@@ -15,7 +15,7 @@ from app.services.leitura.prompts import PROMPT_USUARIO
 logger = logging.getLogger(__name__)
 
 MAX_WORKERS = 4
-MAX_TOKENS = 16000
+MAX_TOKENS = 64000  # acima de ~21 mil o SDK exige streaming
 
 # US$ por milhão de tokens: (entrada, saída, leitura do cache). Gravar no cache custa 1,25× a entrada (TTL 5 min).
 PRECOS = {
@@ -82,7 +82,8 @@ def _extrair(client: anthropic.Anthropic, arquivo: ArquivoEntrada) -> tuple[Extr
 
 def _chamar(client: anthropic.Anthropic, arquivo: ArquivoEntrada, conteudo: list[dict]):
     try:
-        return client.beta.messages.create(**_parametros(conteudo), max_tokens=MAX_TOKENS)
+        with client.beta.messages.stream(**_parametros(conteudo), max_tokens=MAX_TOKENS) as stream:
+            return stream.get_final_message()
     except anthropic.AuthenticationError as e:
         raise ErroExtracao("Chave da API Anthropic inválida ou ausente (ANTHROPIC_API_KEY).") from e
     except anthropic.PermissionDeniedError as e:
