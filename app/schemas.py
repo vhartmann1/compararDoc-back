@@ -151,6 +151,9 @@ class DocumentoExtraido(BaseModel):
     local_entrega: Texto | None = Field(
         default=None, description="No conhecimento: Place of Delivery, só o nome da cidade/porto, ex. 'CURITIBA'"
     )
+    local_recebimento: Texto | None = Field(
+        default=None, description="No conhecimento: Place of Receipt, só o nome da cidade/porto, ex. 'CAMPINAS'"
+    )
     pais_procedencia: Texto | None = Field(default=None, description="Country of provenance/shipment, em inglês maiúsculo")
     pais_aquisicao: Texto | None = Field(default=None, description="Country of acquisition, em inglês maiúsculo")
     modalidade_pagamento: Texto | None = Field(

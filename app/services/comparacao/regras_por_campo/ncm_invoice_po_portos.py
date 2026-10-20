@@ -1,10 +1,13 @@
 """Regras de NCM, nº da invoice, PO e portos."""
 
+import re
+
 from app.schemas import NomeCampo
 from app.services.comparacao.normalizacao import (
     SIGLAS_PAISES,
     normalizar_pais,
     formatar_ncm,
+    mesmo_numero,
     normalizar_ncm,
     normalizar_numero_documento,
     normalizar_po,
@@ -14,6 +17,9 @@ from app.services.comparacao.normalizacao import (
 )
 from app.services.comparacao.regras_por_campo.regra import primeira_pagina, texto_soma, valor_conjunto
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
+
+ALTERNATIVAS = re.compile(r"(?i)\s+(?:OR|OU)\s+")  # 'ITAPOA OR NAVEGANTES'
+ROTA = re.compile(r"(?i)\s+TO\s+")  # 'Itapoa, Brazil to Navegantes': na origem vale o começo; no destino, os dois
 
 
 def obter_ncm(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
@@ -63,35 +69,38 @@ def obter_po(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     return valor_conjunto([f.doc.po] if f.doc.po else [], normalizar_po, f, primeira_pagina(f))
 
 
-def pos_iguais(a: frozenset, b: frozenset) -> bool:
-    """Cada PO tem par do outro lado: igual ou com letras a mais na frente ('ACME11426' × '11426')."""
-    return all(any(_mesmo_po(x, y) for y in b) for x in a) and all(any(_mesmo_po(y, x) for x in a) for y in b)
-
-
-def _mesmo_po(x: str, y: str) -> bool:
-    maior, menor = (x, y) if len(x) >= len(y) else (y, x)
-    return x == y or (len(menor) >= 3 and maior.endswith(menor) and maior[: -len(menor)].isalpha())
+def numeros_iguais(a: frozenset, b: frozenset) -> bool:
+    """Cada número tem par do outro lado: igual ou com letras a mais na frente ('ACME11426' × '11426')."""
+    return all(any(mesmo_numero(x, y) for y in b) for x in a) and all(any(mesmo_numero(y, x) for x in a) for y in b)
 
 
 def obter_porto(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
-    porto = f.doc.porto_origem if campo == "porto_origem" else f.doc.porto_destino
-    entrega = f.doc.local_entrega if campo == "porto_destino" and f.doc.tipo == "conhecimento" else None
-    porto = porto or entrega
+    """Chave = {alternativas}: conhecimento, embarque ou recebimento / descarga ou entrega; invoice, 'X OR Y'."""
+    origem = campo == "porto_origem"
+    porto = f.doc.porto_origem if origem else f.doc.porto_destino
+    extra = (f.doc.local_recebimento if origem else f.doc.local_entrega) if f.doc.tipo == "conhecimento" else None
+    porto = porto or extra
     if porto is None or normalizar_pais(porto.valor) in SIGLAS_PAISES:  # "To: Brazil" é país, não porto
         return None
-    nomes = [porto.valor] + ([entrega.valor] if entrega and entrega is not porto else [])
-    valor = valor_conjunto(nomes, normalizar_porto, f, porto.pagina)
-    if valor:
-        valor.texto_original = porto.valor
-        valor.exibicao = nome_do_porto(porto.valor)
-        if len(valor.chave) > 1:  # conhecimento: descarga e entrega diferentes
-            valor.exibicao += f" (entrega: {nome_do_porto(entrega.valor)})"
-    return valor
+    textos = [porto.valor] + ([extra.valor] if extra and extra is not porto else [])
+    if f.doc.tipo != "conhecimento":
+        trechos = ROTA.split(porto.valor)
+        textos = [a for t in (trechos[:1] if origem else trechos) for a in ALTERNATIVAS.split(t)]
+    alternativas = {normalizar_porto(t): t for t in textos if normalizar_porto(t)}
+    if not alternativas:
+        return None
+    if f.doc.tipo != "conhecimento":
+        exibicao = " ou ".join(dict.fromkeys(nome_do_porto(t) for t in alternativas.values()))
+    else:
+        exibicao = nome_do_porto(porto.valor)
+        if len(alternativas) > 1:
+            exibicao += f" ({'recebimento' if origem else 'entrega'}: {nome_do_porto(extra.valor)})"
+    return Valor(frozenset({frozenset(alternativas)}), exibicao, porto.valor, f.arquivo.id, porto.pagina)
 
 
-def destinos_iguais(a: frozenset, b: frozenset) -> bool:
-    """Destino confere com a descarga ou com o local de entrega do conhecimento."""
-    return a <= b or b <= a
+def portos_iguais(a: frozenset, b: frozenset) -> bool:
+    """Cada documento de um lado tem uma alternativa em comum com algum documento do outro."""
+    return all(any(x & y for y in b) for x in a) and all(any(y & x for x in a) for y in b)
 
 
 def juntar_porto(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor:

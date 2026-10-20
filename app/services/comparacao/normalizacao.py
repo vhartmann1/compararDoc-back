@@ -143,6 +143,12 @@ def numero_sem_serie(numero: str) -> str:
     return normalizar_numero_documento(numero)
 
 
+def mesmo_numero(x: str, y: str) -> bool:
+    """Já normalizados: iguais, ou um é o outro com letras na frente ('NFB907311' × '907311', série ou rótulo)."""
+    maior, menor = (x, y) if len(x) >= len(y) else (y, x)
+    return x == y or (len(menor) >= 3 and maior.endswith(menor) and maior[: -len(menor)].isalpha())
+
+
 PREFIXO_PO = re.compile(r"^\s*(P\.?\s?O\.?|PURCHASE ORDER|PEDIDO)(?=[\s:#.\-0-9])\s*(N[O°º]\.?|NR\.?|NUMBER|#|:)?\s*")
 
 

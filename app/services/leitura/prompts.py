@@ -77,6 +77,8 @@ Discharge, Airport of Destination) — não o local de entrega.
 - `local_entrega`: só no conhecimento: o "Place of Delivery" (local de entrega), só o nome, como acima. \
 Mesmo que seja igual ao de descarga, preencha. Não use "Final destination (for the merchant's reference)". \
 Em invoice e packing list, null.
+- `local_recebimento`: só no conhecimento: o "Place of Receipt" (local de recebimento da carga, antes do porto \
+de embarque), só o nome, como acima. Mesmo que seja igual ao de embarque, preencha. Em invoice e packing list, null.
 - `pais_procedencia` e `pais_aquisicao`: país de procedência ("Country of Provenance", "Country of Shipment", \
 "País de procedencia") e de aquisição ("Country of Acquisition"), em inglês maiúsculo, só se o documento \
 disser; não deduza do endereço.
