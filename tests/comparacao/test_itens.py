@@ -192,3 +192,34 @@ def test_variantes_com_sufixo_casam_com_o_codigo_base_do_outro_documento():
          doc("packing_list", refs=["1"], itens=[item("7700100", "CAMISA CICLISMO", 15, "PCS")])],
     )
     assert not mensagens(r, "item")
+
+
+def test_descricao_identica_com_referencia_lida_diferente_em_cada_lado_nao_diverge():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item(None, "BOMBA DOSADORA LINHA ORION 220V - 40L", 2, "PCS", referencia="40L")]),
+        doc("packing_list", numero="1", itens=[item(None, "BOMBA DOSADORA LINHA ORION 220V - 40L", 2, "PCS", referencia="ORION")]),
+    ])
+    assert not mensagens(r, "item")
+
+
+def test_linha_identica_vence_a_parecida_no_casamento():
+    r = rodar([
+        doc("invoice", numero="1", itens=[
+            item(None, "Bucha da base peça 3 - 4kg", 50, "PCS"),
+            item(None, "Bucha da base anel peça 6 - 4kg", 40, "PCS"),
+        ]),
+        doc("packing_list", numero="1", itens=[
+            item(None, "Bucha da base anel peça 6 - 4kg", 40, "PCS"),
+            item(None, "Bucha da base peça 3 - 4kg", 50, "PCS"),
+        ]),
+    ])
+    assert not mensagens(r, "item")
+
+
+def test_descricao_identica_com_referencias_que_nao_estao_nela_continua_divergindo():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item(None, "BOMBA HIDRAULICA", 1, "PCS", referencia="BH-100")]),
+        doc("packing_list", numero="1", itens=[item(None, "BOMBA HIDRAULICA", 1, "PCS", referencia="BH-200")]),
+    ])
+    [linha] = r.itens[0].linhas
+    assert linha.diferencas == ["descricao"]

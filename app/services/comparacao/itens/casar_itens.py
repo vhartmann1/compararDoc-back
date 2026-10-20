@@ -35,7 +35,8 @@ def casar(
     usados_l, usados_i = set(), set()
     if generico_nao_casa:
         for n in range(len(livres_i)):
-            if sum(1 for nota, m, _ in candidatos if -m == n and nota >= SIMILARIDADE_MINIMA_CASAMENTO) > 1:
+            notas = [nota for nota, m, _ in candidatos if -m == n and nota >= SIMILARIDADE_MINIMA_CASAMENTO]
+            if len(notas) > 1 and notas.count(IDENTICA) != 1:  # um par idêntico só: não é genérico
                 usados_i.add(n)
     genericos = set(usados_i)
     for nota, n, i in candidatos:
@@ -67,7 +68,13 @@ def casar_base(base: list[ColItens]) -> list[Linha]:
     return linhas + [{segunda.col.chave: item} for item in sobras]
 
 
+IDENTICA = 2.0
+
+
 def _semelhanca_descricao(a: ItemAgrupado, b: ItemAgrupado) -> float:
+    """2 = idêntica; 1 = equivalente; senão a similaridade: o par exato vence o só parecido."""
+    if normalizar_descricao(a.descricao) == normalizar_descricao(b.descricao):
+        return IDENTICA
     if descricoes_equivalentes(a.descricao, b.descricao):
         return 1.0
     return similaridade(normalizar_descricao(a.descricao), normalizar_descricao(b.descricao))

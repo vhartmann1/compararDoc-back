@@ -39,7 +39,9 @@ def _quantidades_comparaveis_diferentes(a: ItemAgrupado, b: ItemAgrupado) -> boo
 
 
 def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """Medida diferente diverge; com o mesmo código a descrição basta; senão referências, código e semelhança."""
+    """Idêntica é igual; medida diferente diverge; senão descrição contida, referências, código e semelhança."""
+    if normalizar_descricao(a.descricao) == normalizar_descricao(b.descricao) and _referencias_na_descricao(a, b):
+        return True  # descrição idêntica: a "referência" é só o trecho que cada leitura destacou
     mesmo_codigo = bool(a.codigo and b.codigo and normalizar_codigo_item(a.codigo) == normalizar_codigo_item(b.codigo))
     if _medidas_diferentes(a.descricao, b.descricao):
         return False  # mesmo código não salva: a potência, a tensão ou o tamanho mudou
@@ -67,6 +69,13 @@ def _medidas_diferentes(a: str, b: str) -> bool:
     """Uma unidade que aparece nas duas descrições com valores diferentes; a que só uma traz não conta."""
     ma, mb = _medidas(a), _medidas(b)
     return any(ma[u] != mb[u] for u in ma.keys() & mb.keys())
+
+
+def _referencias_na_descricao(a: ItemAgrupado, b: ItemAgrupado) -> bool:
+    """Cada referência lida está dentro da própria descrição (ou falta num dos lados): não há referência a mais."""
+    return all(
+        not x.referencia or normalizar_referencia(x.referencia) in normalizar_referencia(x.descricao) for x in (a, b)
+    )
 
 
 def _uma_comeca_a_outra(a: str, b: str) -> bool:
