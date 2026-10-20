@@ -139,6 +139,24 @@ def test_mesmo_codigo_com_descricao_escrita_de_outro_jeito_nao_diverge():
     assert linha.status == "OK"
 
 
+def test_mesmo_codigo_com_medida_diferente_na_descricao_diverge():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item("FT-30", "FONTE 24V 200W BIVOLT", 10, "PCS")]),
+        doc("packing_list", numero="1", itens=[item("FT-30", "FONTE 24V 150W BIVOLT", 10, "PCS")]),
+    ])
+    [linha] = r.itens[0].linhas
+    assert linha.diferencas == ["descricao"]
+
+
+def test_mesmo_codigo_com_medida_que_so_uma_descricao_traz_nao_diverge():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item("FT-30", "FONTE 24V 200W BIVOLT", 10, "PCS")]),
+        doc("packing_list", numero="1", itens=[item("FT-30", "FONTE 200 W", 10, "PCS")]),
+    ])
+    [linha] = r.itens[0].linhas
+    assert linha.status == "OK"
+
+
 def test_mesma_descricao_com_referencias_diferentes_nao_diverge():
     r = rodar(
         [doc("invoice", numero="1", itens=[item("AB-100", "CAIXA DE SOM 2.0 REF:AB-100", 10, "PCS", referencia="MODELO 2.0")]),

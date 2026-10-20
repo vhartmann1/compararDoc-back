@@ -39,8 +39,10 @@ def _quantidades_comparaveis_diferentes(a: ItemAgrupado, b: ItemAgrupado) -> boo
 
 
 def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """Mesma descrição com o mesmo código basta; senão as referências; sem elas, o código; por fim a semelhança."""
+    """Medida diferente diverge; com o mesmo código a descrição basta; senão referências, código e semelhança."""
     mesmo_codigo = bool(a.codigo and b.codigo and normalizar_codigo_item(a.codigo) == normalizar_codigo_item(b.codigo))
+    if _medidas_diferentes(a.descricao, b.descricao):
+        return False  # mesmo código não salva: a potência, a tensão ou o tamanho mudou
     if _uma_comeca_a_outra(a.descricao, b.descricao) and (mesmo_codigo or not (a.referencia and b.referencia)):
         return True  # a "referência" lida difere (modelo × código do fabricante), mas o item é o mesmo
     if a.referencia and b.referencia:
@@ -48,6 +50,23 @@ def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
     if mesmo_codigo:
         return True
     return descricoes_equivalentes(a.descricao, b.descricao)
+
+
+MEDIDA = re.compile(r"(?<![A-Z0-9.,])(\d+(?:[.,]\d+)?) ?(KW|W|V|MA|A|MM|CM|ML|KG|G|L|HZ|K)(?![A-Z0-9])")
+
+
+def _medidas(descricao: str) -> dict[str, set[float]]:
+    """'FONTE 24V 200W' -> {'V': {24}, 'W': {200}}."""
+    por_unidade: dict[str, set[float]] = {}
+    for valor, unidade in MEDIDA.findall(sem_acento(descricao).upper()):
+        por_unidade.setdefault(unidade, set()).add(float(valor.replace(",", ".")))
+    return por_unidade
+
+
+def _medidas_diferentes(a: str, b: str) -> bool:
+    """Uma unidade que aparece nas duas descrições com valores diferentes; a que só uma traz não conta."""
+    ma, mb = _medidas(a), _medidas(b)
+    return any(ma[u] != mb[u] for u in ma.keys() & mb.keys())
 
 
 def _uma_comeca_a_outra(a: str, b: str) -> bool:
