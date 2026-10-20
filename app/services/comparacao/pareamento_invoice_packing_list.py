@@ -9,10 +9,10 @@ from app.services.comparacao.tipos import Fonte
 def parear(
     invoices: list[Fonte], pls: list[Fonte], avisos: list[str]
 ) -> list[tuple[Fonte | None, Fonte | None]]:
-    cobertas = {id(p): [i for i in invoices if _pl_da_invoice(p.doc, i.doc)] for p in pls}
-    de_varias = [p for p in pls if len(cobertas[id(p)]) > 1]  # um PL para várias invoices: só entra na soma
-    na_soma = {id(i) for p in de_varias for i in cobertas[id(p)]}
-    livres = [p for p in pls if len(cobertas[id(p)]) <= 1]
+    cobertas = {p: [i for i in invoices if _pl_da_invoice(p.doc, i.doc)] for p in pls}
+    de_varias = [p for p in pls if len(cobertas[p]) > 1]  # um PL para várias invoices: só entra na soma
+    na_soma = {i for p in de_varias for i in cobertas[p]}
+    livres = [p for p in pls if p not in de_varias]
     grupos: list[tuple[Fonte | None, Fonte | None]] = []
     for inv in invoices:
         pl = next((p for p in livres if _pl_da_invoice(p.doc, inv.doc)), None)
@@ -20,7 +20,7 @@ def parear(
             livres.remove(pl)
         grupos.append((inv, pl))
 
-    sem_pl = [i for i, (inv, pl) in enumerate(grupos) if pl is None and id(inv) not in na_soma]
+    sem_pl = [i for i, (inv, pl) in enumerate(grupos) if pl is None and inv not in na_soma]
     if len(sem_pl) == 1 and len(livres) == 1:
         i = sem_pl[0]
         inv, pl = grupos[i][0], livres.pop()
@@ -31,15 +31,15 @@ def parear(
         )
     grupos.extend((None, pl) for pl in de_varias + livres)
     for pl in de_varias:
-        numeros = ", ".join(i.doc.numero for i in cobertas[id(pl)])
+        numeros = ", ".join(i.doc.numero for i in cobertas[pl])
         avisos.append(f"{nome_doc(pl)} cobre as invoices {numeros}: comparado só na soma.")
 
     for inv, pl in grupos:
         if inv and pl:
             pl.invoice_par = inv.doc
-        elif inv and pls and id(inv) not in na_soma:
+        elif inv and pls and inv not in na_soma:
             avisos.append(f"{nome_doc(inv)} sem packing list correspondente.")
-        elif pl and invoices and id(pl) not in {id(p) for p in de_varias}:
+        elif pl and invoices and pl not in de_varias:
             avisos.append(f"{nome_doc(pl)} sem invoice correspondente.")
     return grupos
 

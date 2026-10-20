@@ -6,9 +6,9 @@ from typing import Any
 from app.schemas import ArquivoEntrada, Divergencia, DocumentoExtraido, Modalidade
 
 
-@dataclass
+@dataclass(eq=False)
 class Fonte:
-    """Um documento escolhido para a comparação."""
+    """Um documento enviado: dois com o mesmo conteúdo continuam sendo dois (igualdade por identidade)."""
 
     arquivo: ArquivoEntrada
     doc: DocumentoExtraido
