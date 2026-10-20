@@ -135,12 +135,18 @@ def normalizar_numero_documento(numero: str) -> str:
     return limpo.lstrip("0") or limpo
 
 
+# Marcas do tipo de documento no meio do número: 'XYZ/PL/2526/LOC0123' é o PL da invoice 'XYZ2526/LOC0123'
+MARCAS_DE_TIPO = {"PL", "PKL", "PK", "PACKING", "LIST", "CI", "INV", "INVOICE"}
+
+
 def numero_sem_serie(numero: str) -> str:
-    """'FT A26/000123' e 'GR A26/000123' -> 'A26000123': a série (tipo do documento) na frente não é o número."""
-    partes = sem_acento(numero).upper().split(None, 1)
+    """'FT A26/000123' e 'GR A26/000123' -> 'A26000123'; 'XYZ/PL/25/0123' -> 'XYZ250123': série e marca do tipo saem."""
+    texto = sem_acento(numero).upper()
+    partes = texto.split(None, 1)
     if len(partes) == 2 and re.fullmatch(r"[A-Z]{1,4}\.?", partes[0]) and re.search(r"\d", partes[1]):
-        return normalizar_numero_documento(partes[1])
-    return normalizar_numero_documento(numero)
+        texto = partes[1]
+    pedacos = [p for p in re.split(r"[\s/._-]+", texto) if p not in MARCAS_DE_TIPO]
+    return normalizar_numero_documento("".join(pedacos) or texto)  # só a marca ('INVOICE'): não é número, fica como está
 
 
 def mesmo_numero(x: str, y: str) -> bool:
@@ -183,6 +189,7 @@ PORTOS_EQUIVALENTES = {
     **dict.fromkeys(["YANGSHAN", "WAIGAOQIAO", "SHANGAI"], "SHANGHAI"),
     **dict.fromkeys(["BEILUN", "NINGBO ZHOUSHAN"], "NINGBO"),
     **dict.fromkeys(["TANJUNG PRIOK"], "JAKARTA"),
+    **dict.fromkeys(["BARRA RIO"], "ITAJAI"),
 }
 
 

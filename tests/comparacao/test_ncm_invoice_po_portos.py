@@ -82,3 +82,9 @@ def test_origem_escrita_como_rota_vale_so_pelo_comeco():
     r = rodar([doc("invoice", numero="1", origem="SANTOS to RIO GRANDE"), doc("packing_list", refs=["1"]),
                doc("conhecimento", subtipo="BL", numero="B1", refs=["1"], origem="RIO GRANDE")])
     assert campo(r.comparacoes[0], "porto_origem").status == "DIVERGENTE"
+
+
+def test_terminal_de_itajai_no_incoterm_confere_com_a_descarga_em_itajai():
+    r = rodar([doc("invoice", numero="1", incoterm=("CPT", "BARRA DO RIO")), doc("packing_list", refs=["1"]),
+               doc("conhecimento", subtipo="CRT", numero="C1", refs=["1"], destino="ITAJAI")])
+    assert not mensagens(r, "coerencia")
