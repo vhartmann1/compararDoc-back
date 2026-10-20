@@ -1,15 +1,27 @@
 """Nome, número e referência de um documento, para as mensagens e para a tela."""
 
-from app.schemas import DocumentoRef
+import re
+
+from app.schemas import DocumentoExtraido, DocumentoRef
 from app.services.comparacao.constantes import NOME_TIPO
 from app.services.comparacao.normalizacao import normalizar_numero_documento
 from app.services.comparacao.tipos import Fonte
 
 
+PROFORMA = re.compile(r"(?i)pro[\s_-]?forma")
+
+
+def e_proforma(doc: DocumentoExtraido) -> bool:
+    """Invoice que a leitura marcou como proforma (subtipo), ex. a aba 'Proforma Invoice' de um Excel."""
+    return doc.tipo == "invoice" and bool(PROFORMA.search(doc.subtipo or ""))
+
+
 def nome_doc(f: Fonte) -> str:
-    """'Invoice L30518777', 'AWB 123-4567 8901', 'Packing List'."""
+    """'Invoice L30518777', 'Proforma PI-9', 'AWB 123-4567 8901', 'Packing List'."""
     if f.doc.tipo == "conhecimento":
         nome = f.doc.subtipo or "Conhecimento"
+    elif e_proforma(f.doc):
+        nome = "Proforma"
     else:
         nome = NOME_TIPO[f.doc.tipo]
     return f"{nome} {f.doc.numero}" if f.doc.numero else nome

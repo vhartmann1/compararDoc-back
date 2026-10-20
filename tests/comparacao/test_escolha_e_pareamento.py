@@ -221,3 +221,59 @@ def test_linhas_repetidas_com_e_sem_quantidade_nao_derrubam_a_escolha():
     )
     assert any("Mais de um documento Packing List" in a for a in r.avisos)
 
+
+def test_rascunho_pelo_nome_perde_para_o_original_com_os_mesmos_totais():
+    r = _enviar(
+        ("CI ORIGINAL.pdf", PDF, [doc("invoice", 100, 110, versao="desconhecida")]),
+        ("CI DRAFT.pdf", PDF, [doc("invoice", 100, 110, versao="desconhecida")]),
+    )
+    assert any("usado desconhecida (CI ORIGINAL.pdf" in a for a in r.avisos)
+
+
+def test_planilha_resumo_de_duas_invoices_sai_da_soma():
+    r = _enviar(
+        ("INV1.pdf", PDF, [doc("invoice", 10, 11, numero="7001")]),
+        ("INV2.pdf", PDF, [doc("invoice", 20, 22, numero="7002")]),
+        ("RESUMO.xlsx", XLSX, [doc("invoice", 30, 33, numero="7001, 7002", pagina=None,
+                                   internas=[("Peso líquido e bruto trocados no cabeçalho", "NET 33 / GROSS 30")])]),
+        ("BL.pdf", PDF, [doc("conhecimento", None, 33, subtipo="BL", numero="B1", refs=["7001", "7002"])]),
+    )
+    assert "Invoice 7001, 7002 (RESUMO.xlsx) não entrou na comparação: é o resumo das outras invoices." in r.avisos
+    assert campo(r.comparacoes[-1], "peso_bruto").status == "OK"
+    assert any("trocados no cabeçalho" in d.mensagem for d in r.divergencias if d.categoria == "interna")
+
+
+def test_mesmo_pl_lido_com_as_palavras_em_outra_ordem_conta_uma_vez():
+    a = [item(None, "PAPEL TERMICO 48 GSM ROLO 80MM", 1000, "M2")]
+    b = [item(None, "PAPEL TERMICO ROLO 80MM 48 GSM", 1000, "M2")]
+    r = _enviar(
+        ("INV.pdf", PDF, [doc("invoice", 500, 520, numero="X-9")]),
+        ("PL A.pdf", PDF, [doc("packing_list", 500, 520, refs=["X-9"], itens=a)]),
+        ("PL B.pdf", PDF, [doc("packing_list", 490, 520, refs=["X-9"], itens=b)]),
+    )
+    assert any("Mais de um documento Packing List" in a for a in r.avisos)
+
+
+@pytest.mark.parametrize("trocar", [False, True])
+def test_mesmo_pl_e_reconhecido_em_qualquer_ordem_das_linhas(trocar):
+    a = [item(None, "PAPEL TERMICO 80MM", 10, "CX"), item(None, "PAPEL TERMICO 80MM AZUL COM TUBETE", 10, "CX")]
+    b = [item(None, "PAPEL TERMICO 80MM VERDE SEM NUCLEO", 10, "CX"), item(None, "PAPEL TERMICO 80MM AZUL COM TUBETE", 10, "CX")]
+    r = _enviar(
+        ("INV.pdf", PDF, [doc("invoice", 50, 55, numero="X-9")]),
+        ("PL A.pdf", PDF, [doc("packing_list", 50, 55, refs=["X-9"], itens=a)]),
+        ("PL B.pdf", PDF, [doc("packing_list", 50, 56, refs=["X-9"], itens=b[::-1] if trocar else b)]),
+    )
+    assert any("Mais de um documento Packing List" in aviso for aviso in r.avisos)
+
+
+def test_proforma_em_dois_arquivos_e_conferida_por_dentro_uma_vez_com_o_proprio_nome():
+    interna = [("Moeda da coluna (USD) diferente da do total (EUR)", "USD × EUR")]
+    proforma = dict(numero="PI-9", subtipo="PROFORMA", internas=interna, quantidade=(900, "PCS"))
+    r = _enviar(
+        ("PI.pdf", PDF, [doc("invoice", **proforma)]),
+        ("PEDIDO.xlsx", XLSX, [doc("invoice", **proforma, pagina=None)]),
+        ("INV.pdf", PDF, [doc("invoice", 30, 33, numero="C-1")]),
+    )
+    internas = [d.mensagem for d in r.divergencias if d.categoria == "interna"]
+    assert internas == ["Proforma PI-9: Moeda da coluna (USD) diferente da do total (EUR)"]
+    assert "Proforma PI-9 (PI.pdf, pág. 1) não entrou na comparação: há invoice comercial." in r.avisos

@@ -27,7 +27,8 @@ def comparar(
 ) -> ResultadoComparacao:
     """`extracoes` na ordem em que os arquivos foram enviados."""
     avisos: list[str] = []
-    por_tipo = escolher_documentos(extracoes, avisos)
+    escolha = escolher_documentos(extracoes, avisos)
+    por_tipo = escolha.por_tipo
     invoices, pls, conhecimentos = por_tipo["invoice"], por_tipo["packing_list"], por_tipo["conhecimento"]
     grupos = parear(invoices, pls, avisos)
 
@@ -43,7 +44,7 @@ def comparar(
 
     usados = sorted((f for fs in por_tipo.values() for f in fs), key=lambda f: f.ordem)
     divergencias.extend(divergencias_de_coerencia(grupos, conhecimentos))
-    divergencias.extend(d for f in usados for d in divergencias_internas(f))
+    divergencias.extend(d for f in usados + escolha.fora_da_soma for d in divergencias_internas(f))
     avisos.extend(avisos_amostras(por_tipo["invoice"]))
     avisos.extend(avisos_pais_origem(por_tipo["invoice"]))
     return ResultadoComparacao(
