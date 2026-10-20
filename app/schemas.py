@@ -183,8 +183,16 @@ class DocumentoExtraido(BaseModel):
     )
 
 
+class PaginaGirada(BaseModel):
+    pagina: int = Field(description="Página (1-based) do PDF cujo texto está de lado ou de cabeça para baixo")
+    graus: Literal[90, 180, 270] = Field(description="Quanto girar no sentido horário para o texto ficar na posição de leitura")
+
+
 class ExtracaoArquivo(BaseModel):
     documentos: list[DocumentoExtraido]
+    paginas_giradas: list[PaginaGirada] = Field(
+        default_factory=list, description="Páginas escaneadas de lado ou invertidas; [] se todas estão na posição normal"
+    )
 
 
 # ---------------------------------------------------------------------------

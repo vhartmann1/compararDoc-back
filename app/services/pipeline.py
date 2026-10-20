@@ -6,6 +6,7 @@ from app.config import settings
 from app.schemas import ArquivoEntrada, Etapa, Modalidade, ResultadoPipeline
 from app.services.comparacao import comparar
 from app.services.leitura import ler_pela_api, ler_pelo_claude_code, ler_simulado
+from app.services.leitura.endireitar_paginas import reler_paginas_giradas
 
 EXTRATORES = {"claude": ler_pela_api, "mock": ler_simulado, "claude_code": ler_pelo_claude_code}
 
@@ -21,7 +22,9 @@ def processar(
     avisar = ao_mudar_etapa or (lambda _etapa: None)
 
     avisar("LENDO_DOCUMENTOS")
-    extracoes, uso = EXTRATORES[settings.modo_extrator_efetivo].extrair_arquivos(arquivos)
+    extrair = EXTRATORES[settings.modo_extrator_efetivo].extrair_arquivos
+    extracoes, uso = extrair(arquivos)
+    extracoes, uso = reler_paginas_giradas(arquivos, extracoes, uso, extrair)
 
     avisar("COMPARANDO")
     resultado = comparar([(a, extracoes[a.id]) for a in arquivos], modalidade)

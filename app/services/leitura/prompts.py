@@ -17,6 +17,11 @@ nas imagens embutidas (que podem ser fundo, carimbo ou uma versão antiga do doc
 imagens para o que não estiver no texto. Em Word/Excel não há páginas: use `pagina` = null e \
 `paginas` = [].
 
+Se alguma página do PDF está escaneada de lado ou de cabeça para baixo, informe em `paginas_giradas` \
+o número da página e quantos graus girar no sentido horário para o texto ficar na posição de leitura \
+(90, 180 ou 270); o sistema endireita essas páginas e pede a leitura de novo. Em página normal, em imagem \
+avulsa e em Word/Excel, deixe `paginas_giradas` = [].
+
 Um arquivo pode conter vários documentos (ex.: invoice e packing list em planilhas diferentes, \
 ou várias invoices), ou só um. Os documentos podem estar em inglês, espanhol ou português.
 
@@ -85,8 +90,9 @@ disser; não deduza do endereço.
 - `modalidade_pagamento`: a condição de pagamento como escrita ("Payment terms", "Terms of payment", \
 "Forma de pago"), ex.: "T/T 30 DAYS AFTER BL DATE"; null se não houver.
 - `valor_total`: na invoice, o valor total da mercadoria (o total da coluna de valores / "Total amount"), \
-com a moeda; se houver total da mercadoria e total com frete/seguro, use o da mercadoria. Null em packing \
-list e conhecimento.
+com a moeda; se houver total da mercadoria e total com frete/seguro, use o da mercadoria. Ex.: "FOB value \
+USD 8,400.00 / Freight USD 600.00 / Total CFR USD 9,000.00" => 8400.0; linhas "Valve 120.00", "Pump 380.00", \
+"Freight 25.00" e "Total 525.00" => 500.0 (só as linhas de mercadoria). Null em packing list e conhecimento.
 - `valor_frete` e `valor_seguro`: o valor do frete ("Freight", "Ocean freight", "Flete") e do seguro \
 ("Insurance") quando o documento informa um valor, com a moeda. No conhecimento, só o frete básico do quadro \
 de fretes (linha "Ocean freight"/"Air freight"/"Frete"), nunca taxas (THC, BAF, documentação, AFRMM, \
@@ -110,9 +116,10 @@ Não é o número de volumes.
 - `ncms`: os códigos de classificação fiscal do documento, um item por código distinto, copiados \
 como estão (ex.: "3901.10.10", "HS 390110"). Se o documento identifica explicitamente o NCM \
 (Mercosul) — ex.: "NCM: 3904.10.10" — liste só o(s) NCM; senão liste os HS Codes / posições \
-arancelarias que aparecerem. No **conhecimento**, os códigos que aparecem no meio da descrição da \
-mercadoria (ex.: "390110 Polyethylene resin", "390120 Polyethylene film") também contam: liste todos, \
-não só a linha marcada "NCM".
+arancelarias que aparecerem. Ex.: "HS CODE: 32129000" e "NCM 3204.17.00" no mesmo documento => só \
+"3204.17.00" (o HS code ao lado é a classificação do país de origem, não o NCM). No **conhecimento**, \
+os códigos que aparecem no meio da descrição da mercadoria (ex.: "390110 Polyethylene resin", \
+"390120 Polyethylene film") também contam: liste todos, não só a linha marcada "NCM".
 
 - `incoterm`: a condição de venda (Incoterm, Price Terms, Terms of Delivery, Condición de entrega). \
 `codigo` = só a sigla (EXW, FCA, FAS, FOB, CFR, CIF, CPT, CIP, DAP, DPU, DDP); `local` = só o nome da \
