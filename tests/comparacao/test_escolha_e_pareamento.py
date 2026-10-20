@@ -5,7 +5,7 @@ import pytest
 from app.schemas import ArquivoEntrada, ExtracaoArquivo
 from app.services.comparacao import comparar
 from app.services.comparacao.escolha_dos_documentos import revisao_pelo_nome
-from tests.comparacao.apoio import campo, doc, rodar
+from tests.comparacao.apoio import campo, doc, item, rodar
 from tests.comparacao.cenarios import caso_4
 
 
@@ -164,3 +164,60 @@ def test_arquivo_que_nao_e_invoice_pl_nem_conhecimento_gera_aviso():
         ("COMPROVANTE.pdf", PDF, [doc("outro", subtipo="COMPROVANTE DE IMPORTACAO")]),
     )
     assert "COMPROVANTE.pdf não entrou na comparação: não é invoice, packing list nem conhecimento (COMPROVANTE DE IMPORTACAO)." in r.avisos
+
+
+DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def test_rascunho_em_word_e_pdf_final_do_mesmo_pl_contam_uma_vez_com_aviso_dos_totais():
+    linha = [item(None, "ARAME DE ACO 2MM BOBINA 10KG", 300, "KG")]
+    r = _enviar(
+        ("INV.pdf", PDF, [doc("invoice", 300, numero="X-77", itens=linha)]),
+        ("RASCUNHO.docx", DOCX, [doc("packing_list", 300, 330, refs=["X-77"], volumes=(1, "PALLET"), itens=linha)]),
+        ("PL.pdf", PDF, [doc("packing_list", 300, 326, refs=["X-77"], volumes=(1, "PALLET"), itens=linha)]),
+        ("AWB.pdf", PDF, [doc("conhecimento", None, 326, subtipo="AWB", numero="999-1", refs=["X-77"], volumes=(1, "PALLET"))]),
+    )
+    assert len(r.comparacoes) == 1
+    assert campo(r.comparacoes[0], "peso_bruto").status == "OK"
+    assert any("Mais de um documento Packing List" in a and "peso bruto 326 KG × 330 KG" in a for a in r.avisos)
+
+
+def test_dois_pl_da_mesma_invoice_com_itens_diferentes_continuam_separados():
+    r = _enviar(
+        ("INV.pdf", PDF, [doc("invoice", 300, numero="X-77")]),
+        ("PL1.pdf", PDF, [doc("packing_list", 100, 110, refs=["X-77"], itens=[item("A1", "PECA A", 10)])]),
+        ("PL2.pdf", PDF, [doc("packing_list", 200, 220, refs=["X-77"], itens=[item("B2", "PECA B", 20)])]),
+    )
+    assert not any("Mais de um documento Packing List" in a for a in r.avisos)
+
+
+def test_proforma_lida_dentro_do_excel_nao_soma_com_a_invoice_comercial():
+    r = _enviar(
+        ("PEDIDO.xlsx", XLSX, [
+            doc("invoice", numero="PI-9", subtipo="PROFORMA", quantidade=(5000, "PCS"), pagina=None),
+            doc("invoice", 30, 33, quantidade=(200, "PCS"), pagina=None),
+            doc("packing_list", 30, 33, quantidade=(200, "PCS"), pagina=None),
+        ]),
+    )
+    assert len(r.comparacoes) == 1
+    assert campo(r.comparacoes[0], "quantidade").status == "OK"
+    assert "Proforma PI-9 (PEDIDO.xlsx) não entrou na comparação: há invoice comercial." in r.avisos
+
+
+def test_so_proforma_continua_sendo_comparada():
+    r = _enviar(
+        ("PI.pdf", PDF, [doc("invoice", 30, 33, numero="PI-9", subtipo="PROFORMA")]),
+        ("PL.pdf", PDF, [doc("packing_list", 30, 33, refs=["PI-9"])]),
+    )
+    assert campo(r.comparacoes[0], "peso_bruto").status == "OK"
+
+
+def test_linhas_repetidas_com_e_sem_quantidade_nao_derrubam_a_escolha():
+    linhas = [item(None, "PERFIL DE ALUMINIO", 10, "PCS"), item(None, "PERFIL DE ALUMINIO")]
+    r = _enviar(
+        ("INV.pdf", PDF, [doc("invoice", 100, numero="X-77")]),
+        ("PL.docx", DOCX, [doc("packing_list", 100, 110, refs=["X-77"], itens=linhas)]),
+        ("PL.pdf", PDF, [doc("packing_list", 100, 111, refs=["X-77"], itens=linhas)]),
+    )
+    assert any("Mais de um documento Packing List" in a for a in r.avisos)
+
