@@ -21,6 +21,8 @@ def divergencias_internas(f: Fonte) -> list[Divergencia]:
         )
         for i in f.doc.inconsistencias_internas
     ]
+    if so_amostras(f):
+        return divergencias  # invoice de amostras: o valor das linhas é só para a alfândega
     moeda = normalizar_moeda(f.doc.moeda.valor) if f.doc.moeda else None
     for item in f.doc.itens:
         if item.sem_valor_comercial and (item.valor_total or 0) > 0:
@@ -38,6 +40,19 @@ def divergencias_internas(f: Fonte) -> list[Divergencia]:
                 )
             )
     return divergencias
+
+
+def so_amostras(f: Fonte) -> bool:
+    """Todas as linhas sem valor comercial: o documento inteiro é de amostras, não há linha cobrada para contradizer."""
+    return bool(f.doc.itens) and all(i.sem_valor_comercial for i in f.doc.itens)
+
+
+def avisos_amostras(invoices: list[Fonte]) -> list[str]:
+    return [
+        f"{nome_doc(f)}: todos os itens sem valor comercial (amostras); os valores informados servem só para a alfândega."
+        for f in invoices
+        if so_amostras(f)
+    ]
 
 
 def avisos_pais_origem(invoices: list[Fonte]) -> list[str]:

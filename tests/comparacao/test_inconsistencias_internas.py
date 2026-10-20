@@ -1,4 +1,4 @@
-from tests.comparacao.apoio import doc, mensagens, rodar
+from tests.comparacao.apoio import doc, item, mensagens, rodar
 from tests.comparacao.cenarios import caso_1, caso_4_v3
 
 
@@ -33,3 +33,20 @@ def test_status_divergente_so_por_interna():
     )
     assert all(c.status == "OK" for c in r.comparacoes[0].campos)
     assert r.status == "DIVERGENTE"
+
+
+def test_invoice_so_de_amostras_com_valor_para_a_alfandega_nao_acusa_foc_cobrado():
+    r = rodar([doc("invoice", numero="S-1", itens=[
+        item("A-1", "BONECO DE PELUCIA", 2, "PCS", foc=True, valor=12.5),
+        item("A-2", "LUMINARIA INFANTIL", 1, "PCS", foc=True, valor=8.0),
+    ])])
+    assert not mensagens(r, "interna")
+    assert "Invoice S-1: todos os itens sem valor comercial (amostras); os valores informados servem só para a alfândega." in r.avisos
+
+
+def test_invoice_que_mistura_item_cobrado_e_foc_cobrado_continua_apontando():
+    r = rodar([doc("invoice", numero="S-2", itens=[
+        item("A-1", "BONECO DE PELUCIA", 20, "PCS", valor=250.0),
+        item("A-2", "LUMINARIA INFANTIL", 1, "PCS", foc=True, valor=8.0),
+    ])])
+    assert mensagens(r, "interna") == ["Invoice S-2: item A-2 marcado como FOC (sem valor comercial), mas cobrado 8,00"]

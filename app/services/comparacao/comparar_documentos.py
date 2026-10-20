@@ -16,7 +16,7 @@ from app.services.comparacao.comparar_campos import comparar_colunas
 from app.services.comparacao.constantes import CAMPOS_SEMPRE_VISIVEIS
 from app.services.comparacao.escolha_dos_documentos import escolher_documentos
 from app.services.comparacao.identificacao_do_documento import ref_documento
-from app.services.comparacao.inconsistencias_internas import avisos_pais_origem, divergencias_internas
+from app.services.comparacao.inconsistencias_internas import avisos_amostras, avisos_pais_origem, divergencias_internas
 from app.services.comparacao.itens.comparar_itens import comparar_todos_os_itens
 from app.services.comparacao.pareamento_invoice_packing_list import parear
 from app.services.comparacao.tipos import Contexto, Fonte
@@ -44,6 +44,7 @@ def comparar(
     usados = sorted((f for fs in por_tipo.values() for f in fs), key=lambda f: f.ordem)
     divergencias.extend(divergencias_de_coerencia(grupos, conhecimentos))
     divergencias.extend(d for f in usados for d in divergencias_internas(f))
+    avisos.extend(avisos_amostras(por_tipo["invoice"]))
     avisos.extend(avisos_pais_origem(por_tipo["invoice"]))
     return ResultadoComparacao(
         status=_status_geral(por_tipo, comparacoes, divergencias),
