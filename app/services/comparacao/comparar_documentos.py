@@ -13,6 +13,7 @@ from app.schemas import (
 from app.services.comparacao.coerencia_incoterm_frete import divergencias_de_coerencia
 from app.services.comparacao.colunas_da_comparacao import montar_comparacoes
 from app.services.comparacao.comparar_campos import comparar_colunas
+from app.services.comparacao.conferencia_do_notify import avisos_do_notify
 from app.services.comparacao.constantes import CAMPOS_SEMPRE_VISIVEIS
 from app.services.comparacao.escolha_dos_documentos import escolher_documentos
 from app.services.comparacao.identificacao_do_documento import ref_documento
@@ -47,6 +48,7 @@ def comparar(
     divergencias.extend(d for f in usados + escolha.fora_da_soma for d in divergencias_internas(f))
     avisos.extend(avisos_amostras(por_tipo["invoice"]))
     avisos.extend(avisos_pais_origem(por_tipo["invoice"]))
+    avisos.extend(avisos_do_notify(por_tipo["invoice"] + por_tipo["packing_list"], conhecimentos))
     return ResultadoComparacao(
         status=_status_geral(por_tipo, comparacoes, divergencias),
         documentos=[ref_documento(f) for f in usados],

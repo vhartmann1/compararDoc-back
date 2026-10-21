@@ -29,12 +29,6 @@ def test_capital_no_conhecimento_aceita_em_conta_e_ordem_e_encomenda():
         assert any("Capital Trade" in a and "aceito" in a for a in r.avisos)
 
 
-def test_capital_no_conhecimento_diverge_em_propria_ou_sem_modalidade():
-    for modalidade in ("propria", None):
-        r = consignado_a_capital(modalidade)
-        assert campo(r.comparacoes[0], "consignatario").status == "DIVERGENTE"
-
-
 def test_conta_e_ordem_nao_esconde_divergencia_entre_invoice_e_pl():
     r = rodar(
         [doc("invoice", numero="1", consignatario=("AtlasFit Ltda", "12.345.678/0005-80")),

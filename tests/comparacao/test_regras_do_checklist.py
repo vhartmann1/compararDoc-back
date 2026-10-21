@@ -37,13 +37,14 @@ def test_shipper_do_bl_pode_ser_o_fabricante_citado_na_invoice():
     assert [campo(comp, c).status for c in ("exportador", "endereco_exportador", "pais_exportador")] == ["OK"] * 3
 
 
-def test_shipper_que_nao_e_exportador_nem_fabricante_diverge():
+def test_shipper_que_nao_e_exportador_nem_fabricante_e_triangular():
     r = rodar(
         [doc("invoice", 100, 110, numero="A1", exportador="Comercial Sul GmbH", fabricante=("Fabrica Norte Ltd", None, "CANADA")),
          doc("packing_list", 100, 110, refs=["A1"], exportador="Comercial Sul GmbH")],
-        [_bl(exportador="Outra Empresa SA")],
+        [_bl(exportador="Outra Empresa SA", endereco_exportador="Rua Larga 7, Vilamar")],
     )
-    assert campo(r.comparacoes[0], "exportador").status == "DIVERGENTE"
+    assert not [d for d in r.divergencias if d.campo == "exportador"]
+    assert any("Shipper do BL (Outra Empresa SA)" in a and "triangular" in a for a in r.avisos)
 
 
 def test_moeda_do_conhecimento_e_a_do_frete_e_nao_entra_na_comparacao():

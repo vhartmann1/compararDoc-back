@@ -12,11 +12,17 @@ from app.services.comparacao.constantes import (
     CAMPOS_SEMPRE_VISIVEIS,
     CAMPOS_SOMADOS,
     CAMPOS_UNICOS_NA_SOMA,
-    MODALIDADES_CAPITAL_CONSIGNATARIA,
     ROTULOS,
 )
+from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.regras_por_campo.exportador_consignatario import conhecimento_consignado_a_capital
+from app.services.comparacao.operacao_triangular import (
+    CAMPOS_DO_EXPORTADOR,
+    Triangulacao,
+    aviso_triangular,
+    coluna_das_proprias,
+    triangulacoes,
+)
 from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import embalagens_distintas, nota_fator_mil
 from app.services.comparacao.regras_por_campo.regra import Regra
 from app.services.comparacao.regras_por_campo.regra_de_cada_campo import REGRAS
@@ -25,11 +31,16 @@ from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
 def comparar_colunas(ctx: Contexto, colunas: list[Col]) -> Comparacao:
     campos: list[CampoComparado] = []
+    triangulares = triangulacoes(colunas)
+    ctx.avisos.extend(aviso_triangular(ctx.prefixo, t) for t in triangulares)
     for campo, regra in REGRAS.items():
         valores = {col.chave: _valor_coluna(ctx, col, campo, regra) for col in colunas}
         if campo not in CAMPOS_SEMPRE_VISIVEIS and all(v is None for v in valores.values()):
             continue
-        status = _status_campo(ctx, campo, regra, colunas, valores)
+        if campo in CAMPOS_DO_EXPORTADOR and triangulares:
+            status = _status_com_triangulacao(ctx, campo, regra, colunas, valores, triangulares)
+        else:
+            status = _status_campo(ctx, campo, regra, colunas, valores)
         campos.append(
             CampoComparado(
                 campo=campo,
@@ -104,14 +115,10 @@ def _status_campo(
     informados = [(col, valores[col.chave]) for col in colunas if valores[col.chave] is not None]
     if not informados:
         return "NAO_ENCONTRADO"
-    if campo == "consignatario" and ctx.modalidade in MODALIDADES_CAPITAL_CONSIGNATARIA:
-        restantes = [(col, v) for col, v in informados if not conhecimento_consignado_a_capital(col, v)]
-        if len(restantes) < len(informados):
-            aceitos = ", ".join(col.nome_curto for col, v in informados if (col, v) not in restantes)
-            ctx.avisos.append(
-                f"{ctx.prefixo}Consignatário: {aceitos} em nome da Capital Trade — aceito pela modalidade "
-                f"{'conta e ordem' if ctx.modalidade == 'conta_e_ordem' else 'encomenda'}."
-            )
+    if campo == "consignatario":
+        restantes, aviso = separar_conhecimentos_da_capital(ctx, informados)
+        if aviso:
+            ctx.avisos.append(aviso)
             if len(restantes) <= 1:
                 return "OK"
             informados = restantes
@@ -164,6 +171,49 @@ def _status_campo(
         )
     )
     return "DIVERGENTE"
+
+
+def _status_com_triangulacao(
+    ctx: Contexto, campo: NomeCampo, regra: Regra, colunas: list[Col], valores: dict[str, Valor | None],
+    triangulares: list[Triangulacao],
+) -> StatusCampo:
+    """Conhecimento triangular fora da comparação geral; só confere com as invoices/PLs da mesma empresa."""
+    chaves = {t.conhecimento.chave for t in triangulares}
+    restantes = [col for col in colunas if col.chave not in chaves]
+    status = [_status_campo(ctx, campo, regra, restantes, valores)] if _informados(restantes, valores) > 1 else []
+    status += [s for t in triangulares if (s := _conferir_com_as_proprias(ctx, campo, regra, t, valores))]
+    if status:
+        return _status_mais_grave(status)
+    return "INSUFICIENTE" if any(v is not None for v in valores.values()) else "NAO_ENCONTRADO"
+
+
+def _conferir_com_as_proprias(
+    ctx: Contexto, campo: NomeCampo, regra: Regra, t: Triangulacao, valores: dict[str, Valor | None]
+) -> StatusCampo | None:
+    """Conhecimento × invoices/PLs da mesma empresa do shipper; None se falta um dos lados."""
+    conhecimento = valores[t.conhecimento.chave]
+    col = coluna_das_proprias(t)
+    presentes = [v for f in t.proprias if (v := _valor_do_documento(ctx, f, campo, regra)) is not None]
+    if conhecimento is None or not presentes:
+        return None
+    proprias = presentes[0] if len(presentes) == 1 else regra.juntar(presentes, campo, ctx, col)
+    if regra.iguais(proprias.chave, conhecimento.chave):
+        return "OK"
+    mensagem = f"{ctx.prefixo}{ROTULOS[campo]}: {t.conhecimento.nome_curto} {conhecimento.exibicao} × "
+    ctx.divergencias.append(
+        Divergencia(categoria="comparacao", comparacao_id=ctx.comparacao_id, campo=campo,
+                    mensagem=f"{mensagem}{col.nome_curto} {proprias.exibicao}")
+    )
+    return "DIVERGENTE"
+
+
+def _informados(colunas: list[Col], valores: dict[str, Valor | None]) -> int:
+    return sum(valores[col.chave] is not None for col in colunas)
+
+
+def _status_mais_grave(status: list[StatusCampo]) -> StatusCampo:
+    """DIVERGENTE vence INSUFICIENTE, que vence OK."""
+    return next(s for s in ("DIVERGENTE", "INSUFICIENTE", "OK", "NAO_ENCONTRADO") if s in status)
 
 
 def _iguais_ncm(ctx: Contexto, valores: list[Valor]) -> Callable[[Any, Any], bool]:

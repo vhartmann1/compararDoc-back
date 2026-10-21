@@ -2,7 +2,8 @@
 
 from app.schemas import NomeCampo, Parte
 from app.services.comparacao.constantes import CNPJ_RAIZ_CAPITAL
-from app.services.comparacao.normalizacao import formatar_cnpj, nomes_equivalentes, normalizar_cnpj
+from app.services.comparacao.mesma_empresa import relacao_entre_nomes
+from app.services.comparacao.normalizacao import formatar_cnpj, normalizar_cnpj
 from app.services.comparacao.regras_por_campo.regra import com_alternativas_iguais, texto_soma
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
@@ -41,21 +42,24 @@ def _exibir_partes(itens: list[tuple[str, str | None, bool]]) -> str:
 
 
 def _partes_iguais(a: tuple, b: tuple) -> bool:
-    """Os dois com CNPJ/Tax ID => compara os dígitos; senão, o nome normalizado."""
+    """Os dois com CNPJ/Tax ID => compara os dígitos; senão, se o nome é da mesma empresa."""
     if a[1] and b[1]:
         return a[1] == b[1]
-    return nomes_equivalentes(a[0], b[0])
+    return relacao_entre_nomes(a[0], b[0]) == "mesma"
 
 
-def _eh_capital(item: tuple) -> bool:
-    nome, cnpj = item[0], item[1]
+def eh_capital(nome: str, cnpj: str | None) -> bool:
     if cnpj:
         return cnpj.startswith(CNPJ_RAIZ_CAPITAL)
     return "CAPITAL TRADE" in nome.upper()
 
 
-def conhecimento_consignado_a_capital(col: Col, valor: Valor) -> bool:
-    return col.chave.startswith("conhecimento") and all(_eh_capital(item) for item in valor.chave)
+def valor_da_capital(valor: Valor) -> bool:
+    return all(eh_capital(nome, cnpj) for nome, cnpj, _ in valor.chave)
+
+
+def parte_da_capital(parte: Parte) -> bool:
+    return eh_capital(parte.nome, normalizar_cnpj(parte.cnpj))
 
 
 def listas_de_partes_iguais(a: tuple, b: tuple) -> bool:
