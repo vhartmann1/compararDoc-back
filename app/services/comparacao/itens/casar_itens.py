@@ -1,13 +1,42 @@
 """Casa os itens de um documento com os do outro."""
 
+from collections.abc import Callable
+
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado, Linha
 from app.services.comparacao.normalizacao import (
     SIMILARIDADE_MINIMA_CASAMENTO,
     descricoes_equivalentes,
     normalizar_codigo_item,
     normalizar_descricao,
+    normalizar_lote,
     similaridade,
 )
+
+
+def _casar_unicos(
+    linhas: list[list[ItemAgrupado]], livres_l: list[int], livres_i: list[ItemAgrupado],
+    combina: Callable[[ItemAgrupado, ItemAgrupado], bool],
+) -> list[tuple[int, ItemAgrupado]]:
+    """Casa item e linha que combinam só um com o outro; tira os casados das listas de livres."""
+    pares = []
+    for item in list(livres_i):
+        linhas_do_item = [i for i in livres_l if any(combina(item, x) for x in linhas[i])]
+        if len(linhas_do_item) != 1:
+            continue
+        i = linhas_do_item[0]
+        if sum(1 for outro in livres_i if any(combina(outro, x) for x in linhas[i])) == 1:
+            pares.append((i, item))
+            livres_l.remove(i)
+            livres_i.remove(item)
+    return pares
+
+
+def _mesma_descricao(a: ItemAgrupado, b: ItemAgrupado) -> bool:
+    return normalizar_descricao(a.descricao) == normalizar_descricao(b.descricao)
+
+
+def _mesmo_lote(a: ItemAgrupado, b: ItemAgrupado) -> bool:
+    return bool({normalizar_lote(l) for l in a.lotes} & {normalizar_lote(l) for l in b.lotes})
 
 
 def _mesmo_codigo(a: ItemAgrupado, b: ItemAgrupado) -> bool:
@@ -17,7 +46,7 @@ def _mesmo_codigo(a: ItemAgrupado, b: ItemAgrupado) -> bool:
 def casar(
     linhas: list[list[ItemAgrupado]], itens: list[ItemAgrupado], generico_nao_casa: bool = False
 ) -> tuple[list[tuple[int, ItemAgrupado]], list[int], list[ItemAgrupado]]:
-    """Casa por código, por descrição (≥ 0,80) e o último par que sobrar; devolve (casados, linhas e itens sem par)."""
+    """Casa por código, descrição idêntica, lote, descrição (≥ 0,80) e o último par; devolve (casados, sem par)."""
     casados: list[tuple[int, ItemAgrupado]] = []
     livres_l, livres_i = list(range(len(linhas))), list(itens)
     # 1) pelo código
@@ -27,6 +56,9 @@ def casar(
             casados.append((i, item))
             livres_l.remove(i)
             livres_i.remove(item)
+    # 1b) descrição idêntica, depois lote, só sem concorrente nos dois lados: lote trocado continua erro de lote
+    casados += _casar_unicos(linhas, livres_l, livres_i, _mesma_descricao)
+    casados += _casar_unicos(linhas, livres_l, livres_i, _mesmo_lote)
     # 2) pela descrição
     candidatos = sorted(
         ((max(_semelhanca_descricao(item, x) for x in linhas[i]), -n, -i) for n, item in enumerate(livres_i) for i in livres_l),

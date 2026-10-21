@@ -14,11 +14,13 @@ from app.services.comparacao.tipos import Fonte
 
 
 def agrupar_itens(
-    fontes: list[Fonte], por_descricao: bool = False, codigos_base: set[str] | None = None
+    fontes: list[Fonte], por_descricao: bool = False, codigos_base: set[str] | None = None,
+    juntar: dict[str, str] | None = None,
 ) -> list[ItemAgrupado]:
-    """Agrupa as linhas da coluna; opcionalmente junta códigos de mesma descrição ou variantes do código base."""
+    """Agrupa as linhas da coluna; opcionalmente por descrição, código base ou linha geral (`juntar`)."""
     grupos: dict[str, list[tuple[ItemExtraido, str]]] = {}
     bases: dict[str, str] = {}
+    gerais: dict[str, str] = {}
     linhas = [(item, f.arquivo.id) for f in fontes for item in f.doc.itens]
     repetidas = _descricoes_com_varios_codigos(linhas) if por_descricao else set()
     for i, (item, arquivo_id) in enumerate(linhas):
@@ -28,12 +30,18 @@ def agrupar_itens(
         if base:
             codigo = normalizar_codigo_item(base)
             bases[codigo] = base
-        grupos.setdefault(codigo or (f"#descricao-{descricao}" if descricao else f"#linha-{i}"), []).append(
-            (item, arquivo_id)
-        )
+        geral = (juntar or {}).get(descricao) if not codigo else None
+        if geral:
+            chave = f"#geral-{normalizar_descricao(geral)}"
+            gerais[chave] = geral
+        else:
+            chave = codigo or (f"#descricao-{descricao}" if descricao else f"#linha-{i}")
+        grupos.setdefault(chave, []).append((item, arquivo_id))
     agrupados = []
     for chave, g in grupos.items():
         item = _juntar_linhas([l for l, _ in g], g[0][1])
+        if chave in gerais:
+            item = replace(item, descricao=gerais[chave])  # a soma das linhas detalhadas leva a descrição geral
         agrupados.append(replace(item, codigo=bases[chave]) if chave in bases else item)
     return agrupados
 

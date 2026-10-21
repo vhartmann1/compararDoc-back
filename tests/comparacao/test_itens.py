@@ -223,3 +223,112 @@ def test_descricao_identica_com_referencias_que_nao_estao_nela_continua_divergin
     ])
     [linha] = r.itens[0].linhas
     assert linha.diferencas == ["descricao"]
+
+
+def test_invoice_que_agrupa_o_que_o_pl_detalha_por_tamanho_nao_diverge():
+    r = rodar([
+        doc("invoice", numero="1", itens=[
+            item(None, "CASCO TRILHA BRANCO LISO", 4, "PCS"),
+            item(None, "Capacete para motociclista, modelo ORION, tamanhos S, M", 30, "PCS", referencia="ORION"),
+        ]),
+        doc("packing_list", numero="1", itens=[
+            item(None, "CASCO TRILHA BRANCO LISO - S", 2, "PCS"),
+            item(None, "CASCO TRILHA BRANCO LISO - XL", 2, "PCS"),
+            item(None, "CAPACETE ORION PRETO - S", 10, "PCS", referencia="ORION"),
+            item(None, "CAPACETE ORION PRETO - M", 20, "PCS", referencia="ORION"),
+        ]),
+    ])
+    assert not mensagens(r, "item")
+
+
+def test_detalhe_que_nao_soma_o_mesmo_que_a_linha_geral_continua_divergindo():
+    r = rodar([
+        doc("invoice", numero="1", itens=[item(None, "CASCO TRILHA BRANCO LISO", 4, "PCS")]),
+        doc("packing_list", numero="1", itens=[
+            item(None, "CASCO TRILHA BRANCO LISO - S", 2, "PCS"),
+            item(None, "CASCO TRILHA BRANCO LISO - XL", 1, "PCS"),
+        ]),
+    ])
+    assert [l.diferencas for l in r.itens[0].linhas] == [["quantidade"]]
+
+
+def test_itens_com_descricoes_diferentes_casam_pelo_lote():
+    r = rodar([
+        doc("invoice", numero="1", itens=[
+            item(None, "GARRAFAS EM CAIXAS 6 UN. TINTO SERRA ALTA 2024", 600, "BOTTLES",
+                 lotes=["LT-801"], referencia="SERRA ALTA 2024"),
+            item(None, "GARRAFAS EM CAIXAS 6 UN. RESERVA SERRA ALTA 2025", 600, "BOTTLES",
+                 lotes=["LT-802"], referencia="RESERVA SERRA ALTA 2025"),
+        ]),
+        doc("packing_list", numero="1", itens=[
+            item(None, "CX 6 UN. RESERVA SERRA ALTA", 600, "BOTTLES", lotes=["LT802"], referencia="SERRA ALTA"),
+            item(None, "CX 6 UN. TINTO SERRA ALTA", 600, "BOTTLES", lotes=["LT801"], referencia="SERRA ALTA"),
+        ]),
+    ])
+    assert not mensagens(r, "item")
+
+
+def test_referencia_que_e_a_descricao_inteira_nao_conta_como_modelo():
+    pigmento = item("PG-10", "PIGMENTO PEROLADO PG-10 COBRE ANTIGO", 50, "KG", referencia="PG-10")
+    no_awb = item(None, "COBRE ANTIGO", None, None, referencia="COBRE ANTIGO")
+    r = rodar(
+        [doc("invoice", numero="1", itens=[pigmento]), doc("packing_list", refs=["1"], itens=[pigmento])],
+        [doc("conhecimento", subtipo="AWB", numero="A1", refs=["1"], itens=[no_awb])],
+    )
+    assert not mensagens(r, "item")
+
+
+def test_codigo_base_continua_valendo_junto_com_as_linhas_detalhadas():
+    r = rodar([
+        doc("invoice", numero="1", itens=[
+            item("7700100", "TORNEIRA ESFERA", 10, "PCS"), item(None, "SIFAO FLEXIVEL", 6, "PCS"),
+        ]),
+        doc("packing_list", numero="1", itens=[
+            item("7700100 010", "TORNEIRA ESFERA", 6, "PCS"), item("7700100 020", "TORNEIRA ESFERA", 4, "PCS"),
+            item(None, "SIFAO FLEXIVEL P", 3, "PCS"), item(None, "SIFAO FLEXIVEL G", 3, "PCS"),
+        ]),
+    ])
+    assert not mensagens(r, "item")
+
+
+def _casco(ordem_invertida):
+    gerais = [item(None, "CASCO TRILHA", 4, "PCS"), item(None, "CASCO TRILHA BRANCO", 5, "PCS")]
+    return rodar([
+        doc("invoice", numero="1", itens=gerais[::-1] if ordem_invertida else gerais),
+        doc("packing_list", numero="1", itens=[
+            item(None, "CASCO TRILHA S", 2, "PCS"), item(None, "CASCO TRILHA XL", 2, "PCS"),
+            item(None, "CASCO TRILHA BRANCO S", 2, "PCS"), item(None, "CASCO TRILHA BRANCO M", 3, "PCS"),
+        ]),
+    ])
+
+
+def test_linha_geral_mais_especifica_leva_as_suas_linhas_em_qualquer_ordem():
+    assert not mensagens(_casco(False), "item")
+    assert not mensagens(_casco(True), "item")
+
+
+def test_linha_com_par_exato_nao_e_somada_na_linha_geral():
+    r = rodar([
+        doc("invoice", numero="1", itens=[
+            item(None, "CASCO TRILHA", 4, "PCS"), item(None, "CASCO TRILHA BRANCO", 5, "PCS"),
+        ]),
+        doc("packing_list", numero="1", itens=[
+            item(None, "CASCO TRILHA S", 2, "PCS"), item(None, "CASCO TRILHA XL", 2, "PCS"),
+            item(None, "CASCO TRILHA BRANCO", 5, "PCS"),
+        ]),
+    ])
+    assert not mensagens(r, "item")
+
+
+def test_lote_trocado_entre_itens_de_descricao_identica_continua_erro_de_lote():
+    r = rodar([
+        doc("invoice", numero="1", itens=[
+            item(None, "VINHO TINTO A", 10, "BOTTLES", lotes=["L1"]),
+            item(None, "VINHO TINTO B", 20, "BOTTLES", lotes=["L2"]),
+        ]),
+        doc("packing_list", numero="1", itens=[
+            item(None, "VINHO TINTO A", 10, "BOTTLES", lotes=["L2"]),
+            item(None, "VINHO TINTO B", 20, "BOTTLES", lotes=["L1"]),
+        ]),
+    ])
+    assert [l.diferencas for l in r.itens[0].linhas] == [["lote"], ["lote"]]

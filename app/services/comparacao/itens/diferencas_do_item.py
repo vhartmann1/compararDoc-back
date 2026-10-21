@@ -45,10 +45,11 @@ def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
     mesmo_codigo = bool(a.codigo and b.codigo and normalizar_codigo_item(a.codigo) == normalizar_codigo_item(b.codigo))
     if _medidas_diferentes(a.descricao, b.descricao):
         return False  # mesmo código não salva: a potência, a tensão ou o tamanho mudou
-    if _uma_comeca_a_outra(a.descricao, b.descricao) and (mesmo_codigo or not (a.referencia and b.referencia)):
+    ra, rb = _referencia_de_modelo(a), _referencia_de_modelo(b)
+    if _uma_comeca_a_outra(a.descricao, b.descricao) and (mesmo_codigo or not (ra and rb)):
         return True  # a "referência" lida difere (modelo × código do fabricante), mas o item é o mesmo
-    if a.referencia and b.referencia:
-        return referencias_iguais(a.referencia, b.referencia)
+    if ra and rb:
+        return referencias_iguais(ra, rb)
     if mesmo_codigo:
         return True
     return descricoes_equivalentes(a.descricao, b.descricao)
@@ -69,6 +70,13 @@ def _medidas_diferentes(a: str, b: str) -> bool:
     """Uma unidade que aparece nas duas descrições com valores diferentes; a que só uma traz não conta."""
     ma, mb = _medidas(a), _medidas(b)
     return any(ma[u] != mb[u] for u in ma.keys() & mb.keys())
+
+
+def _referencia_de_modelo(x: ItemAgrupado) -> str | None:
+    """A referência lida, se não for a descrição inteira ('COBRE ANTIGO' como as duas coisas não é modelo)."""
+    if x.referencia and normalizar_referencia(x.referencia) != normalizar_referencia(x.descricao):
+        return x.referencia
+    return None
 
 
 def _referencias_na_descricao(a: ItemAgrupado, b: ItemAgrupado) -> bool:

@@ -8,6 +8,7 @@ from app.services.comparacao.itens.agrupar_linhas_do_mesmo_item import agrupar_i
 from app.services.comparacao.itens.casar_itens import casar, casar_base
 from app.services.comparacao.itens.chave_da_linha import chaves_unicas
 from app.services.comparacao.itens.diferencas_do_item import diferencas_item
+from app.services.comparacao.itens.linhas_detalhadas import linhas_a_juntar
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado
 from app.services.comparacao.normalizacao import normalizar_codigo_item
 from app.services.comparacao.tipos import Col, Fonte
@@ -49,15 +50,25 @@ def comparar_todos_os_itens(
 
 
 def _agrupar_par(colunas: list[Col]) -> list[ColItens]:
-    """Se um documento não traz código nenhum, o outro também é agrupado pela descrição: só assim os totais se casam."""
+    """Agrupa as linhas de cada documento; as opções de cada coluna vão todas na mesma chamada."""
     base = [ColItens(c, agrupar_itens(c.fontes)) for c in colunas]
+    if len(base) != 2:
+        return base
+    opcoes: list[dict] = [{}, {}]
     sem_codigo = [all(not item.codigo for item in ci.itens) for ci in base]
-    if len(base) == 2 and any(sem_codigo) and not all(sem_codigo):
-        base = [ci if sem else ColItens(ci.col, agrupar_itens(ci.col.fontes, por_descricao=True)) for ci, sem in zip(base, sem_codigo)]
-    elif len(base) == 2:  # variantes de um lado ('7700100 010') contra o código base do outro ('7700100')
+    if any(sem_codigo) and not all(sem_codigo):
+        # um documento sem código nenhum: o outro também é agrupado pela descrição, só assim os totais se casam
+        opcoes = [{} if sem else {"por_descricao": True} for sem in sem_codigo]
+    elif not any(sem_codigo):  # variantes de um lado ('7700100 010') contra o código base do outro ('7700100')
         codigos = [{normalizar_codigo_item(i.codigo) for i in ci.itens if i.codigo} for ci in base]
-        base = [ColItens(ci.col, agrupar_itens(ci.col.fontes, codigos_base=codigos[1 - n])) for n, ci in enumerate(base)]
-    return base
+        opcoes = [{"codigos_base": codigos[1 - n]} for n in range(2)]
+    base = [ColItens(ci.col, agrupar_itens(ci.col.fontes, **o)) if o else ci for ci, o in zip(base, opcoes)]
+    # um documento resume em uma linha o que o outro detalha (por tamanho, cor)
+    juntar = [linhas_a_juntar(base[1 - n].itens, ci.itens) for n, ci in enumerate(base)]
+    return [
+        ColItens(ci.col, agrupar_itens(ci.col.fontes, **o, juntar=j)) if j else ci
+        for ci, o, j in zip(base, opcoes, juntar)
+    ]
 
 
 def _valor_item(item: ItemAgrupado | None) -> ValorItem | None:
