@@ -190,6 +190,7 @@ PORTOS_EQUIVALENTES = {
     **dict.fromkeys(["BEILUN", "NINGBO ZHOUSHAN"], "NINGBO"),
     **dict.fromkeys(["TANJUNG PRIOK"], "JAKARTA"),
     **dict.fromkeys(["BARRA RIO"], "ITAJAI"),
+    **dict.fromkeys(["GUARULHOS", "GRU"], "SAO PAULO"),  # aeroporto internacional de São Paulo
 }
 
 

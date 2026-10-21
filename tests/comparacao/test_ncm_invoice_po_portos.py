@@ -88,3 +88,9 @@ def test_terminal_de_itajai_no_incoterm_confere_com_a_descarga_em_itajai():
     r = rodar([doc("invoice", numero="1", incoterm=("CPT", "BARRA DO RIO")), doc("packing_list", refs=["1"]),
                doc("conhecimento", subtipo="CRT", numero="C1", refs=["1"], destino="ITAJAI")])
     assert not mensagens(r, "coerencia")
+
+
+def test_aeroporto_de_guarulhos_confere_com_sao_paulo_na_invoice():
+    r = rodar([doc("invoice", numero="1", destino="SAO PAULO"), doc("packing_list", refs=["1"]),
+               doc("conhecimento", subtipo="AWB", numero="A1", refs=["1"], destino="GUARULHOS")])
+    assert campo(r.comparacoes[0], "porto_destino").status == "OK"
