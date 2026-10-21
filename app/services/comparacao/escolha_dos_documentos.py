@@ -13,6 +13,7 @@ from app.services.comparacao.normalizacao import (
     sem_acento,
 )
 from app.services.comparacao.tipos import Fonte
+from app.services.leitura.arquivo_para_conteudo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLSX
 
 
 @dataclass
@@ -32,14 +33,19 @@ def escolher_documentos(
         if extracao.documentos and all(d.tipo not in por_tipo for d in extracao.documentos):
             lidos = ", ".join(dict.fromkeys(d.subtipo or "documento de outro tipo" for d in extracao.documentos))
             avisos.append(f"{arquivo.nome} não entrou na comparação: não é invoice, packing list nem conhecimento ({lidos}).")
+    citados = _invoices_citadas(por_tipo)
     comerciais, proformas = _separar_proformas(por_tipo["invoice"], avisos)
     por_tipo["invoice"], resumos = _separar_resumos(comerciais, avisos)
-    fora_da_soma = [max(g, key=_preferencia) for g in _grupos_de_duplicatas(proformas + resumos)]
-    return DocumentosEscolhidos(_melhores_versoes(por_tipo, avisos), fora_da_soma)
+    fora_da_soma = [max(g, key=_preferencia) for g in _grupos_de_duplicatas(proformas + resumos, citados)]
+    return DocumentosEscolhidos(_melhores_versoes(por_tipo, avisos, citados), fora_da_soma)
+
+
+def _invoices_citadas(por_tipo: dict[TipoDocumento, list[Fonte]]) -> set[str]:
+    return {numero_normalizado(n) for fontes in por_tipo.values() for f in fontes for n in f.doc.invoices_referenciadas}
 
 
 def _melhores_versoes(
-    por_tipo: dict[TipoDocumento, list[Fonte]], avisos: list[str]
+    por_tipo: dict[TipoDocumento, list[Fonte]], avisos: list[str], citados: set[str]
 ) -> dict[TipoDocumento, list[Fonte]]:
     """Entre duplicatas do mesmo documento fica a melhor versão; as outras viram `duplicatas` dela."""
     escolhidos: dict[TipoDocumento, list[Fonte]] = {}
@@ -47,23 +53,24 @@ def _melhores_versoes(
         if not fontes:
             avisos.append(f"Documento não encontrado nos arquivos enviados: {NOME_TIPO[tipo]}.")
         escolhidos[tipo] = []
-        for mesmas in _grupos_de_duplicatas(fontes):
+        for mesmas in _grupos_de_duplicatas(fontes, citados):
             melhor, *ignorados = sorted(mesmas, key=_preferencia, reverse=True)
             melhor.duplicatas = ignorados
             escolhidos[tipo].append(melhor)
             if ignorados:
                 avisos.append(
                     f"Mais de um documento {nome_doc(melhor)}; usado {_descrever(melhor)}. "
-                    f"Ignorado(s): {'; '.join(_descrever(f) + _totais_diferentes(melhor, f) for f in ignorados)}."
+                    f"Ignorado(s): {'; '.join(_descrever(f) + _diferencas(melhor, f) for f in ignorados)}."
                 )
         escolhidos[tipo].sort(key=lambda f: f.ordem)
     return escolhidos
 
 
-def _grupos_de_duplicatas(fontes: list[Fonte]) -> list[list[Fonte]]:
+def _grupos_de_duplicatas(fontes: list[Fonte], citados: set[str]) -> list[list[Fonte]]:
+    """`citados`: números de invoice citados por PL/BL; um número citado nunca é tratado como versão descartável."""
     grupos: list[list[Fonte]] = []
     for f in fontes:
-        grupo = next((g for g in grupos if _mesmo_documento(g[0], f)), None)
+        grupo = next((g for g in grupos if any(_mesmo_documento(x, f, citados) for x in g)), None)
         if grupo:
             grupo.append(f)
         else:
@@ -131,11 +138,11 @@ def revisao_pelo_nome(nome: str) -> tuple[int, int]:
     return (1, max(int(n or 0) for _, n in marcas)) if marcas else (0, 0)
 
 
-def _mesmo_documento(a: Fonte, b: Fonte) -> bool:
-    """Mesmo número; sem número, os mesmos totais ou, em arquivos diferentes, a mesma invoice e os mesmos itens."""
+def _mesmo_documento(a: Fonte, b: Fonte, citados: set[str]) -> bool:
+    """Mesmo número (ou carga renumerada em outro formato); sem número, os mesmos totais ou a mesma invoice e itens."""
     na, nb = numero_normalizado(a.doc.numero), numero_normalizado(b.doc.numero)
     if na and nb:
-        return na == nb
+        return na == nb or _mesma_carga_em_outro_formato(a, b, citados)
     ra = {numero_normalizado(n) for n in a.doc.invoices_referenciadas}
     rb = {numero_normalizado(n) for n in b.doc.invoices_referenciadas}
     if ra and rb and ra != rb:
@@ -145,9 +152,24 @@ def _mesmo_documento(a: Fonte, b: Fonte) -> bool:
     return _mesmos_totais(a, b)
 
 
+def _mesma_carga_em_outro_formato(a: Fonte, b: Fonte, citados: set[str]) -> bool:
+    """Excel/Word × PDF com outro número, mesmos totais e itens, e o número do Excel/Word não citado: renumerado."""
+    pdf, office = (a, b) if a.arquivo.media_type == MEDIA_PDF else (b, a)
+    if pdf.arquivo.media_type != MEDIA_PDF or office.arquivo.media_type not in (MEDIA_XLSX, MEDIA_DOCX):
+        return False
+    if numero_normalizado(office.doc.numero) in citados:
+        return False  # outro documento cita esse número: é outra invoice, não uma versão antiga
+    return _mesmos_totais(a, b) and _mesmos_itens(a, b)
+
+
 def _mesmos_totais(a: Fonte, b: Fonte) -> bool:
     pares = [(x.valor, y.valor) for x, y in zip(_totais(a), _totais(b)) if x and y]
-    return len(pares) >= 2 and all(abs(x - y) < 1e-6 for x, y in pares)
+    return len(pares) >= 2 and all(_iguais_no_centesimo(x, y) for x, y in pares)
+
+
+def _iguais_no_centesimo(x: float, y: float) -> bool:
+    """15532.6884 (Excel, sem arredondar) e 15532.69 (PDF impresso) são o mesmo total."""
+    return abs(x - y) <= 0.005 + 1e-9
 
 
 def _mesmos_itens(a: Fonte, b: Fonte) -> bool:
@@ -164,7 +186,9 @@ def _mesmos_itens(a: Fonte, b: Fonte) -> bool:
 
 def _mesma_linha(x: ItemExtraido, y: ItemExtraido, exata: bool) -> bool:
     """Mesma quantidade e mesmo código; sem código, as mesmas palavras (em qualquer ordem) ou descrição parecida."""
-    if x.quantidade != y.quantidade:
+    if (x.quantidade is None) != (y.quantidade is None):
+        return False
+    if x.quantidade is not None and not _iguais_no_centesimo(x.quantidade, y.quantidade):
         return False
     if x.codigo and y.codigo:
         return normalizar_codigo_item(x.codigo) == normalizar_codigo_item(y.codigo)
@@ -181,13 +205,20 @@ def _totais(f: Fonte) -> tuple:
     return f.doc.peso_bruto_total, f.doc.peso_liquido_total, f.doc.volumes_total
 
 
+def _diferencas(melhor: Fonte, outra: Fonte) -> str:
+    """' com outro número (A-9)' e/ou ' com totais diferentes (…)', para o usuário saber que as versões não batem."""
+    numeros = melhor.doc.numero, outra.doc.numero
+    mudou = all(numeros) and numero_normalizado(numeros[0]) != numero_normalizado(numeros[1])
+    return (f" com outro número ({outra.doc.numero})" if mudou else "") + _totais_diferentes(melhor, outra)
+
+
 def _totais_diferentes(melhor: Fonte, outra: Fonte) -> str:
     """' com totais diferentes (peso bruto 326 KG × 330 KG)', se os totais não batem."""
     nomes = ("peso bruto", "peso líquido", "volumes")
     difs = [
         f"{nome} {x.valor:g} {x.unidade} × {y.valor:g} {y.unidade}"
         for nome, x, y in zip(nomes, _totais(melhor), _totais(outra))
-        if x and y and abs(x.valor - y.valor) > 1e-6
+        if x and y and not _iguais_no_centesimo(x.valor, y.valor)
     ]
     return f" com totais diferentes ({'; '.join(difs)})" if difs else ""
 

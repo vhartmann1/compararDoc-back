@@ -277,3 +277,54 @@ def test_proforma_em_dois_arquivos_e_conferida_por_dentro_uma_vez_com_o_proprio_
     internas = [d.mensagem for d in r.divergencias if d.categoria == "interna"]
     assert internas == ["Proforma PI-9: Moeda da coluna (USD) diferente da do total (EUR)"]
     assert "Proforma PI-9 (PI.pdf, pág. 1) não entrou na comparação: há invoice comercial." in r.avisos
+
+
+def test_mesma_carga_renumerada_em_excel_e_pdf_conta_uma_vez_com_aviso_do_numero():
+    linhas = [item(None, "CAPACETE MODELO ORION TAM M", 120, "PCS"), item(None, "VISEIRA FUME", 40, "PCS")]
+    r = _enviar(
+        ("CI.xlsx", XLSX, [doc("invoice", 300.4, 350.6884, numero="Z-009", itens=linhas, pagina=None)]),
+        ("CI.pdf", PDF, [doc("invoice", 300.4, 350.69, numero="Z-050", itens=linhas)]),
+        ("PL.pdf", PDF, [doc("packing_list", 300.4, 350.69, refs=["Z-050"], itens=linhas)]),
+    )
+    assert len(r.comparacoes) == 1
+    assert any("Mais de um documento Invoice Z-050" in a and "com outro número (Z-009)" in a for a in r.avisos)
+
+
+def test_carga_diferente_em_excel_e_pdf_com_numeros_diferentes_continua_separada():
+    r = _enviar(
+        ("CI.xlsx", XLSX, [doc("invoice", 300, 350, numero="Z-009", itens=[item(None, "ORION", 120, "PCS")],
+                               pagina=None)]),
+        ("CI.pdf", PDF, [doc("invoice", 200, 240, numero="Z-050", itens=[item(None, "ORION", 80, "PCS")])]),
+    )
+    assert not any("Mais de um documento Invoice" in a for a in r.avisos)
+
+
+def test_duas_invoices_reais_com_a_mesma_carga_citadas_por_pls_diferentes_continuam_separadas():
+    linhas = [item(None, "RESINA PEAD SACO 25KG", 1000, "SACOS")]
+    r = _enviar(
+        ("INV-1.xlsx", XLSX, [doc("invoice", 25000, 25500, numero="R-1", itens=linhas, pagina=None)]),
+        ("INV-2.pdf", PDF, [doc("invoice", 25000, 25500, numero="R-2", itens=linhas)]),
+        ("PL-1.pdf", PDF, [doc("packing_list", 25000, 25500, numero="P-1", refs=["R-1"], itens=linhas)]),
+        ("PL-2.pdf", PDF, [doc("packing_list", 25000, 25500, numero="P-2", refs=["R-2"], itens=linhas)]),
+    )
+    assert not any("Mais de um documento Invoice" in a or "sem invoice" in a for a in r.avisos)
+    assert [c.titulo for c in r.comparacoes] == ["Invoice R-1 × Packing List P-1", "Invoice R-2 × Packing List P-2"]
+
+
+def test_numero_do_excel_citado_pelo_pl_nao_e_tratado_como_versao_antiga():
+    linhas = [item(None, "CAPACETE MODELO ORION TAM M", 120, "PCS")]
+    r = _enviar(
+        ("CI.xlsx", XLSX, [doc("invoice", 300, 350, numero="Z-009", itens=linhas, pagina=None)]),
+        ("CI.pdf", PDF, [doc("invoice", 300, 350, numero="Z-050", itens=linhas)]),
+        ("PL.pdf", PDF, [doc("packing_list", 300, 350, refs=["Z-009"], itens=linhas)]),
+    )
+    assert not any("Mais de um documento Invoice" in a for a in r.avisos)
+
+
+def test_imagem_e_pdf_com_numeros_diferentes_nao_sao_a_mesma_carga():
+    linhas = [item(None, "CAPACETE MODELO ORION TAM M", 120, "PCS")]
+    r = _enviar(
+        ("CI.png", "image/png", [doc("invoice", 300, 350, numero="Z-009", itens=linhas)]),
+        ("CI.pdf", PDF, [doc("invoice", 300, 350, numero="Z-050", itens=linhas)]),
+    )
+    assert not any("Mais de um documento Invoice" in a for a in r.avisos)
