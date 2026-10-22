@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.services.comparacao.encurtar_texto import encurtar
+from app.services.comparacao.itens.medidas_do_item import descricoes_iguais_pela_medida
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado, Linha
 from app.services.comparacao.normalizacao import (
     descricoes_equivalentes,
@@ -43,8 +44,10 @@ def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
     if normalizar_descricao(a.descricao) == normalizar_descricao(b.descricao) and _referencias_na_descricao(a, b):
         return True  # descrição idêntica: a "referência" é só o trecho que cada leitura destacou
     mesmo_codigo = bool(a.codigo and b.codigo and normalizar_codigo_item(a.codigo) == normalizar_codigo_item(b.codigo))
-    if _medidas_diferentes(a.descricao, b.descricao):
+    if _medidas_diferentes(a.descricao, b.descricao) or _atributos_diferentes(a.descricao, b.descricao):
         return False  # mesmo código não salva: a potência, a tensão ou o tamanho mudou
+    if descricoes_iguais_pela_medida(a.descricao, b.descricao):
+        return True  # só a notação da medida muda: '.800 MM x 1250 MM' e '0.800x1250'
     ra, rb = _referencia_de_modelo(a), _referencia_de_modelo(b)
     if _uma_comeca_a_outra(a.descricao, b.descricao) and (mesmo_codigo or not (ra and rb)):
         return True  # a "referência" lida difere (modelo × código do fabricante), mas o item é o mesmo
@@ -70,6 +73,22 @@ def _medidas_diferentes(a: str, b: str) -> bool:
     """Uma unidade que aparece nas duas descrições com valores diferentes; a que só uma traz não conta."""
     ma, mb = _medidas(a), _medidas(b)
     return any(ma[u] != mb[u] for u in ma.keys() & mb.keys())
+
+
+ATRIBUTO = re.compile(r"\b([A-Z]{3,}) (\d+)\b(?![.,]\d)")
+
+
+def _atributos_diferentes(a: str, b: str) -> bool:
+    """'GRADE 430' × 'GRADE 304': a mesma palavra seguida de números diferentes."""
+    na, nb = (_atributos(x) for x in (a, b))
+    return any(na[p] != nb[p] for p in na.keys() & nb.keys())
+
+
+def _atributos(descricao: str) -> dict[str, set[str]]:
+    por_palavra: dict[str, set[str]] = {}
+    for palavra, numero in ATRIBUTO.findall(sem_acento(descricao).upper()):
+        por_palavra.setdefault(palavra, set()).add(numero)
+    return por_palavra
 
 
 def _referencia_de_modelo(x: ItemAgrupado) -> str | None:
