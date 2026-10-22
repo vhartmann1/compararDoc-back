@@ -145,6 +145,12 @@ mesmo que outro documento diga diferente. Para o consignatário, endereço, cida
 preenchidos se aparecerem.
 - `emitente_assinatura`: a empresa que aparece assinando/carimbando o documento (nome no rodapé, \
 na área de assinatura ou "for and on behalf of"), se houver; senão null.
+- `empresa_cabecalho`: o nome da empresa impressa no cabeçalho ou no papel timbrado do documento (nome/logotipo \
+no topo, em geral com endereço e contato), como escrito; numa planilha, a empresa das primeiras linhas, acima do \
+título. Não é o conteúdo dos campos Shipper, Seller, Consignee ou Notify: se o topo só traz o título e esses \
+campos, null. Ex.: logotipo "Kestrel Valve Works" no topo e assinatura "Harbor Light Trading Ltd." => \
+`empresa_cabecalho` "Kestrel Valve Works" e `emitente_assinatura` "Harbor Light Trading Ltd."; no conhecimento, \
+o timbre do transportador ou agente que o emite.
 - `assinatura_manuscrita`: true se há uma assinatura feita à mão (traço de caneta/rubrica) no documento; \
 false se só há carimbo, nome digitado ou nada; null em Word/Excel ou se não der para ver.
 - `embalagem_madeira`: a declaração sobre embalagem de madeira como escrita (ex.: "WOODEN PACKAGE: TREATED \
@@ -184,11 +190,12 @@ Em `inconsistencias_internas`, liste só **contradições objetivas dentro do me
 documento afirma duas coisas incompatíveis sobre o mesmo dado. Cada uma com `descricao` (em português, \
 curta, citando os dois valores) e `evidencia` (os trechos que se contradizem, copiados literalmente). \
 Exemplos do tipo de coisa que procuramos:
-- empresa que assina/carimba o documento diferente da empresa do cabeçalho (ex.: invoice com cabeçalho \
-"Northbay Industrial Co." e assinatura "Harbor Light Trading Ltd.");
 - totais que não batem entre si: total da tabela × total do rodapé (ex.: peso líquido e bruto trocados \
 entre a linha de total e o rodapé: NW 1.540,00 / GW 1.712,00 × N.W 1.712,00 / G.W 1.540,00); total por \
 extenso ("SAY: ...") diferente do total numérico;
+- endereço da mesma empresa com rua, número ou CEP diferentes, em dois lugares do documento ou no mesmo bloco, \
+não só abreviado ou formatado de outro jeito (ex.: cabeçalho "Harbor Light Trading Ltd., 45 Quay Road" e \
+carimbo "Harbor Light Trading Ltd., 54 Quay Road"; um bloco com "CEP 89010-120" e, mais abaixo, "89010-210");
 - moeda da coluna de preços diferente da moeda do total ou do total por extenso (ex.: coluna "USD" e \
 total "€ 9.870,00" / "...euros");
 - volumes do campo de volumes × volumes da linha do container no mesmo BL (ex.: "128 CARTONS" no campo \
@@ -197,6 +204,9 @@ e "182CARTONS" em "CONTAINER/SEAL NO.: ...");
 "QUANTITY IN TONS: 18.000,00" quando a mesma linha diz "720 X 25 KG", ou seja 18.000 kg = 18 t).
 Não entra (deixe a lista vazia se nada disso existir):
 - dado faltando, ilegível ou incompleto (ex.: "não informa o nº de pallets", "falta CNPJ");
+- nome da empresa do cabeçalho diferente do de quem assina ou do exportador: os nomes vão em \
+`empresa_cabecalho`, `emitente_assinatura` e `exportador`, e outro sistema decide se é problema \
+(o endereço da mesma empresa escrito diferente em dois lugares continua entrando, ver acima);
 - comparação com outros documentos ou com o que você acha que seria correto (outro sistema compara);
 - suposições sobre plausibilidade (ex.: endereço que parece de outra cidade, data estranha) sem que o \
 próprio documento se contradiga;

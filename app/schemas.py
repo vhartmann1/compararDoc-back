@@ -136,6 +136,9 @@ class DocumentoExtraido(BaseModel):
     emitente_assinatura: str | None = Field(
         description="Empresa que assina/carimba o documento (rodapé, assinatura), se aparecer"
     )
+    empresa_cabecalho: str | None = Field(
+        default=None, description="Empresa impressa no cabeçalho/papel timbrado do documento, como escrita, se houver"
+    )
     versao: Versao
     exportador: Parte | None = Field(description="Shipper / exportador / vendedor")
     consignatario: Parte | None = Field(description="Consignee / importador / 'ship to' no Brasil")

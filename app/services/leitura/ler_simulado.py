@@ -135,11 +135,8 @@ def _par(numero: str, exportador_inv: str, cnpj_consignee: str, nw_inv: float, n
         moeda=Texto(valor="USD", pagina=pagina_inv),
         pais_origem=Texto(valor="CHINA", pagina=pagina_inv),
         emitente_assinatura=assinatura or exportador_inv,
+        empresa_cabecalho=exportador_inv,
         itens=[_item(None, f"Synthetic Shoes Model: {modelo}.", qtd_inv, "PAIRS", pagina_inv)],
-        inconsistencias_internas=[InconsistenciaInterna(
-            descricao=f"Assinatura de {assinatura}, mas o cabeçalho é de {exportador_inv}",
-            evidencia=f'Cabeçalho "{exportador_inv}" × assinatura "{assinatura}"', pagina=pagina_inv,
-        )] if assinatura and assinatura != exportador_inv else [],
     )
     pl = _doc(
         "packing_list", pagina_pl, **comum(pagina_pl),
