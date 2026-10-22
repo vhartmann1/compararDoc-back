@@ -10,6 +10,7 @@ from app.schemas import (
     StatusResultado,
     TipoDocumento,
 )
+from app.services.comparacao.cabecalho_e_assinatura import avisos_do_cabecalho
 from app.services.comparacao.coerencia_incoterm_frete import divergencias_de_coerencia
 from app.services.comparacao.colunas_da_comparacao import montar_comparacoes
 from app.services.comparacao.comparar_campos import comparar_colunas
@@ -46,6 +47,7 @@ def comparar(
     usados = sorted((f for fs in por_tipo.values() for f in fs), key=lambda f: f.ordem)
     divergencias.extend(divergencias_de_coerencia(grupos, conhecimentos))
     divergencias.extend(d for f in usados + escolha.fora_da_soma for d in divergencias_internas(f))
+    avisos.extend(avisos_do_cabecalho(usados + escolha.fora_da_soma))
     avisos.extend(avisos_amostras(por_tipo["invoice"]))
     avisos.extend(avisos_pais_origem(por_tipo["invoice"]))
     avisos.extend(avisos_do_notify(por_tipo["invoice"] + por_tipo["packing_list"], conhecimentos))

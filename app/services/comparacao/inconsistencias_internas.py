@@ -1,6 +1,7 @@
 """Inconsistências internas (do modelo + determinísticas)."""
 
 from app.schemas import Divergencia
+from app.services.comparacao.cabecalho_e_assinatura import divergencias_do_cabecalho
 from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.normalizacao import formatar_dinheiro, normalizar_moeda, normalizar_pais
@@ -21,6 +22,7 @@ def divergencias_internas(f: Fonte) -> list[Divergencia]:
         )
         for i in f.doc.inconsistencias_internas
     ]
+    divergencias.extend(divergencias_do_cabecalho(f))
     if so_amostras(f):
         return divergencias  # invoice de amostras: o valor das linhas é só para a alfândega
     moeda = normalizar_moeda(f.doc.moeda.valor) if f.doc.moeda else None

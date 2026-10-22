@@ -26,7 +26,8 @@ def doc(tipo, liquido=None, bruto=None, ncms=(), versao="original", unidade="KG"
         subtipo=None, refs=(), po=None, exportador=None, consignatario=None, origem=None, destino=None,
         volumes=None, quantidade=None, incoterm=None, frete=None, moeda=None, pais_origem=None,
         endereco_exportador=None, pais_exportador=None, assinatura=None, itens=(), internas=(),
-        cidade_exportador=None, entrega=None, fabricante=None, recebimento=None, notify=None, adquirente=None):
+        cidade_exportador=None, entrega=None, fabricante=None, recebimento=None, notify=None, adquirente=None,
+        cabecalho=None):
     def m(v):
         return None if v is None else Medida(valor=v, unidade=unidade, texto_original=f"{v} {unidade}", pagina=pagina)
 
@@ -59,7 +60,7 @@ def doc(tipo, liquido=None, bruto=None, ncms=(), versao="original", unidade="KG"
         volumes_total=contagem(volumes), quantidade_total=contagem(quantidade),
         ncms=[CodigoNcm(codigo=c, pagina=pagina) for c in ncms],
         incoterm=inc(incoterm), frete=texto(frete), moeda=texto(moeda), pais_origem=texto(pais_origem),
-        emitente_assinatura=assinatura, itens=list(itens),
+        emitente_assinatura=assinatura, empresa_cabecalho=cabecalho, itens=list(itens),
         inconsistencias_internas=[InconsistenciaInterna(descricao=d, evidencia=e, pagina=pagina) for d, e in internas],
     )
 
