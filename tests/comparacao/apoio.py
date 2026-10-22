@@ -34,7 +34,8 @@ def doc(tipo, liquido=None, bruto=None, ncms=(), versao="original", unidade="KG"
     def parte(p, endereco=None, pais=None, cidade=None):
         if p is None:
             return None
-        nome, cnpj = p if isinstance(p, tuple) else (p, None)
+        nome, cnpj, *resto = p if isinstance(p, tuple) else (p, None)
+        endereco, cidade = (*resto, cidade)[:2] if resto else (endereco, cidade)  # (nome, cnpj, endereço[, cidade])
         return Parte(nome=nome, cnpj=cnpj, endereco=endereco, cidade=cidade, pais=pais, pagina=pagina)
 
     def contagem(c):

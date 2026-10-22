@@ -13,6 +13,7 @@ class Regra:
     obter: Callable[[Fonte, NomeCampo, Contexto], Valor | None]
     juntar: Callable[[list[Valor], NomeCampo, Contexto, Col], Valor | None]
     iguais: Callable[[Any, Any], bool]
+    soma_alternativas: bool = False  # o grupo de documentos iguais leva as alternativas (fabricante) de todos
 
 
 def primeira_pagina(f: Fonte) -> int | None:

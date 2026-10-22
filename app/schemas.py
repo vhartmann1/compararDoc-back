@@ -31,6 +31,7 @@ NomeCampo = Literal[
     "pais_origem",
     "incoterm",
     "moeda",
+    "adquirente",
 ]
 # comparacao = campo cruzado entre documentos; coerencia = regra de negócio (ex.: incoterm × frete);
 # interna = contradição dentro de um mesmo documento; item = linha de mercadoria

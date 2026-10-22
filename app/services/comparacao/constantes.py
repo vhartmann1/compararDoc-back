@@ -33,6 +33,7 @@ ROTULOS: dict[NomeCampo, str] = {
     "endereco_exportador": "Endereço do exportador",
     "pais_exportador": "País do exportador",
     "consignatario": "Consignatário",
+    "adquirente": "Adquirente",
     "pais_origem": "País de origem",
     "porto_origem": "Porto de origem",
     "porto_destino": "Porto de destino",

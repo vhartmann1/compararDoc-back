@@ -2,7 +2,7 @@
 
 from app.schemas import NomeCampo, Parte
 from app.services.comparacao.constantes import CNPJ_RAIZ_CAPITAL
-from app.services.comparacao.mesma_empresa import relacao_entre_nomes
+from app.services.comparacao.mesma_empresa import relacao_entre_nomes, relacao_entre_partes
 from app.services.comparacao.normalizacao import formatar_cnpj, normalizar_cnpj
 from app.services.comparacao.regras_por_campo.regra import com_alternativas_iguais, texto_soma
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -24,6 +24,12 @@ def fabricante_alternativo(f: Fonte) -> Parte | None:
     """Fabricante da invoice/PL, que o checklist aceita como shipper do BL."""
     fab = f.doc.fabricante
     return fab if f.doc.tipo != "conhecimento" and fab and fab.nome.strip() else None
+
+
+def fabricantes_iguais(fontes: list[Fonte]) -> bool:
+    """Os fabricantes declarados nos documentos são todos a mesma empresa (ou só um declara)."""
+    fabs = [fab for f in fontes if (fab := fabricante_alternativo(f))]
+    return all(relacao_entre_partes(fabs[0], fab) == "mesma" for fab in fabs[1:])
 
 
 def juntar_partes(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor:

@@ -14,6 +14,7 @@ from app.services.comparacao.constantes import (
     CAMPOS_UNICOS_NA_SOMA,
     ROTULOS,
 )
+from app.services.comparacao.conferencia_do_adquirente import campo_do_adquirente
 from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.pareamento_invoice_packing_list import pls_em_outra_numeracao
@@ -25,6 +26,7 @@ from app.services.comparacao.operacao_triangular import (
     triangulacoes,
 )
 from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import embalagens_distintas, nota_fator_mil
+from app.services.comparacao.regras_por_campo.exportador_consignatario import fabricantes_iguais
 from app.services.comparacao.regras_por_campo.regra import Regra
 from app.services.comparacao.regras_por_campo.regra_de_cada_campo import REGRAS
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -51,6 +53,8 @@ def comparar_colunas(ctx: Contexto, colunas: list[Col]) -> Comparacao:
                 valores={chave: _para_valor_campo(v) for chave, v in valores.items()},
             )
         )
+    if adquirente := campo_do_adquirente(ctx, colunas):
+        campos.append(adquirente)
     return Comparacao(
         id=ctx.comparacao_id,
         titulo=" × ".join(col.rotulo for col in colunas),
@@ -160,14 +164,7 @@ def _status_campo(
     if campo == "ncm":
         iguais = _iguais_ncm(ctx, [v for _, v in informados])
 
-    grupos: list[tuple[list[Col], Valor]] = []
-    for col, valor in informados:
-        for cols, referencia in grupos:
-            if iguais(referencia.chave, valor.chave):
-                cols.append(col)
-                break
-        else:
-            grupos.append(([col], valor))
+    grupos = _agrupar_iguais(ctx, campo, regra, iguais, informados)
     if len(grupos) == 1:
         return "OK"
     if campo == "volumes" and embalagens_distintas([valor for _, valor in grupos]):
@@ -189,6 +186,39 @@ def _status_campo(
         )
     )
     return "DIVERGENTE"
+
+
+def _agrupar_iguais(
+    ctx: Contexto, campo: NomeCampo, regra: Regra, iguais: Callable[[Any, Any], bool],
+    informados: list[tuple[Col, Valor]],
+) -> list[tuple[list[Col], Valor]]:
+    """Grupos de colunas com o mesmo valor; com `soma_alternativas`, ver `_cabe_no_grupo`."""
+    grupos: list[tuple[list[Col], Valor, list[Valor]]] = []
+    for col, valor in informados:
+        n = next((n for n, g in enumerate(grupos) if _cabe_no_grupo(regra, iguais, g, valor)), None)
+        if n is None:
+            grupos.append(([col], valor, [valor]))
+            continue
+        cols, referencia, membros = grupos[n]
+        cols.append(col)
+        membros.append(valor)
+        if _mesmo_fabricante(regra, cols) and (soma := regra.juntar([referencia, valor], campo, ctx, col)):
+            grupos[n] = (cols, replace(soma, exibicao=referencia.exibicao), membros)
+    return [(cols, referencia) for cols, referencia, _ in grupos]
+
+
+def _mesmo_fabricante(regra: Regra, cols: list[Col]) -> bool:
+    return regra.soma_alternativas and fabricantes_iguais([f for c in cols for f in c.fontes])
+
+
+def _cabe_no_grupo(
+    regra: Regra, iguais: Callable[[Any, Any], bool], grupo: tuple[list[Col], Valor, list[Valor]], valor: Valor
+) -> bool:
+    """Grupo do mesmo fabricante: basta a soma das alternativas; fabricantes diferentes: tem de bater com todos."""
+    cols, referencia, membros = grupo
+    if not regra.soma_alternativas or _mesmo_fabricante(regra, cols):
+        return iguais(referencia.chave, valor.chave)
+    return all(iguais(m.chave, valor.chave) for m in membros)
 
 
 def _status_com_triangulacao(
