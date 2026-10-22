@@ -155,6 +155,28 @@ def mesmo_numero(x: str, y: str) -> bool:
     return x == y or (len(menor) >= 3 and maior.endswith(menor) and maior[: -len(menor)].isalpha())
 
 
+def numeros_quase_iguais(a: str, b: str) -> bool:
+    """Erro de digitação: até 2 caracteres trocados, a mais ou a menos (1 se o menor tem 5): '90711' × '907101'."""
+    menor = min(len(a), len(b))
+    limite = 2 if menor >= 6 else 1 if menor == 5 else 0
+    return limite > 0 and distancia_de_edicao(a, b) <= limite
+
+
+def distancia_de_edicao(x: str, y: str) -> int:
+    """Damerau-Levenshtein restrita: inserção, remoção, troca e vizinhas invertidas custam 1 cada."""
+    duas_atras: list[int] = []
+    anterior = list(range(len(y) + 1))
+    for i, cx in enumerate(x, start=1):
+        atual = [i]
+        for j, cy in enumerate(y, start=1):
+            custo = min(anterior[j] + 1, atual[j - 1] + 1, anterior[j - 1] + (cx != cy))
+            if i > 1 and j > 1 and cx == y[j - 2] and x[i - 2] == cy:
+                custo = min(custo, duas_atras[j - 2] + 1)
+            atual.append(custo)
+        duas_atras, anterior = anterior, atual
+    return anterior[-1]
+
+
 PREFIXO_PO = re.compile(r"^\s*(P\.?\s?O\.?|PURCHASE ORDER|PEDIDO)(?=[\s:#.\-0-9])\s*(N[O°º]\.?|NR\.?|NUMBER|#|:)?\s*")
 
 

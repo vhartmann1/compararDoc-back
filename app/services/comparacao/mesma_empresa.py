@@ -4,7 +4,12 @@ import re
 from typing import Literal
 
 from app.schemas import Parte
-from app.services.comparacao.normalizacao import nomes_equivalentes, normalizar_cnpj, sem_acento
+from app.services.comparacao.normalizacao import (
+    distancia_de_edicao,
+    nomes_equivalentes,
+    normalizar_cnpj,
+    sem_acento,
+)
 
 Relacao = Literal["mesma", "outra", "incerta"]
 
@@ -61,22 +66,7 @@ def relacao_entre_nomes(a: str, b: str) -> Relacao:
 
 def _quase_iguais(x: str, y: str) -> bool:
     limite = 2 if max(len(x), len(y)) >= TAMANHO_PALAVRA_LONGA else 1
-    return abs(len(x) - len(y)) <= limite and _distancia_de_edicao(x, y) <= limite
-
-
-def _distancia_de_edicao(x: str, y: str) -> int:
-    """Damerau-Levenshtein restrita: inserção, remoção, troca e vizinhas invertidas custam 1 cada."""
-    duas_atras: list[int] = []
-    anterior = list(range(len(y) + 1))
-    for i, cx in enumerate(x, start=1):
-        atual = [i]
-        for j, cy in enumerate(y, start=1):
-            custo = min(anterior[j] + 1, atual[j - 1] + 1, anterior[j - 1] + (cx != cy))
-            if i > 1 and j > 1 and cx == y[j - 2] and x[i - 2] == cy:
-                custo = min(custo, duas_atras[j - 2] + 1)
-            atual.append(custo)
-        duas_atras, anterior = anterior, atual
-    return anterior[-1]
+    return abs(len(x) - len(y)) <= limite and distancia_de_edicao(x, y) <= limite
 
 
 def relacao_entre_partes(a: Parte, b: Parte) -> Relacao:

@@ -16,6 +16,7 @@ from app.services.comparacao.constantes import (
 )
 from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
+from app.services.comparacao.pareamento_invoice_packing_list import pls_em_outra_numeracao
 from app.services.comparacao.operacao_triangular import (
     CAMPOS_DO_EXPORTADOR,
     Triangulacao,
@@ -33,8 +34,9 @@ def comparar_colunas(ctx: Contexto, colunas: list[Col]) -> Comparacao:
     campos: list[CampoComparado] = []
     triangulares = triangulacoes(colunas)
     ctx.avisos.extend(aviso_triangular(ctx.prefixo, t) for t in triangulares)
+    sem_numero = _pls_sem_numero_de_invoice(colunas)
     for campo, regra in REGRAS.items():
-        valores = {col.chave: _valor_coluna(ctx, col, campo, regra) for col in colunas}
+        valores = {col.chave: _valor_fora_do_pl_sem_numero(ctx, col, campo, regra, sem_numero) for col in colunas}
         if campo not in CAMPOS_SEMPRE_VISIVEIS and all(v is None for v in valores.values()):
             continue
         if campo in CAMPOS_DO_EXPORTADOR and triangulares:
@@ -55,6 +57,22 @@ def comparar_colunas(ctx: Contexto, colunas: list[Col]) -> Comparacao:
         colunas=[Coluna(chave=c.chave, rotulo=c.rotulo, documentos=[ref_documento(f) for f in c.fontes]) for c in colunas],
         campos=campos,
     )
+
+
+def _pls_sem_numero_de_invoice(colunas: list[Col]) -> list[Fonte]:
+    """PLs que citam as invoices por outra numeração: não têm nº de invoice para conferir."""
+    fontes = [f for col in colunas for f in col.fontes]
+    invoices = [f for f in fontes if f.doc.tipo == "invoice"]
+    return pls_em_outra_numeracao(invoices, [f for f in fontes if f.doc.tipo == "packing_list"])
+
+
+def _valor_fora_do_pl_sem_numero(
+    ctx: Contexto, col: Col, campo: NomeCampo, regra: Regra, sem_numero: list[Fonte]
+) -> Valor | None:
+    """Coluna com PL em outra numeração fica sem nº da invoice; nos demais casos, o valor da coluna."""
+    if campo == "numero_invoice" and any(f in sem_numero for f in col.fontes):
+        return None
+    return _valor_coluna(ctx, col, campo, regra)
 
 
 def _valor_do_documento(ctx: Contexto, f: Fonte, campo: NomeCampo, regra: Regra) -> Valor | None:

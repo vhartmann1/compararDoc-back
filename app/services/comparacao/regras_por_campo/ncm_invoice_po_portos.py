@@ -14,6 +14,7 @@ from app.services.comparacao.normalizacao import (
     nome_do_porto,
     normalizar_porto,
     numero_sem_serie,
+    numeros_quase_iguais,
 )
 from app.services.comparacao.regras_por_campo.regra import primeira_pagina, texto_soma, valor_conjunto
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -55,14 +56,9 @@ def obter_numero_invoice(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | N
             proprio, da_invoice = numero_sem_serie(doc.numero), numero_sem_serie(par.numero)
             if proprio == da_invoice:
                 numeros.append(par.numero)
-            elif _quase_iguais(proprio, da_invoice):
+            elif numeros_quase_iguais(proprio, da_invoice):
                 numeros.append(doc.numero)
     return valor_conjunto(numeros, normalizar_numero_documento, f, primeira_pagina(f))
-
-
-def _quase_iguais(a: str, b: str) -> bool:
-    """Mesmo tamanho e no máximo 2 caracteres diferentes: 'KTR27393806' × 'KTR27393803'."""
-    return len(a) == len(b) >= 6 and sum(x != y for x, y in zip(a, b)) <= 2
 
 
 def obter_po(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
