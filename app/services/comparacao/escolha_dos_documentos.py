@@ -11,6 +11,7 @@ from app.services.comparacao.normalizacao import (
     normalizar_codigo_item,
     numero_sem_serie,
     sem_acento,
+    unidade_quantidade,
 )
 from app.services.comparacao.tipos import Fonte
 from app.services.leitura.arquivo_para_conteudo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLSX
@@ -106,13 +107,14 @@ def _partes(numero: str) -> set[str]:
 
 
 def _preferencia(f: Fonte) -> tuple:
-    """Mesmo documento => fica 1: não proforma, versão lida, nome (rascunho/original, revisão), PDF, último."""
+    """Mesmo documento => fica 1: não proforma, versão, nome (rascunho/original, revisão), PDF, identificado, último."""
     return (
         not PROFORMA.search(f.arquivo.nome),  # proforma com o número da invoice nunca vale mais que ela
         PRIORIDADE_VERSAO[f.doc.versao],
         versao_pelo_nome(f.arquivo.nome),
         revisao_pelo_nome(f.arquivo.nome),
         PRIORIDADE_FORMATO.get(f.arquivo.media_type, 0),
+        bool(f.doc.numero or f.doc.invoices_referenciadas),  # a lista por contêiner sem número é detalhe do PL
         f.ordem,
     )
 
@@ -163,8 +165,27 @@ def _mesma_carga_em_outro_formato(a: Fonte, b: Fonte, citados: set[str]) -> bool
 
 
 def _mesmos_totais(a: Fonte, b: Fonte) -> bool:
-    pares = [(x.valor, y.valor) for x, y in zip(_totais(a), _totais(b)) if x and y]
-    return len(pares) >= 2 and all(_iguais_no_centesimo(x, y) for x, y in pares)
+    """Ao menos 2 totais iguais; se um deles é a quantidade e só há 2, também o mesmo número de linhas."""
+    iguais = [_iguais_no_centesimo(x.valor, y.valor) for x, y in zip(_totais(a), _totais(b)) if x and y]
+    qa, qb = _quantidade(a), _quantidade(b)
+    if qa and qb:
+        iguais.append(qa[0] == qb[0] and _iguais_no_centesimo(qa[1], qb[1]))
+    if len(iguais) < 2 or not all(iguais):
+        return False
+    return len(iguais) > 2 or not (qa and qb) or _mesmo_numero_de_linhas(a, b)
+
+
+def _quantidade(f: Fonte) -> tuple[str, float] | None:
+    """Quantidade total na unidade canônica: 2 TON -> ('KG', 2000)."""
+    q = f.doc.quantidade_total
+    if q is None:
+        return None
+    canonica, fator = unidade_quantidade(q.unidade)
+    return canonica, q.valor * fator
+
+
+def _mesmo_numero_de_linhas(a: Fonte, b: Fonte) -> bool:
+    return bool(a.doc.itens) and len(a.doc.itens) == len(b.doc.itens)
 
 
 def _iguais_no_centesimo(x: float, y: float) -> bool:
