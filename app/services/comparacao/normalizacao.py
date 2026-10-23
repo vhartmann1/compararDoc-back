@@ -92,11 +92,11 @@ def interpretar_numero(texto: str) -> float:
 
 
 # Embalagens de níveis diferentes: 2 paletes e 160 caixas podem ser a mesma carga.
-EMBALAGENS = {"SACOS", "CAIXAS", "PALETES"}
+EMBALAGENS = {"SACOS", "CAIXAS", "PALETES", "PECAS"}  # espécies de volume; peça = tambor, bobina etc.
 
 
 def embalagem(unidade: str) -> str | None:
-    """'CTNS' -> 'CAIXAS'; 'PACKAGES' (genérica) ou desconhecida -> None."""
+    """'CTNS' -> 'CAIXAS'; 'PIECES' -> 'PECAS'; 'PACKAGES' (genérica) ou desconhecida -> None."""
     canonica, _ = unidade_quantidade(unidade)
     return canonica if canonica in EMBALAGENS else None
 

@@ -70,3 +70,13 @@ def test_quantidade_com_fator_mil_explica_unidade_trocada():
 def test_quantidade_diferente_sem_fator_mil_nao_ganha_nota():
     r = rodar([doc("invoice", numero="1", quantidade=(24, "TON")), doc("packing_list", numero="1", quantidade=(25, "TON"))])
     assert mensagens(r, "comparacao") == ["Quantidade: Invoice 24 TON × Packing List 25 TON"]
+
+
+def test_volumes_em_pecas_e_em_paletes_nao_divergem():
+    r = volumes_em((194, "PIECES"), (17, "PALLET"), (17, "PALLETS"))
+    assert campo(r.comparacoes[0], "volumes").status == "INSUFICIENTE"
+    assert mensagens(r, "comparacao") == []
+
+
+def test_volumes_em_pecas_com_nomes_diferentes_continuam_comparando():
+    assert campo(volumes_em((194, "PIECES"), (190, "PCS"), (194, "PCS")).comparacoes[0], "volumes").status == "DIVERGENTE"
