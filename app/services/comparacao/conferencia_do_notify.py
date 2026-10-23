@@ -13,9 +13,13 @@ def avisos_do_notify(invoices_e_pls: list[Fonte], conhecimentos: list[Fonte]) ->
 
 
 def _clientes(fontes: list[Fonte]) -> list[Parte]:
-    """Quem a invoice/PL aponta como cliente: adquirente, ou consignatário/notify que não é a Capital."""
-    partes = [p for f in fontes for p in (f.doc.adquirente, f.doc.consignatario, f.doc.notify) if p and p.nome.strip()]
-    return [p for p in partes if not parte_da_capital(p)]
+    """O adquirente da invoice/PL; sem adquirente, o consignatário/notify que não é a Capital."""
+    adquirentes = _fora_da_capital([f.doc.adquirente for f in fontes])
+    return adquirentes or _fora_da_capital([p for f in fontes for p in (f.doc.consignatario, f.doc.notify)])
+
+
+def _fora_da_capital(partes: list[Parte | None]) -> list[Parte]:
+    return [p for p in partes if p and p.nome.strip() and not parte_da_capital(p)]
 
 
 def _aviso(conhecimento: Fonte, clientes: list[Parte]) -> str | None:

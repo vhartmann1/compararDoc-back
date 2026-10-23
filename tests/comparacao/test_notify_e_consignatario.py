@@ -80,3 +80,20 @@ def test_notify_de_outra_empresa_gera_aviso_e_nao_divergencia():
 
 def test_notify_sem_adquirente_para_conferir_nao_gera_aviso():
     assert not _avisos_do_notify(_notify("Terceira Logistica Ltda", adquirente=None))
+
+
+def test_notify_repetido_no_pl_do_fornecedor_nao_vira_cliente_quando_ha_adquirente():
+    r = rodar([doc("invoice", numero="1", consignatario=CAPITAL, adquirente=CLIENTE[0]),
+               doc("packing_list", numero="1", consignatario=CAPITAL, notify="Terceira Logistica Ltda")],
+              [doc("conhecimento", subtipo="BL", numero="BL1", consignatario=CAPITAL, notify="Terceira Logistica Ltda")])
+    assert _avisos_do_notify(r) == [
+        "Notify do BL BL1 (Terceira Logistica Ltda) não é a Capital Trade nem o adquirente da invoice "
+        "(Lume Bicicletas Comercio Ltda); confira."
+    ]
+
+
+def test_sem_adquirente_o_notify_da_invoice_ainda_conta_como_cliente():
+    r = rodar([doc("invoice", numero="1", consignatario=CAPITAL, notify=CLIENTE[0]),
+               doc("packing_list", numero="1", consignatario=CAPITAL)],
+              [doc("conhecimento", subtipo="BL", numero="BL1", consignatario=CAPITAL, notify=CLIENTE[0])])
+    assert not _avisos_do_notify(r)
