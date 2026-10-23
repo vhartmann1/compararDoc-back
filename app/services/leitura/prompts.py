@@ -61,9 +61,11 @@ para saber (comum em Word/Excel).
 - `exportador`: o vendedor / shipper / exportador (quem emite a invoice ou consta como Shipper). \
 `nome` como aparece; `cnpj`: CNPJ/Tax ID/NIT/RUC se aparecer junto do nome, senão null.
 - `consignatario`: o campo Consignee. Se não houver "Consignee", use "Ship to"; se também não \
-houver, o "Importer"/importador. Só sem nenhum desses use o comprador ("To:", "Sold to", \
+houver, o "Importer"/importador. Só sem nenhum desses use o comprador ("Buyer", "To:", "Sold to", \
 "Bill to", "Customer", "Messrs."): quando o documento traz comprador e importador, o \
-consignatário é o importador. Num BL "To order of X", o consignatário é X. `cnpj` como acima.
+consignatário é o importador e o comprador vai em `adquirente`, mesmo que o comprador venha antes. \
+Ex.: "BUYER: Pinewood Móveis Ltda" e, abaixo, "Importer: Atlântica Comercial Ltda" => `consignatario` \
+Atlântica, `adquirente` Pinewood. Num BL "To order of X", o consignatário é X. `cnpj` como acima.
 - `fabricante`: o fabricante, quando o documento o cita em campo próprio ("Manufacturer", "Producer", \
 "Fabricante", "Made by"), com nome, endereço, cidade e país como aparecem (endereço null se não houver). \
 Se o documento diz "same as exporter"/"same as seller", copie os dados do exportador. Sem menção => null.
@@ -89,16 +91,22 @@ de embarque), só o nome, como acima. Mesmo que seja igual ao de embarque, preen
 disser; não deduza do endereço.
 - `modalidade_pagamento`: a condição de pagamento como escrita ("Payment terms", "Terms of payment", \
 "Forma de pago"), ex.: "T/T 30 DAYS AFTER BL DATE"; null se não houver.
-- `valor_total`: na invoice, o valor total da mercadoria (o total da coluna de valores / "Total amount"), \
-com a moeda; se houver total da mercadoria e total com frete/seguro, use o da mercadoria. Ex.: "FOB value \
-USD 8,400.00 / Freight USD 600.00 / Total CFR USD 9,000.00" => 8400.0; linhas "Valve 120.00", "Pump 380.00", \
-"Freight 25.00" e "Total 525.00" => 500.0 (só as linhas de mercadoria). Null em packing list e conhecimento.
+- `valor_total`: na invoice, o total final do documento, com a moeda: o total na condição de venda (o \
+`incoterm` da invoice), que é o valor a pagar. Se a invoice traz um subtotal em outra condição e o total no \
+incoterm, use o do incoterm. Ex.: incoterm CFR com "FOB value USD 8,400.00 / Freight USD 600.00 / Total CFR \
+USD 9,000.00" => 9000.0; incoterm FOB com "Total FOB USD 8,400.00" e só "Total CFR USD 9,000.00" como \
+referência => 8400.0; linhas "Valve 120.00", "Pump 380.00", "Freight 25.00" e "Total 525.00" => 525.0. \
+Null em packing list e conhecimento.
 - `valor_frete` e `valor_seguro`: o valor do frete ("Freight", "Ocean freight", "Flete") e do seguro \
 ("Insurance") quando o documento informa um valor, com a moeda. No conhecimento, só o frete básico do quadro \
 de fretes (linha "Ocean freight"/"Air freight"/"Frete"), nunca taxas (THC, BAF, documentação, AFRMM, \
 tratamento de embalagem de madeira) nem a soma delas. Sem valor de frete => null.
 - `peso_liquido_total` e `peso_bruto_total`: o **total** do documento (soma de todos os itens / \
-containers), não o peso de um item. Se só houver pesos por item e nenhum total, deixe null.
+containers), não o peso de um item. Se só houver pesos por item e nenhum total, deixe null. Se o \
+documento traz dois pesos brutos totais, um sem e outro com a embalagem de transporte (pallets, \
+engradados: "incl. pallets", "incl. transport package weight"), use em `peso_bruto_total` o que inclui \
+a embalagem de transporte (é o que o conhecimento declara). Ex.: "Gross weight 1.180,00 kg" e "Total gross \
+weight incl. pallets 1.265,00 kg" => 1265.0.
   - `valor`: o número interpretado. "27,200.00" (americano) e "27.200,00" (brasileiro/europeu) \
 valem 27200.0; "18,452.500" vale 18452.5; "87,40 kg" vale 87.4.
   - `unidade`: KG (KG, KGS, KILOS), LB (LB, LBS), MT (toneladas métricas), TON, G, ou OUTRA. \
@@ -210,7 +218,9 @@ Não entra (deixe a lista vazia se nada disso existir):
 - comparação com outros documentos ou com o que você acha que seria correto (outro sistema compara);
 - suposições sobre plausibilidade (ex.: endereço que parece de outra cidade, data estranha) sem que o \
 próprio documento se contradiga;
-- item FOC com valor cobrado (o sistema verifica isso pelos itens).
+- item FOC com valor cobrado (o sistema verifica isso pelos itens);
+- total que difere do subtotal da mercadoria exatamente por uma linha de frete, seguro ou embalagem listada \
+no próprio documento (ex.: "Subtotal 2.000,00", "Freight 300,00", "Total 2.300,00"): o quadro fecha.
 Seja rigoroso: na dúvida, não liste.
 
 ## Regras

@@ -163,7 +163,7 @@ class DocumentoExtraido(BaseModel):
     modalidade_pagamento: Texto | None = Field(
         default=None, description="Condição de pagamento como escrita, ex. '30% T/T in advance, 70% against BL copy'"
     )
-    valor_total: ValorMonetario | None = Field(default=None, description="Valor total da invoice (mercadoria)")
+    valor_total: ValorMonetario | None = Field(default=None, description="Total final da invoice, na condição de venda (incoterm)")
     valor_frete: ValorMonetario | None = Field(default=None, description="Valor do frete informado no documento")
     valor_seguro: ValorMonetario | None = Field(default=None, description="Valor do seguro informado no documento")
     assinatura_manuscrita: bool | None = Field(
