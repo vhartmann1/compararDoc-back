@@ -3,6 +3,7 @@
 import difflib
 import re
 import unicodedata
+from functools import cache
 
 from app.schemas import Medida
 
@@ -214,6 +215,39 @@ PORTOS_EQUIVALENTES = {
     **dict.fromkeys(["BARRA RIO"], "ITAJAI"),
     **dict.fromkeys(["GUARULHOS", "GRU"], "SAO PAULO"),  # aeroporto internacional de São Paulo
 }
+
+
+# Portos e aeroportos de entrada por UF: destino escrito como estado aceita qualquer um deles
+PORTOS_POR_UF = {
+    "SC": {"ITAJAI", "NAVEGANTES", "ITAPOA", "SAO FRANCISCO DO SUL", "IMBITUBA", "FLORIANOPOLIS"},
+    "PR": {"PARANAGUA", "ANTONINA", "CURITIBA"},
+    "SP": {"SANTOS", "SAO PAULO", "CAMPINAS", "VIRACOPOS", "SAO SEBASTIAO"},
+    "RJ": {"RIO DE JANEIRO", "ITAGUAI", "SEPETIBA"},
+    "RS": {"RIO GRANDE", "PORTO ALEGRE"},
+    "ES": {"VITORIA"},
+    "MG": {"BELO HORIZONTE", "CONFINS"},
+    "BA": {"SALVADOR"},
+    "PE": {"SUAPE", "RECIFE"},
+    "CE": {"PECEM", "FORTALEZA"},
+    "AM": {"MANAUS"},
+}
+# São Paulo e Rio de Janeiro ficam só pela UF: o nome é também o da cidade (aeroporto, porto)
+NOMES_DOS_ESTADOS = {
+    "SANTA CATARINA": "SC", "PARANA": "PR", "RIO GRANDE DO SUL": "RS", "ESPIRITO SANTO": "ES",
+    "MINAS GERAIS": "MG", "BAHIA": "BA", "PERNAMBUCO": "PE", "CEARA": "CE", "AMAZONAS": "AM",
+}
+
+
+@cache
+def _estados() -> dict[str, str]:
+    """Nome do estado (como `nome_do_porto` o deixa: 'RIO GRANDE SUL') ou UF -> UF."""
+    return {nome_do_porto(n): uf for n, uf in NOMES_DOS_ESTADOS.items()} | {uf: uf for uf in PORTOS_POR_UF}
+
+
+def portos_do_estado(nome: str) -> set[str]:
+    """'Santa Catarina - Brazil' -> {'SANTA CATARINA', 'ITAJAI', ...}; nome que não é estado -> vazio."""
+    uf = _estados().get(nome_do_porto(nome))
+    return {nome_do_porto(nome), *PORTOS_POR_UF[uf]} if uf else set()
 
 
 def normalizar_porto(nome: str) -> str:

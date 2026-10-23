@@ -13,6 +13,7 @@ from app.services.comparacao.normalizacao import (
     normalizar_po,
     nome_do_porto,
     normalizar_porto,
+    portos_do_estado,
     numero_sem_serie,
     numeros_quase_iguais,
 )
@@ -91,7 +92,8 @@ def obter_porto(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
         exibicao = nome_do_porto(porto.valor)
         if len(alternativas) > 1:
             exibicao += f" ({'recebimento' if origem else 'entrega'}: {nome_do_porto(extra.valor)})"
-    return Valor(frozenset({frozenset(alternativas)}), exibicao, porto.valor, f.arquivo.id, porto.pagina)
+    chaves = set(alternativas) | (set() if origem else {p for t in alternativas.values() for p in portos_do_estado(t)})
+    return Valor(frozenset({frozenset(chaves)}), exibicao, porto.valor, f.arquivo.id, porto.pagina)
 
 
 def portos_iguais(a: frozenset, b: frozenset) -> bool:

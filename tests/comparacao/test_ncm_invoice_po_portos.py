@@ -94,3 +94,26 @@ def test_aeroporto_de_guarulhos_confere_com_sao_paulo_na_invoice():
     r = rodar([doc("invoice", numero="1", destino="SAO PAULO"), doc("packing_list", refs=["1"]),
                doc("conhecimento", subtipo="AWB", numero="A1", refs=["1"], destino="GUARULHOS")])
     assert campo(r.comparacoes[0], "porto_destino").status == "OK"
+
+
+def _destinos(invoice, bl):
+    r = rodar([doc("invoice", numero="1", destino=invoice), doc("packing_list", refs=["1"]),
+               doc("conhecimento", subtipo="BL", numero="B1", refs=["1"], destino=bl)])
+    return campo(r.comparacoes[0], "porto_destino").status
+
+
+def test_destino_escrito_como_estado_aceita_porto_daquele_estado():
+    assert _destinos("Santa Catarina - Brazil", "NAVEGANTES") == "OK"
+    assert _destinos("Parana, Brazil", "Paranagua") == "OK"
+
+
+def test_destino_estado_nao_aceita_porto_de_outro_estado():
+    assert _destinos("Santa Catarina - Brazil", "SANTOS") == "DIVERGENTE"
+
+
+def test_estado_nao_junta_dois_portos_do_mesmo_estado():
+    assert _destinos("ITAPOA", "NAVEGANTES") == "DIVERGENTE"
+
+
+def test_estado_com_preposicao_no_nome_casa_com_porto_do_estado():
+    assert _destinos("Rio Grande do Sul - Brazil", "RIO GRANDE") == "OK"
