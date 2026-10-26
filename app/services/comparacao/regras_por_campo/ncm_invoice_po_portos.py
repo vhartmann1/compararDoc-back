@@ -9,8 +9,9 @@ from app.services.comparacao.normalizacao import (
     formatar_ncm,
     mesmo_numero,
     normalizar_ncm,
-    normalizar_numero_documento,
+    numero_da_invoice_para_conferir,
     normalizar_po,
+    pos_do_texto,
     nome_do_porto,
     normalizar_porto,
     portos_do_estado,
@@ -59,11 +60,11 @@ def obter_numero_invoice(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | N
                 numeros.append(par.numero)
             elif numeros_quase_iguais(proprio, da_invoice):
                 numeros.append(doc.numero)
-    return valor_conjunto(numeros, normalizar_numero_documento, f, primeira_pagina(f))
+    return valor_conjunto(numeros, numero_da_invoice_para_conferir, f, primeira_pagina(f))
 
 
 def obter_po(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
-    return valor_conjunto([f.doc.po] if f.doc.po else [], normalizar_po, f, primeira_pagina(f))
+    return valor_conjunto(pos_do_texto(f.doc.po or ""), normalizar_po, f, primeira_pagina(f))
 
 
 def numeros_iguais(a: frozenset, b: frozenset) -> bool:

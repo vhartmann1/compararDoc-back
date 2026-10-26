@@ -141,6 +141,15 @@ def normalizar_numero_documento(numero: str) -> str:
 MARCAS_DE_TIPO = {"PL", "PKL", "PK", "PACKING", "LIST", "CI", "INV", "INVOICE"}
 
 
+# 'FT FA.2026/' de 'FT FA.2026/0123': série com o ano, separada do número por barra
+SERIE_DO_ANO = re.compile(r"^(?:[A-Z]{1,4}\.?\s+)?[A-Z]+\.?\s*(?:19|20)\d{2}\s*/\s*(?=\w)")
+
+
+def numero_da_invoice_para_conferir(numero: str) -> str:
+    """'FT FA.2026/260781' -> '260781': a série com o ano sai só na conferência, não no pareamento."""
+    return normalizar_numero_documento(SERIE_DO_ANO.sub("", sem_acento(numero).upper()))
+
+
 def numero_sem_serie(numero: str) -> str:
     """'FT A26/000123' e 'GR A26/000123' -> 'A26000123'; 'XYZ/PL/25/0123' -> 'XYZ250123': série e marca do tipo saem."""
     texto = sem_acento(numero).upper()
@@ -180,6 +189,14 @@ def distancia_de_edicao(x: str, y: str) -> int:
 
 
 PREFIXO_PO = re.compile(r"^\s*(P\.?\s?O\.?|PURCHASE ORDER|PEDIDO)(?=[\s:#.\-0-9])\s*(N[O°º]\.?|NR\.?|NUMBER|#|:)?\s*")
+
+
+SEPARADORES_DE_PO = re.compile(r"[&,，;]|\s+/\s+")  # 'PO#1&PO#2', 'PO#1, PO#2', '1 / 2'; '114/26' é um número só
+
+
+def pos_do_texto(texto: str) -> list[str]:
+    """'PO# 5501&PO# 5502' -> ['PO# 5501', 'PO# 5502']: cada pedido de uma lista, como escrito."""
+    return [p.strip() for p in SEPARADORES_DE_PO.split(texto) if p.strip()]
 
 
 def normalizar_po(po: str) -> str:
