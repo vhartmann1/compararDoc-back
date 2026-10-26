@@ -1,15 +1,37 @@
-"""Duas versões do mesmo documento com valor total ou preços diferentes: divergência, não só aviso."""
+"""Duas versões do mesmo documento com valor total, preços ou nº de invoice citado diferentes: divergência."""
 
 from app.schemas import Divergencia
 from app.services.comparacao.identificacao_do_documento import e_proforma, nome_doc, ref_documento
-from app.services.comparacao.normalizacao import normalizar_moeda
+from app.services.comparacao.normalizacao import normalizar_moeda, numero_da_invoice_para_conferir
+from app.services.comparacao.regras_por_campo.ncm_invoice_po_portos import numeros_iguais
 from app.services.comparacao.tipos import Fonte
 
 TOLERANCIA = 0.005 + 1e-9  # Excel sem arredondar × PDF impresso
 
 
 def divergencias_entre_versoes(fontes: list[Fonte]) -> list[Divergencia]:
-    return [d for f in fontes for dup in f.duplicatas if (d := _divergencia(f, dup))]
+    valores = [d for f in fontes for dup in f.duplicatas if (d := _divergencia(f, dup))]
+    return valores + [d for f in fontes if (d := _numeros_citados_diferentes(f))]
+
+
+def _numeros_citados_diferentes(usada: Fonte) -> Divergencia | None:
+    """Uma divergência por documento, com a versão usada e cada número diferente que outra versão cita."""
+    if not _citados(usada):
+        return None
+    lados = [usada]
+    for dup in sorted(usada.duplicatas, key=lambda f: f.ordem):
+        if (citados := _citados(dup)) and not any(numeros_iguais(citados, _citados(x)) for x in lados):
+            lados.append(dup)
+    if len(lados) == 1:
+        return None
+    textos = [f"{f.arquivo.nome} {', '.join(f.doc.invoices_referenciadas)}" for f in lados]
+    return Divergencia(categoria="interna", comparacao_id=None, campo=None,
+                       mensagem=f"{nome_doc(usada)}: duas versões citam nº de invoice diferente — {' × '.join(textos)}",
+                       documento=ref_documento(usada), evidencia=" × ".join(textos))
+
+
+def _citados(f: Fonte) -> frozenset[str]:
+    return frozenset(n for t in f.doc.invoices_referenciadas if (n := numero_da_invoice_para_conferir(t)))
 
 
 def avisos_entre_versoes(fontes: list[Fonte]) -> list[str]:
