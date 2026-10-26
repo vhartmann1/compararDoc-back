@@ -48,8 +48,11 @@ def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
         return False  # mesmo código não salva: a potência, a tensão ou o tamanho mudou
     if descricoes_iguais_pela_medida(a.descricao, b.descricao):
         return True  # só a notação da medida muda: '.800 MM x 1250 MM' e '0.800x1250'
+    if _so_o_modelo(a, b) or _so_o_modelo(b, a):
+        return True
     ra, rb = _referencia_de_modelo(a), _referencia_de_modelo(b)
-    if _uma_comeca_a_outra(a.descricao, b.descricao) and (mesmo_codigo or not (ra and rb)):
+    sem_conflito = mesmo_codigo or not (ra and rb) or _referencia_da_curta(a, b)
+    if _uma_comeca_a_outra(a.descricao, b.descricao) and sem_conflito:
         return True  # a "referência" lida difere (modelo × código do fabricante), mas o item é o mesmo
     if ra and rb:
         return referencias_iguais(ra, rb)
@@ -109,6 +112,25 @@ def _uma_comeca_a_outra(a: str, b: str) -> bool:
     """'CELULA DE CARGA MODELO XL-20' começa 'CELULA DE CARGA MODELO XL-20, CAPACIDADE 10 MN…': o documento só abreviou."""
     curta, longa = sorted((_palavras(a), _palavras(b)), key=len)
     return len(curta) >= 3 and longa[: len(curta)] == curta
+
+
+def _so_o_modelo(curto: ItemAgrupado, outro: ItemAgrupado) -> bool:
+    """'QX-77' × 'QX-77 - medidor': descrição = modelo lido; igual ao código do outro ou começo da descrição dele."""
+    modelo = normalizar_referencia(curto.descricao)
+    proprios = {normalizar_referencia(r) for r in (curto.referencia, curto.codigo) if r}
+    if not any(ch.isdigit() for ch in modelo) or not proprios or not proprios <= {modelo}:
+        return False
+    do_outro = {normalizar_referencia(r) for r in (outro.referencia, outro.codigo) if r}
+    palavras, longas = _palavras(curto.descricao), _palavras(outro.descricao)
+    return modelo in do_outro or longas[: len(palavras)] == palavras
+
+
+def _referencia_da_curta(a: ItemAgrupado, b: ItemAgrupado) -> bool:
+    """A referência da descrição mais curta é uma palavra inteira da mais longa (marca lida como modelo)."""
+    curto, longo = sorted((a, b), key=lambda x: len(_palavras(x.descricao)))
+    ref = _referencia_de_modelo(curto)
+    palavras = {normalizar_referencia(p) for p in re.split(r"[\s,;:()]+", longo.descricao)}
+    return bool(ref) and normalizar_referencia(ref) in palavras
 
 
 def _palavras(descricao: str) -> list[str]:
