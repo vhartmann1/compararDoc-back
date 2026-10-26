@@ -52,6 +52,6 @@ REGRAS: dict[NomeCampo, Regra] = {
     "pais_exportador": Regra(obter_pais, juntar_conjunto, paises_do_exportador_iguais, soma_alternativas=True),
     "consignatario": Regra(obter_parte, juntar_partes, listas_de_partes_iguais),
     "pais_origem": Regra(obter_pais, juntar_conjunto, conjuntos_iguais),
-    "porto_origem": Regra(obter_porto, juntar_porto, portos_iguais),
-    "porto_destino": Regra(obter_porto, juntar_porto, portos_iguais),
+    "porto_origem": Regra(obter_porto, juntar_porto, portos_iguais, conhecimento_e_referencia=True),
+    "porto_destino": Regra(obter_porto, juntar_porto, portos_iguais, conhecimento_e_referencia=True),
 }

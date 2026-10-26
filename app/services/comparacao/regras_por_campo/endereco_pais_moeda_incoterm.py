@@ -14,6 +14,8 @@ from app.services.comparacao.regras_por_campo.exportador_consignatario import fa
 from app.services.comparacao.regras_por_campo.regra import com_alternativas_iguais, texto_soma, valor_conjunto
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
+SEPARADORES_DE_PAISES = re.compile(r"\s*(?:/|,|;|&|\bAND\b)\s*|\s+-\s+", re.IGNORECASE)  # 'GUINEA-BISSAU' fica
+
 
 def obter_endereco(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     parte = f.doc.exportador
@@ -55,8 +57,8 @@ def obter_pais(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
         return _pais_do_exportador(f)
     else:
         texto, pagina = (f.doc.pais_origem.valor, f.doc.pais_origem.pagina) if f.doc.pais_origem else (None, None)
-        if texto:  # 'JAPAN / MALAYSIA': cada país é um valor do conjunto, em qualquer ordem
-            return valor_conjunto(re.split(r"\s*(?:/|,|;|&|\bAND\b)\s*", texto, flags=re.IGNORECASE), normalizar_pais, f, pagina)
+        if texto:  # 'JAPAN / MALAYSIA' ou 'JAPAN - MALAYSIA': cada país é um valor do conjunto, em qualquer ordem
+            return valor_conjunto(SEPARADORES_DE_PAISES.split(texto), normalizar_pais, f, pagina)
     return valor_conjunto([texto] if texto else [], normalizar_pais, f, pagina)
 
 

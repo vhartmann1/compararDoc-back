@@ -233,6 +233,8 @@ PORTOS_EQUIVALENTES = {
     **dict.fromkeys(["KELANG"], "KLANG"),  # Port Klang, Malásia
     **dict.fromkeys(["BARRA RIO"], "ITAJAI"),
     **dict.fromkeys(["GUARULHOS", "GRU"], "SAO PAULO"),  # aeroporto internacional de São Paulo
+    **dict.fromkeys(["SUVARNABHUMI", "BKK"], "BANGKOK"),  # aeroporto internacional de Bangkok
+    **dict.fromkeys(["SINGAPURA"], "SINGAPORE"),
 }
 
 
@@ -265,20 +267,35 @@ def _estados() -> dict[str, str]:
 
 def porto_brasileiro(nome: str) -> bool:
     """'Itapoá - SC, Brazil' -> True; 'SHANGHAI' -> False: porto ou aeroporto de entrada conhecido no Brasil."""
+    if nome_do_porto(nome) in _estados():
+        return True
     porto = normalizar_porto(nome)
-    return porto in _estados() or any(porto in portos for portos in PORTOS_POR_UF.values())
+    return any(porto in {_sem_espacos(p) for p in portos} for portos in PORTOS_POR_UF.values())
 
 
 def portos_do_estado(nome: str) -> set[str]:
     """'Santa Catarina - Brazil' -> {'SANTA CATARINA', 'ITAJAI', ...}; nome que não é estado -> vazio."""
     uf = _estados().get(nome_do_porto(nome))
-    return {nome_do_porto(nome), *PORTOS_POR_UF[uf]} if uf else set()
+    return {_sem_espacos(p) for p in (nome_do_porto(nome), *PORTOS_POR_UF[uf])} if uf else set()
+
+
+# Cidades-Estado: o nome do país é também o do porto
+PORTOS_COM_NOME_DE_PAIS = {"SINGAPORE", "HONGKONG"}
+
+
+def so_o_pais(nome: str) -> bool:
+    """'To: Brazil' nomeia o país, não o porto; 'SINGAPORE' é país e porto."""
+    return normalizar_pais(nome) in SIGLAS_PAISES and normalizar_porto(nome) not in PORTOS_COM_NOME_DE_PAIS
 
 
 def normalizar_porto(nome: str) -> str:
-    """Nome do porto para comparar: 'XINGANG' e 'Tianjin, China' -> 'TIANJIN'."""
+    """Nome do porto para comparar, sem espaços: 'XINGANG' -> 'TIANJIN'; 'HO CHI MINH' -> 'HOCHIMINH'."""
     porto = nome_do_porto(nome)
-    return PORTOS_EQUIVALENTES.get(porto, porto)
+    return _sem_espacos(PORTOS_EQUIVALENTES.get(porto, porto))
+
+
+def _sem_espacos(nome: str) -> str:
+    return nome.replace(" ", "")
 
 
 def nome_do_porto(nome: str) -> str:
@@ -339,7 +356,7 @@ SIMILARIDADE_MINIMA_ENDERECO = 0.80
 SIMILARIDADE_MINIMA_DESCRICAO = 0.85
 SIMILARIDADE_MINIMA_CASAMENTO = 0.80  # casar itens sem código pela descrição
 
-# País normalizado -> código ISO de 2 letras (sinônimos comuns em documentos de comércio exterior)
+# País normalizado -> código ISO 3166 de 2 letras (nome, códigos ISO de 2 e 3 letras e sinônimos)
 PAISES: dict[str, str] = {
     **dict.fromkeys(["CHINA", "PRC", "CN", "CHN", "P R CHINA", "PR CHINA", "PEOPLES REPUBLIC OF CHINA",
                      "PEOPLE S REPUBLIC OF CHINA", "REPUBLICA POPULAR DA CHINA"], "CN"),
@@ -369,6 +386,32 @@ PAISES: dict[str, str] = {
     **dict.fromkeys(["INDONESIA", "ID", "IDN"], "ID"),
     **dict.fromkeys(["MALAYSIA", "MALASIA", "MY", "MYS"], "MY"),
     **dict.fromkeys(["TURKEY", "TURKIYE", "TURQUIA", "TR", "TUR"], "TR"),
+    **dict.fromkeys(["AUSTRIA", "AT", "AUT"], "AT"),
+    **dict.fromkeys(["SWITZERLAND", "SUICA", "SUIZA", "CH", "CHE"], "CH"),
+    **dict.fromkeys(["SWEDEN", "SUECIA", "SE", "SWE"], "SE"),
+    **dict.fromkeys(["DENMARK", "DINAMARCA", "DK", "DNK"], "DK"),
+    **dict.fromkeys(["FINLAND", "FINLANDIA", "FI", "FIN"], "FI"),
+    **dict.fromkeys(["IRELAND", "IRLANDA", "IE", "IRL"], "IE"),
+    **dict.fromkeys(["CZECH REPUBLIC", "CZECHIA", "REPUBLICA TCHECA", "CZ", "CZE"], "CZ"),
+    **dict.fromkeys(["HUNGARY", "HUNGRIA", "HU", "HUN"], "HU"),
+    **dict.fromkeys(["ROMANIA", "ROMENIA", "RO", "ROU"], "RO"),
+    **dict.fromkeys(["GREECE", "GRECIA", "GR", "GRC"], "GR"),
+    **dict.fromkeys(["SLOVAKIA", "ESLOVAQUIA", "SK", "SVK"], "SK"),
+    **dict.fromkeys(["SLOVENIA", "ESLOVENIA", "SI", "SVN"], "SI"),
+    **dict.fromkeys(["CANADA", "CA", "CAN"], "CA"),
+    **dict.fromkeys(["AUSTRALIA", "AU", "AUS"], "AU"),
+    **dict.fromkeys(["NEW ZEALAND", "NOVA ZELANDIA", "NZ", "NZL"], "NZ"),
+    **dict.fromkeys(["URUGUAY", "URUGUAI", "UY", "URY"], "UY"),
+    **dict.fromkeys(["PARAGUAY", "PARAGUAI", "PY", "PRY"], "PY"),
+    **dict.fromkeys(["PAKISTAN", "PAQUISTAO", "PK", "PAK"], "PK"),
+    **dict.fromkeys(["BANGLADESH", "BD", "BGD"], "BD"),
+    **dict.fromkeys(["PHILIPPINES", "FILIPINAS", "PH", "PHL"], "PH"),
+    **dict.fromkeys(["SINGAPORE", "SINGAPURA", "SG", "SGP"], "SG"),
+    **dict.fromkeys(["ISRAEL", "IL", "ISR"], "IL"),
+    **dict.fromkeys(["SOUTH AFRICA", "AFRICA DO SUL", "ZA", "ZAF"], "ZA"),
+    **dict.fromkeys(["SRI LANKA", "LK", "LKA"], "LK"),
+    **dict.fromkeys(["CAMBODIA", "CAMBOJA", "KH", "KHM"], "KH"),
+    **dict.fromkeys(["UNITED ARAB EMIRATES", "EMIRADOS ARABES UNIDOS", "UAE", "AE", "ARE"], "AE"),
 }
 SIGLAS_PAISES = set(PAISES.values())
 
@@ -403,10 +446,20 @@ def normalizar_endereco(endereco: str) -> str:
 
 def palavras_do_endereco(endereco: str) -> set[str]:
     """Palavras do endereço, com o país pela sigla ('THE NETHERLANDS' e 'NL' viram 'NL')."""
+    return set(_palavras_em_ordem(endereco)) - {"THE"}
+
+
+def _palavras_em_ordem(endereco: str) -> list[str]:
     texto = f" {normalizar_endereco(endereco)} "
     for nome in sorted(PAISES, key=len, reverse=True):
         texto = texto.replace(f" {nome} ", f" {PAISES[nome]} ")
-    return set(texto.split()) - {"THE"}
+    return texto.split()
+
+
+def _pais_no_fim(endereco: str) -> set[str]:
+    """Sigla do país na última palavra que não é CEP: 'MONTEVIDEO URUGUAY 11000' -> {'UY'}; no meio não conta."""
+    palavras = [p for p in _palavras_em_ordem(endereco) if not re.fullmatch(r"\d{4,}", p)]
+    return {palavras[-1]} if palavras and palavras[-1] in SIGLAS_PAISES else set()
 
 
 def enderecos_equivalentes(a: str, b: str) -> bool:
@@ -418,7 +471,7 @@ def enderecos_equivalentes(a: str, b: str) -> bool:
     pa, pb = _sem_abreviacoes(pa, pb), _sem_abreviacoes(pb, pa)
     if pa | pb and len(pa & pb) / len(pa | pb) >= SIMILARIDADE_MINIMA_ENDERECO:
         return True
-    return _contido_com_mais_detalhe(pa, pb) or _contido_com_mais_detalhe(pb, pa)
+    return _contido_com_mais_detalhe(pa - _pais_no_fim(a), pb) or _contido_com_mais_detalhe(pb - _pais_no_fim(b), pa)
 
 
 def _sem_abreviacoes(palavras: set[str], outras: set[str]) -> set[str]:
@@ -431,8 +484,8 @@ def _sem_abreviacoes(palavras: set[str], outras: set[str]) -> set[str]:
 
 
 def _contido_com_mais_detalhe(curto: set[str], longo: set[str]) -> bool:
-    """'NO 88 LIANHUA ROAD SHANGHAI 201100 CN' ⊂ '2F NO 88 LIANHUA ROAD MINHANG DISTRICT SHANGHAI', fora CEP e país."""
-    essencial = {p for p in curto if p not in SIGLAS_PAISES and not re.fullmatch(r"\d{5,}", p)}
+    """'NO 88 LIANHUA ROAD SHANGHAI 201100' ⊂ '2F NO 88 LIANHUA ROAD MINHANG DISTRICT SHANGHAI', fora o CEP."""
+    essencial = {p for p in curto if not re.fullmatch(r"\d{5,}", p)}
     return len(essencial) >= 3 and any(ch.isdigit() for p in essencial for ch in p) and essencial <= longo
 
 

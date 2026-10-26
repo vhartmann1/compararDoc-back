@@ -4,7 +4,7 @@ from app.schemas import Divergencia
 from app.services.comparacao.colunas_da_comparacao import listar_pares
 from app.services.comparacao.constantes import INCOTERMS_CD, INCOTERMS_EF
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.normalizacao import SIGLAS_PAISES, nome_do_porto, normalizar_incoterm, normalizar_pais, normalizar_porto
+from app.services.comparacao.normalizacao import nome_do_porto, normalizar_incoterm, normalizar_porto, so_o_pais
 from app.services.comparacao.tipos import Fonte
 
 
@@ -70,7 +70,7 @@ def _coerencia_incoterm(fonte: Fonte, par: list[Fonte], conhecimentos: list[Font
                 f"Incoterm {exibicao} ({nome}): {sigla} indica local de embarque/origem, mas {local_exibido} é o destino",
             ))
     # "FOB INDONESIA" nomeia país, não porto: não dá para conferir
-    if local and sigla in INCOTERMS_PORTO_DE_EMBARQUE and normalizar_pais(inc.local) not in SIGLAS_PAISES:
+    if local and sigla in INCOTERMS_PORTO_DE_EMBARQUE and not so_o_pais(inc.local):
         origens = {f.doc.porto_origem.valor for f in par + conhecimentos if f.doc.porto_origem}
         origens |= {c.doc.local_recebimento.valor for c in conhecimentos if c.doc.local_recebimento}
         if origens and local not in {normalizar_porto(o) for o in origens} and local not in destinos:

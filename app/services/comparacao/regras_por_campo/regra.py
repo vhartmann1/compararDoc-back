@@ -14,6 +14,7 @@ class Regra:
     juntar: Callable[[list[Valor], NomeCampo, Contexto, Col], Valor | None]
     iguais: Callable[[Any, Any], bool]
     soma_alternativas: bool = False  # o grupo de documentos iguais leva as alternativas (fabricante) de todos
+    conhecimento_e_referencia: bool = False  # invoice e PL conferem com o conhecimento, não entre si
 
 
 def primeira_pagina(f: Fonte) -> int | None:

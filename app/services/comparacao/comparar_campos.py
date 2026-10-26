@@ -166,6 +166,8 @@ def _status_campo(
 
     grupos = _agrupar_iguais(ctx, campo, regra, iguais, informados)
     if len(grupos) == 1:
+        if aviso := _aviso_de_comerciais_diferentes(ctx, campo, regra, informados):
+            ctx.avisos.append(aviso)
         return "OK"
     if campo == "volumes" and embalagens_distintas([valor for _, valor in grupos]):
         textos = " × ".join(f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in grupos)
@@ -194,7 +196,7 @@ def _agrupar_iguais(
 ) -> list[tuple[list[Col], Valor]]:
     """Grupos de colunas com o mesmo valor; com `soma_alternativas`, ver `_cabe_no_grupo`."""
     grupos: list[tuple[list[Col], Valor, list[Valor]]] = []
-    for col, valor in informados:
+    for col, valor in _na_ordem_de_conferir(regra, informados):
         n = next((n for n, g in enumerate(grupos) if _cabe_no_grupo(regra, iguais, g, valor)), None)
         if n is None:
             grupos.append(([col], valor, [valor]))
@@ -204,7 +206,45 @@ def _agrupar_iguais(
         membros.append(valor)
         if _mesmo_fabricante(regra, cols) and (soma := regra.juntar([referencia, valor], campo, ctx, col)):
             grupos[n] = (cols, replace(soma, exibicao=referencia.exibicao), membros)
-    return [(cols, referencia) for cols, referencia, _ in grupos]
+    return _na_ordem_das_colunas(informados, [(cols, referencia) for cols, referencia, _ in grupos])
+
+
+def _na_ordem_de_conferir(regra: Regra, informados: list[tuple[Col, Valor]]) -> list[tuple[Col, Valor]]:
+    """Com `conhecimento_e_referencia`, o conhecimento abre o grupo e os demais conferem com ele."""
+    if not regra.conhecimento_e_referencia:
+        return informados
+    return sorted(informados, key=lambda cv: not _so_conhecimento(cv[0]))
+
+
+def _aviso_de_comerciais_diferentes(
+    ctx: Contexto, campo: NomeCampo, regra: Regra, informados: list[tuple[Col, Valor]]
+) -> str | None:
+    """Invoice e PL com portos diferentes que o conhecimento aceita (descarga × entrega): confere, com aviso."""
+    if not regra.conhecimento_e_referencia:
+        return None
+    conhecimentos = [(c, v) for c, v in informados if _so_conhecimento(c)]
+    outros = [(c, v) for c, v in informados if not _so_conhecimento(c)]
+    pares = [(a, b) for n, a in enumerate(outros) for b in outros[n + 1:]]
+    diferentes = [(a, b) for a, b in pares if not regra.iguais(a[1].chave, b[1].chave)]
+    if not conhecimentos or not diferentes:
+        return None
+    (ca, va), (cb, vb) = diferentes[0]
+    cc, vc = conhecimentos[0]
+    return (f"{ctx.prefixo}{ROTULOS[campo]}: {ca.nome_curto} diz {va.exibicao} e {cb.nome_curto} diz {vb.exibicao}; "
+            f"os dois aparecem no {cc.nome_curto}: {vc.exibicao}.")
+
+
+def _so_conhecimento(col: Col) -> bool:
+    return all(f.doc.tipo == "conhecimento" for f in col.fontes)
+
+
+def _na_ordem_das_colunas(
+    informados: list[tuple[Col, Valor]], grupos: list[tuple[list[Col], Valor]]
+) -> list[tuple[list[Col], Valor]]:
+    """Grupos e colunas de cada grupo na ordem original das colunas (a mensagem não muda com a conferência)."""
+    posicao = {col.chave: n for n, (col, _) in enumerate(informados)}
+    ordenados = [(sorted(cols, key=lambda c: posicao[c.chave]), valor) for cols, valor in grupos]
+    return sorted(ordenados, key=lambda g: posicao[g[0][0].chave])
 
 
 def _mesmo_fabricante(regra: Regra, cols: list[Col]) -> bool:

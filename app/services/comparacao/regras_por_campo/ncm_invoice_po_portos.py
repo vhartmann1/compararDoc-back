@@ -4,8 +4,6 @@ import re
 
 from app.schemas import NomeCampo
 from app.services.comparacao.normalizacao import (
-    SIGLAS_PAISES,
-    normalizar_pais,
     formatar_ncm,
     mesmo_numero,
     normalizar_ncm,
@@ -15,6 +13,7 @@ from app.services.comparacao.normalizacao import (
     nome_do_porto,
     normalizar_porto,
     portos_do_estado,
+    so_o_pais,
     numero_sem_serie,
     numeros_quase_iguais,
 )
@@ -78,7 +77,7 @@ def obter_porto(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     porto = f.doc.porto_origem if origem else f.doc.porto_destino
     extra = (f.doc.local_recebimento if origem else f.doc.local_entrega) if f.doc.tipo == "conhecimento" else None
     porto = porto or extra
-    if porto is None or normalizar_pais(porto.valor) in SIGLAS_PAISES:  # "To: Brazil" é país, não porto
+    if porto is None or so_o_pais(porto.valor):
         return None
     textos = [porto.valor] + ([extra.valor] if extra and extra is not porto else [])
     if f.doc.tipo != "conhecimento":
