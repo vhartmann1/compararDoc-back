@@ -3,13 +3,14 @@
 import re
 from dataclasses import dataclass
 
-from app.schemas import ArquivoEntrada, ExtracaoArquivo, ItemExtraido, TipoDocumento
+from app.schemas import ArquivoEntrada, DocumentoExtraido, ExtracaoArquivo, ItemExtraido, TipoDocumento
 from app.services.comparacao.constantes import NOME_TIPO, PRIORIDADE_FORMATO, PRIORIDADE_VERSAO, TIPOS
 from app.services.comparacao.identificacao_do_documento import PROFORMA, e_proforma, nome_doc, numero_normalizado
 from app.services.comparacao.normalizacao import (
     descricoes_equivalentes,
     normalizar_codigo_item,
     numero_sem_serie,
+    porto_brasileiro,
     sem_acento,
     unidade_quantidade,
 )
@@ -34,6 +35,7 @@ def escolher_documentos(
         if extracao.documentos and all(d.tipo not in por_tipo for d in extracao.documentos):
             lidos = ", ".join(dict.fromkeys(d.subtipo or "documento de outro tipo" for d in extracao.documentos))
             avisos.append(f"{arquivo.nome} não entrou na comparação: não é invoice, packing list nem conhecimento ({lidos}).")
+    por_tipo["conhecimento"] = _sem_conhecimentos_de_saida(por_tipo["conhecimento"], avisos)
     citados = _invoices_citadas(por_tipo)
     comerciais, proformas = _separar_proformas(por_tipo["invoice"], avisos)
     por_tipo["invoice"], resumos = _separar_resumos(comerciais, avisos)
@@ -88,6 +90,29 @@ def _separar_proformas(invoices: list[Fonte], avisos: list[str]) -> tuple[list[F
     for f in proformas:
         avisos.append(f"{nome_doc(f)} ({_onde(f)}) não entrou na comparação: há invoice comercial.")
     return comerciais, proformas
+
+
+def _sem_conhecimentos_de_saida(conhecimentos: list[Fonte], avisos: list[str]) -> list[Fonte]:
+    """Sai do Brasil para o exterior e há outro que chega ao Brasil: é de exportação ou devolução, não o da importação."""
+    if not any(_chega_ao_brasil(f.doc) for f in conhecimentos):
+        return conhecimentos
+    saida = [f for f in conhecimentos if _sai_do_brasil(f.doc)]
+    for f in saida:
+        avisos.append(
+            f"{nome_doc(f)} ({_onde(f)}) não entrou na comparação: é de exportação ou devolução "
+            f"({f.doc.porto_origem.valor} → {f.doc.porto_destino.valor})."
+        )
+    return [f for f in conhecimentos if not _sai_do_brasil(f.doc)]
+
+
+def _chega_ao_brasil(doc: DocumentoExtraido) -> bool:
+    origem, destino = doc.porto_origem, doc.porto_destino
+    return bool(origem and destino) and porto_brasileiro(destino.valor) and not porto_brasileiro(origem.valor)
+
+
+def _sai_do_brasil(doc: DocumentoExtraido) -> bool:
+    origem, destino = doc.porto_origem, doc.porto_destino
+    return bool(origem and destino) and porto_brasileiro(origem.valor) and not porto_brasileiro(destino.valor)
 
 
 def _separar_resumos(invoices: list[Fonte], avisos: list[str]) -> tuple[list[Fonte], list[Fonte]]:

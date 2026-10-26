@@ -328,3 +328,33 @@ def test_imagem_e_pdf_com_numeros_diferentes_nao_sao_a_mesma_carga():
         ("CI.pdf", PDF, [doc("invoice", 300, 350, numero="Z-050", itens=linhas)]),
     )
     assert not any("Mais de um documento Invoice" in a for a in r.avisos)
+
+
+def test_conhecimento_de_exportacao_fica_fora_com_aviso():
+    r = rodar(
+        [doc("invoice", 1, 2, numero="1", origem="NINGBO", destino="ITAJAI"), doc("packing_list", 1, 2, numero="1")],
+        [doc("conhecimento", 1, 2, subtipo="BL", numero="A", origem="NINGBO", destino="ITAJAI")],
+        [doc("conhecimento", 5, 9, subtipo="BL", numero="B", origem="Itapoa - SC, Brazil", destino="SHANGHAI")],
+    )
+    assert [c.chave for c in r.comparacoes[0].colunas] == ["invoice", "packing_list", "conhecimento"]
+    assert campo(r.comparacoes[0], "peso_bruto").status == "OK"
+    assert any("BL B" in a and "exportação" in a for a in r.avisos)
+
+
+def test_conhecimento_de_importacao_continua_entrando():
+    r = rodar(
+        [doc("invoice", 1, 2, numero="1"), doc("packing_list", 1, 2, numero="1")],
+        [doc("conhecimento", 1, 2, subtipo="BL", numero="A", origem="SHANGHAI", destino="Itapoa - SC, Brazil")],
+    )
+    assert [c.chave for c in r.comparacoes[0].colunas] == ["invoice", "packing_list", "conhecimento"]
+    assert not any("exportação" in a for a in r.avisos)
+
+
+def test_unico_conhecimento_nunca_sai_mesmo_com_rota_estranha():
+    for origem, destino in (("GRU", "VCP"), ("Viracopos", "CNF"), ("GRU", "BRAZIL"), ("Santos, Brazil", "Vila do Conde - PA")):
+        r = rodar(
+            [doc("invoice", 1, 2, numero="1"), doc("packing_list", 1, 2, numero="1")],
+            [doc("conhecimento", 1, 2, subtipo="AWB", numero="A", origem=origem, destino=destino)],
+        )
+        assert [c.chave for c in r.comparacoes[0].colunas] == ["invoice", "packing_list", "conhecimento"], origem
+        assert not any("exportação" in a for a in r.avisos)
