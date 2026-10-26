@@ -34,7 +34,9 @@ def test_caso_6_itens_e_quantidade():
             "24.000 TONS equivale a 24 t se for kg") in msg
     assert "lote Invoice 7713904 × Packing List 4K0518206" in msg
     assert any("provável unidade errada" in m for m in mensagens(r, "comparacao") if m.startswith("Quantidade"))
-    assert mensagens(r, "interna") == ["Packing List 48273916: Quantidade em toneladas incompatível com as bolsas"]
+    assert mensagens(r, "interna") == ["Packing List 48273916: Quantidade em toneladas incompatível com as bolsas",
+                                       "Invoice 0077032707: consignatário sem CNPJ (o checklist da fatura pede o "
+                                       "importador com CNPJ)"]
 
 
 def test_item_so_de_um_lado_e_casamento_por_descricao():

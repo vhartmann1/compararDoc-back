@@ -65,6 +65,7 @@ def test_caso_6():
         "Nº da invoice: Invoice 0077032707 × Packing List 70023077",
         "PO: Invoice 246731-01 × Packing List 243918-01",
         "Porto de destino: Invoice ITAPOA × BL NAVEGANTES",
+        "Invoice 0077032707: consignatário sem CNPJ (o checklist da fatura pede o importador com CNPJ)",
     ]
     assert any("não cita o número da invoice" in a for a in r.avisos)
     assert len(r.documentos) == 3  # CO fica de fora
