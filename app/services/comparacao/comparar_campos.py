@@ -16,6 +16,7 @@ from app.services.comparacao.constantes import (
 )
 from app.services.comparacao.conferencia_do_adquirente import campo_do_adquirente
 from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
+from app.services.comparacao.endereco_do_consignatario import avisos_de_endereco
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.pareamento_invoice_packing_list import pls_em_outra_numeracao
 from app.services.comparacao.operacao_triangular import (
@@ -45,6 +46,8 @@ def comparar_colunas(ctx: Contexto, colunas: list[Col]) -> Comparacao:
             status = _status_com_triangulacao(ctx, campo, regra, colunas, valores, triangulares)
         else:
             status = _status_campo(ctx, campo, regra, colunas, valores)
+        if campo == "consignatario":
+            ctx.avisos.extend(f"{ctx.prefixo}{m}" for m in avisos_de_endereco(colunas))
         campos.append(
             CampoComparado(
                 campo=campo,
