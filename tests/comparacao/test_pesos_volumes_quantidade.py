@@ -80,3 +80,13 @@ def test_volumes_em_pecas_e_em_paletes_nao_divergem():
 
 def test_volumes_em_pecas_com_nomes_diferentes_continuam_comparando():
     assert campo(volumes_em((194, "PIECES"), (190, "PCS"), (194, "PCS")).comparacoes[0], "volumes").status == "DIVERGENTE"
+
+
+def test_volumes_em_tambores_e_em_paletes_nao_divergem():
+    r = volumes_em((40, "PALLETS"), (40, "PALLETS"), (160, "DRUMS"))
+    assert campo(r.comparacoes[0], "volumes").status == "INSUFICIENTE"
+    assert any("Volumes em embalagens diferentes" in a for a in r.avisos)
+
+
+def test_volumes_em_tambores_com_numero_diferente_divergem():
+    assert campo(volumes_em((160, "DRUMS"), (160, "TAMBORES"), (150, "DRUMS")).comparacoes[0], "volumes").status == "DIVERGENTE"

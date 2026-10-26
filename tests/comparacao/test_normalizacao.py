@@ -133,6 +133,7 @@ def test_nome_empresa():
         ("TIANJIN XINGANG", "TIANJIN"),
         ("Aeroporto de Viracopos", "VIRACOPOS"),
         ("CARTAGENA - COLOMBIA", "CARTAGENA"),
+        ("PORT KELANG, MALAYSIA", "KLANG"),
     ],
 )
 def test_porto(texto, esperado):

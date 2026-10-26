@@ -34,6 +34,7 @@ UNIDADES_QUANTIDADE: dict[str, tuple[str, float]] = {
          "BOX", "BOXES", "CARTONE", "CARTONI"],
         ("CAIXAS", 1.0),
     ),
+    **dict.fromkeys(["DRUM", "DRUMS", "TAMBOR", "TAMBORES"], ("TAMBORES", 1.0)),
     **dict.fromkeys(["PALLET", "PALLETS", "PALETE", "PALETES", "PALET", "PALETS", "PLT", "PLTS"], ("PALETES", 1.0)),
     **dict.fromkeys(
         ["BOTTLE", "BOTTLES", "BOTELLA", "BOTELLAS", "GARRAFA", "GARRAFAS", "BT", "BTL", "BTLS", "BOTTIGLIA", "BOTTIGLIE"],
@@ -93,7 +94,7 @@ def interpretar_numero(texto: str) -> float:
 
 
 # Embalagens de níveis diferentes: 2 paletes e 160 caixas podem ser a mesma carga.
-EMBALAGENS = {"SACOS", "CAIXAS", "PALETES", "PECAS"}  # espécies de volume; peça = tambor, bobina etc.
+EMBALAGENS = {"SACOS", "CAIXAS", "PALETES", "TAMBORES", "PECAS"}  # espécies de volume; peça = bobina etc.
 
 
 def embalagem(unidade: str) -> str | None:
@@ -212,6 +213,7 @@ PORTOS_EQUIVALENTES = {
     **dict.fromkeys(["YANGSHAN", "WAIGAOQIAO", "SHANGAI"], "SHANGHAI"),
     **dict.fromkeys(["BEILUN", "NINGBO ZHOUSHAN"], "NINGBO"),
     **dict.fromkeys(["TANJUNG PRIOK"], "JAKARTA"),
+    **dict.fromkeys(["KELANG"], "KLANG"),  # Port Klang, Malásia
     **dict.fromkeys(["BARRA RIO"], "ITAJAI"),
     **dict.fromkeys(["GUARULHOS", "GRU"], "SAO PAULO"),  # aeroporto internacional de São Paulo
 }
@@ -242,6 +244,12 @@ NOMES_DOS_ESTADOS = {
 def _estados() -> dict[str, str]:
     """Nome do estado (como `nome_do_porto` o deixa: 'RIO GRANDE SUL') ou UF -> UF."""
     return {nome_do_porto(n): uf for n, uf in NOMES_DOS_ESTADOS.items()} | {uf: uf for uf in PORTOS_POR_UF}
+
+
+def porto_brasileiro(nome: str) -> bool:
+    """'Itapoá - SC, Brazil' -> True; 'SHANGHAI' -> False: porto ou aeroporto de entrada conhecido no Brasil."""
+    porto = normalizar_porto(nome)
+    return porto in _estados() or any(porto in portos for portos in PORTOS_POR_UF.values())
 
 
 def portos_do_estado(nome: str) -> set[str]:
