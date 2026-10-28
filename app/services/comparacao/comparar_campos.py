@@ -14,7 +14,9 @@ from app.services.comparacao.constantes import (
     CAMPOS_UNICOS_NA_SOMA,
     ROTULOS,
 )
+from app.services.comparacao.chegada_por_dta import separar_chegada_por_dta
 from app.services.comparacao.conferencia_do_adquirente import campo_do_adquirente
+from app.services.comparacao.conhecimento_com_parte import conhecimentos_contidos
 from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
 from app.services.comparacao.endereco_do_consignatario import avisos_de_endereco
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
@@ -140,13 +142,12 @@ def _status_campo(
     informados = [(col, valores[col.chave]) for col in colunas if valores[col.chave] is not None]
     if not informados:
         return "NAO_ENCONTRADO"
-    if campo == "consignatario":
-        restantes, aviso = separar_conhecimentos_da_capital(ctx, informados)
-        if aviso:
-            ctx.avisos.append(aviso)
-            if len(restantes) <= 1:
-                return "OK"
-            informados = restantes
+    restantes, aviso = _separar_aceitos(ctx, campo, regra, informados)
+    if aviso:
+        ctx.avisos.append(aviso)
+    if len(restantes) < len(informados) and len(restantes) <= 1:
+        return "OK"
+    informados = restantes
     if len(informados) == 1:
         if len(colunas) > 1 and campo not in CAMPOS_SEM_AVISO_INSUFICIENTE:
             ctx.avisos.append(
@@ -191,6 +192,18 @@ def _status_campo(
         )
     )
     return "DIVERGENTE"
+
+
+def _separar_aceitos(
+    ctx: Contexto, campo: NomeCampo, regra: Regra, informados: list[tuple[Col, Valor]]
+) -> tuple[list[tuple[Col, Valor]], str | None]:
+    """Conhecimentos que conferem por regra própria saem da comparação geral, com o aviso que a regra dá."""
+    if campo == "consignatario":
+        return separar_conhecimentos_da_capital(ctx, informados)
+    if campo == "porto_destino":
+        return separar_chegada_por_dta(ctx, informados)
+    contidos = conhecimentos_contidos(regra, informados)
+    return [(col, v) for col, v in informados if col.chave not in contidos], None
 
 
 def _agrupar_iguais(

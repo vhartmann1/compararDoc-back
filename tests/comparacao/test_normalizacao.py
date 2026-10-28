@@ -131,7 +131,7 @@ def test_nome_empresa():
         ("BEIJIN AIRPORT", "BEIJIN"),
         ("Shekou (China)", "SHENZHEN"),
         ("TIANJIN XINGANG", "TIANJIN"),
-        ("Aeroporto de Viracopos", "VIRACOPOS"),
+        ("Aeroporto de Viracopos", "CAMPINAS"),
         ("CARTAGENA - COLOMBIA", "CARTAGENA"),
         ("PORT KELANG, MALAYSIA", "KLANG"),
     ],

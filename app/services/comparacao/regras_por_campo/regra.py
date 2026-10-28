@@ -15,6 +15,7 @@ class Regra:
     iguais: Callable[[Any, Any], bool]
     soma_alternativas: bool = False  # o grupo de documentos iguais leva as alternativas (fabricante) de todos
     conhecimento_e_referencia: bool = False  # invoice e PL conferem com o conhecimento, não entre si
+    contido_no_outro: Callable[[Any, Any], bool] | None = None  # o conhecimento pode trazer só parte (PO, NCM)
 
 
 def primeira_pagina(f: Fonte) -> int | None:

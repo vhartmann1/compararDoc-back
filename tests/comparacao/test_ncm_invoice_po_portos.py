@@ -1,8 +1,14 @@
 from tests.comparacao.apoio import campo, doc, mensagens, rodar, tres_ok
 
 
-def test_ncm_hs_compara_6_digitos():
+def test_ncm_hs_do_conhecimento_que_comeca_o_da_invoice_confere():
     r = tres_ok(ncms=["HS 390110"])
+    assert campo(r.comparacoes[0], "ncm").status == "OK"
+
+
+def test_ncm_hs_na_invoice_compara_6_digitos():
+    r = rodar([doc("invoice", ncms=["HS 390110"], numero="INV1"),
+               doc("packing_list", ncms=["39011010"], numero="INV1")])
     assert campo(r.comparacoes[0], "ncm").status == "OK"
     assert any("6 primeiros dígitos" in a for a in r.avisos)
 

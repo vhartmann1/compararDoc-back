@@ -45,6 +45,11 @@ def juntar_ncm(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) 
     return Valor(tuple(codigos), ", ".join(formatar_ncm(c) for c in codigos), ", ".join(textos) or None, None, None)
 
 
+def ncms_contidos(conhecimento: tuple, outro: tuple) -> bool:
+    """Cada código do conhecimento é o começo de algum da invoice/PL ('8714.91' cobre '8714.91.20')."""
+    return all(any(o.startswith(c) for o in outro) for c in conhecimento)
+
+
 def obter_numero_invoice(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     doc = f.doc
     if doc.tipo == "invoice":
@@ -69,6 +74,11 @@ def obter_po(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
 def numeros_iguais(a: frozenset, b: frozenset) -> bool:
     """Cada número tem par do outro lado: igual ou com letras a mais na frente ('ACME11426' × '11426')."""
     return all(any(mesmo_numero(x, y) for y in b) for x in a) and all(any(mesmo_numero(y, x) for x in a) for y in b)
+
+
+def numeros_contidos(conhecimento: frozenset, outro: frozenset) -> bool:
+    """Cada número do conhecimento está na invoice/PL; faltar algum não importa."""
+    return all(any(mesmo_numero(x, y) for y in outro) for x in conhecimento)
 
 
 def obter_porto(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:

@@ -233,6 +233,7 @@ PORTOS_EQUIVALENTES = {
     **dict.fromkeys(["KELANG"], "KLANG"),  # Port Klang, Malásia
     **dict.fromkeys(["BARRA RIO"], "ITAJAI"),
     **dict.fromkeys(["GUARULHOS", "GRU"], "SAO PAULO"),  # aeroporto internacional de São Paulo
+    **dict.fromkeys(["VIRACOPOS", "VCP"], "CAMPINAS"),  # aeroporto internacional de Campinas
     **dict.fromkeys(["SUVARNABHUMI", "BKK"], "BANGKOK"),  # aeroporto internacional de Bangkok
     **dict.fromkeys(["SINGAPURA"], "SINGAPORE"),
 }
@@ -240,7 +241,7 @@ PORTOS_EQUIVALENTES = {
 
 # Portos e aeroportos de entrada por UF: destino escrito como estado aceita qualquer um deles
 PORTOS_POR_UF = {
-    "SC": {"ITAJAI", "NAVEGANTES", "ITAPOA", "SAO FRANCISCO DO SUL", "IMBITUBA", "FLORIANOPOLIS"},
+    "SC": {"ITAJAI", "NAVEGANTES", "ITAPOA", "SAO FRANCISCO DO SUL", "IMBITUBA", "FLORIANOPOLIS", "JOINVILLE"},
     "PR": {"PARANAGUA", "ANTONINA", "CURITIBA"},
     "SP": {"SANTOS", "SAO PAULO", "CAMPINAS", "VIRACOPOS", "SAO SEBASTIAO"},
     "RJ": {"RIO DE JANEIRO", "ITAGUAI", "SEPETIBA"},
@@ -271,6 +272,13 @@ def porto_brasileiro(nome: str) -> bool:
         return True
     porto = normalizar_porto(nome)
     return any(porto in {_sem_espacos(p) for p in portos} for portos in PORTOS_POR_UF.values())
+
+
+def uf_do_porto(chave: str) -> str | None:
+    """Chave de `normalizar_porto` ('ITAJAI', 'SANTACATARINA', 'SC') -> 'SC'; porto fora da lista -> None."""
+    estados = {_sem_espacos(n): uf for n, uf in _estados().items()}
+    portos = {normalizar_porto(p): uf for uf, nomes in PORTOS_POR_UF.items() for p in nomes}
+    return estados.get(chave) or portos.get(chave)
 
 
 def portos_do_estado(nome: str) -> set[str]:
