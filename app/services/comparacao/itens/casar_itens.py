@@ -3,6 +3,7 @@
 from collections.abc import Callable
 
 from app.services.comparacao.itens.medidas_do_item import mesmas_medidas
+from app.services.comparacao.itens.nome_do_modelo import mesmo_modelo
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado, Linha
 from app.services.comparacao.normalizacao import (
     SIMILARIDADE_MINIMA_CASAMENTO,
@@ -61,6 +62,9 @@ def casar(
     casados += _casar_unicos(linhas, livres_l, livres_i, _mesma_descricao)
     casados += _casar_unicos(linhas, livres_l, livres_i, _mesmo_lote)
     casados += _casar_unicos(linhas, livres_l, livres_i, lambda a, b: mesmas_medidas(a.descricao, b.descricao))
+    # 1c) nome do modelo que começa o do outro (caixas × dúzias): primeiro com a variante, depois só o nome
+    casados += _casar_unicos(linhas, livres_l, livres_i, lambda a, b: mesmo_modelo(a, b, com_variante=True))
+    casados += _casar_unicos(linhas, livres_l, livres_i, mesmo_modelo)
     # 2) pela descrição
     candidatos = sorted(
         ((max(_semelhanca_descricao(item, x) for x in linhas[i]), -n, -i) for n, item in enumerate(livres_i) for i in livres_l),

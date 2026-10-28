@@ -9,8 +9,9 @@ from app.services.comparacao.itens.casar_itens import casar, casar_base
 from app.services.comparacao.itens.chave_da_linha import chaves_unicas
 from app.services.comparacao.itens.diferencas_do_item import diferencas_item
 from app.services.comparacao.itens.linhas_detalhadas import linhas_a_juntar
+from app.services.comparacao.itens.nome_do_modelo import unidades_de_familias_diferentes
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado
-from app.services.comparacao.normalizacao import normalizar_codigo_item
+from app.services.comparacao.normalizacao import normalizar_codigo_item, unidade_quantidade
 from app.services.comparacao.tipos import Col, Fonte
 
 
@@ -61,13 +62,36 @@ def _agrupar_par(colunas: list[Col]) -> list[ColItens]:
         opcoes = [{} if sem else {"por_descricao": True} for sem in sem_codigo]
     elif not any(sem_codigo):  # variantes de um lado ('7700100 010') contra o código base do outro ('7700100')
         codigos = [{normalizar_codigo_item(i.codigo) for i in ci.itens if i.codigo} for ci in base]
-        opcoes = [{"codigos_base": codigos[1 - n]} for n in range(2)]
+        separar = _unidades_sem_familia_comum(base)  # caixas × dúzias: o código pode ser só o nome do modelo
+        opcoes = [{"codigos_base": codigos[1 - n], "separar_codigos": separar} for n in range(2)]
     base = [ColItens(ci.col, agrupar_itens(ci.col.fontes, **o)) if o else ci for ci, o in zip(base, opcoes)]
     # um documento resume em uma linha o que o outro detalha (por tamanho, cor)
     juntar = [linhas_a_juntar(base[1 - n].itens, ci.itens) for n, ci in enumerate(base)]
     return [
         ColItens(ci.col, agrupar_itens(ci.col.fontes, **o, juntar=j)) if j else ci
         for ci, o, j in zip(base, opcoes, juntar)
+    ]
+
+
+def _unidades_sem_familia_comum(base: list[ColItens]) -> bool:
+    """Toda linha com unidade e nenhuma família de unidade em comum entre os dois documentos."""
+    unidades = [[(l.unidade or "").strip() for f in ci.col.fontes for l in f.doc.itens] for ci in base]
+    if not all(u and all(u) for u in unidades):
+        return False
+    familias = [{unidade_quantidade(u)[0] for u in us} for us in unidades]
+    return not familias[0] & familias[1]
+
+
+def _unidades_sem_conversao(base: list[ColItens], linhas: list) -> list[str]:
+    """Aviso dos pares Invoice × PL com quantidade em unidades de famílias diferentes (caixas × dúzias)."""
+    if len(base) != 2:
+        return []
+    pares = [(linha[base[0].col.chave], linha[base[1].col.chave]) for linha in linhas if len(linha) == 2]
+    unidades = sorted({(a.unidade or "?", b.unidade or "?") for a, b in pares if unidades_de_familias_diferentes(a, b)})
+    return [
+        f"Itens: quantidade em unidades diferentes ({base[0].col.nome_curto} {a} × {base[1].col.nome_curto} {b}); "
+        "não comparada."
+        for a, b in unidades
     ]
 
 
@@ -93,6 +117,7 @@ def _comparar_itens(
     so_conhecimento: bool,
 ) -> tuple[ComparacaoItens, list[Divergencia]]:
     linhas = casar_base(base)
+    avisos.extend(f"{prefixo}{texto}" for texto in _unidades_sem_conversao(base, linhas))
     for c in conhecimentos:
         casados, _, sobras = casar([list(l.values()) for l in linhas], c.itens, generico_nao_casa=True)
         for i, item in casados:

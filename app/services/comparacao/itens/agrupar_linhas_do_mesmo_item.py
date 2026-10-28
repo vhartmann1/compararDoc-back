@@ -15,17 +15,19 @@ from app.services.comparacao.tipos import Fonte
 
 def agrupar_itens(
     fontes: list[Fonte], por_descricao: bool = False, codigos_base: set[str] | None = None,
-    juntar: dict[str, str] | None = None,
+    juntar: dict[str, str] | None = None, separar_codigos: bool = False,
 ) -> list[ItemAgrupado]:
-    """Agrupa as linhas da coluna; opcionalmente por descrição, código base ou linha geral (`juntar`)."""
+    """Agrupa por código; ou descrição, código base, linha geral (`juntar`) e código que o outro não usa."""
     grupos: dict[str, list[tuple[ItemExtraido, str]]] = {}
     bases: dict[str, str] = {}
     gerais: dict[str, str] = {}
     linhas = [(item, f.arquivo.id) for f in fontes for item in f.doc.itens]
     repetidas = _descricoes_com_varios_codigos(linhas) if por_descricao else set()
+    sem_par = _codigos_de_varios_itens(linhas, codigos_base or set()) if separar_codigos else set()
     for i, (item, arquivo_id) in enumerate(linhas):
         descricao = normalizar_descricao(item.descricao)
         codigo = normalizar_codigo_item(item.codigo) if item.codigo and descricao not in repetidas else ""
+        codigo = "" if codigo in sem_par else codigo
         base = codigo_base(item.codigo, codigos_base) if codigo and codigos_base else None
         if base:
             codigo = normalizar_codigo_item(base)
@@ -60,6 +62,15 @@ def _descricoes_com_varios_codigos(linhas: list[tuple[ItemExtraido, str]]) -> se
         if item.codigo:
             codigos.setdefault(normalizar_descricao(item.descricao), set()).add(normalizar_codigo_item(item.codigo))
     return {descricao for descricao, cods in codigos.items() if len(cods) > 1}
+
+
+def _codigos_de_varios_itens(linhas: list[tuple[ItemExtraido, str]], codigos_do_outro: set[str]) -> set[str]:
+    """Código que o outro documento não usa, em linhas de descrições diferentes: não junta, cada uma é um item."""
+    descricoes: dict[str, set[str]] = {}
+    for item, _ in linhas:
+        if item.codigo:
+            descricoes.setdefault(normalizar_codigo_item(item.codigo), set()).add(normalizar_descricao(item.descricao))
+    return {codigo for codigo, d in descricoes.items() if len(d) > 1 and codigo not in codigos_do_outro}
 
 
 def _juntar_linhas(linhas: list[ItemExtraido], arquivo_id: str) -> ItemAgrupado:

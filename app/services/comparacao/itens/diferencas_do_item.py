@@ -7,6 +7,7 @@ from typing import Any
 
 from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.itens.medidas_do_item import descricoes_iguais_pela_medida
+from app.services.comparacao.itens.nome_do_modelo import nome_comeca_o_outro
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado, Linha
 from app.services.comparacao.normalizacao import (
     descricoes_equivalentes,
@@ -48,7 +49,7 @@ def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
         return False  # mesmo código não salva: a potência, a tensão ou o tamanho mudou
     if descricoes_iguais_pela_medida(a.descricao, b.descricao):
         return True  # só a notação da medida muda: '.800 MM x 1250 MM' e '0.800x1250'
-    if _so_o_modelo(a, b) or _so_o_modelo(b, a):
+    if _so_o_modelo(a, b) or _so_o_modelo(b, a) or nome_comeca_o_outro(a, b):
         return True
     ra, rb = _referencia_de_modelo(a), _referencia_de_modelo(b)
     sem_conflito = mesmo_codigo or not (ra and rb) or _referencia_da_curta(a, b)
