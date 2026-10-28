@@ -11,12 +11,14 @@ from app.schemas import (
     TipoDocumento,
 )
 from app.services.comparacao.cabecalho_e_assinatura import avisos_do_cabecalho
+from app.services.comparacao.capital_nos_documentos import divergencias_da_capital
 from app.services.comparacao.coerencia_incoterm_frete import divergencias_de_coerencia
 from app.services.comparacao.colunas_da_comparacao import montar_comparacoes
 from app.services.comparacao.comparar_campos import comparar_colunas
-from app.services.comparacao.conferencia_do_notify import avisos_do_notify
+from app.services.comparacao.conferencia_do_notify import avisos_do_notify, divergencias_do_notify
 from app.services.comparacao.constantes import CAMPOS_SEMPRE_VISIVEIS
 from app.services.comparacao.escolha_dos_documentos import escolher_documentos
+from app.services.comparacao.frete_somado_ao_total import divergencias_de_frete_no_total
 from app.services.comparacao.identificacao_do_documento import ref_documento
 from app.services.comparacao.inconsistencias_internas import avisos_amostras, avisos_pais_origem, divergencias_internas
 from app.services.comparacao.itens.comparar_itens import comparar_todos_os_itens
@@ -51,11 +53,15 @@ def comparar(
     divergencias.extend(d for f in usados + escolha.fora_da_soma for d in divergencias_internas(f))
     divergencias.extend(divergencias_entre_versoes(usados))
     divergencias.extend(divergencias_do_checklist(por_tipo["invoice"]))
+    divergencias.extend(divergencias_de_frete_no_total(por_tipo["invoice"]))
+    divergencias.extend(divergencias_da_capital(grupos, conhecimentos, modalidade))
+    divergencias.extend(divergencias_do_notify(por_tipo["invoice"], conhecimentos))
     avisos.extend(avisos_entre_versoes(usados))
     avisos.extend(avisos_do_cabecalho(usados + escolha.fora_da_soma))
     avisos.extend(avisos_amostras(por_tipo["invoice"]))
     avisos.extend(avisos_pais_origem(por_tipo["invoice"]))
-    avisos.extend(avisos_do_notify(por_tipo["invoice"] + por_tipo["packing_list"], conhecimentos))
+    invoices_e_pls = por_tipo["invoice"] + por_tipo["packing_list"]
+    avisos.extend(avisos_do_notify(por_tipo["invoice"], invoices_e_pls, conhecimentos))
     return ResultadoComparacao(
         status=_status_geral(por_tipo, comparacoes, divergencias),
         documentos=[ref_documento(f) for f in usados],
