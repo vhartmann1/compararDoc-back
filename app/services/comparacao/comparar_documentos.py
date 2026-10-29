@@ -23,7 +23,7 @@ from app.services.comparacao.identificacao_do_documento import ref_documento
 from app.services.comparacao.inconsistencias_internas import avisos_amostras, avisos_pais_origem, divergencias_internas
 from app.services.comparacao.itens.comparar_itens import comparar_todos_os_itens
 from app.services.comparacao.pareamento_invoice_packing_list import parear
-from app.services.comparacao.presenca_no_checklist import divergencias_do_checklist
+from app.services.comparacao.presenca_no_checklist import avisos_do_checklist, divergencias_do_checklist
 from app.services.comparacao.tipos import Contexto, Fonte
 from app.services.comparacao.versoes_com_valor_diferente import avisos_entre_versoes, divergencias_entre_versoes
 
@@ -60,6 +60,7 @@ def comparar(
     avisos.extend(avisos_do_cabecalho(usados + escolha.fora_da_soma))
     avisos.extend(avisos_amostras(por_tipo["invoice"]))
     avisos.extend(avisos_pais_origem(por_tipo["invoice"]))
+    avisos.extend(avisos_do_checklist(grupos, conhecimentos))
     invoices_e_pls = por_tipo["invoice"] + por_tipo["packing_list"]
     avisos.extend(avisos_do_notify(por_tipo["invoice"], invoices_e_pls, conhecimentos))
     return ResultadoComparacao(
