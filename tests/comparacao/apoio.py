@@ -67,14 +67,21 @@ def doc(tipo, liquido=None, bruto=None, ncms=(), versao="original", unidade="KG"
 
 
 def item(codigo, descricao, quantidade=None, unidade=None, lotes=(), validades=(), foc=False, valor=None, pagina=None,
-         referencia=None):
+         referencia=None, liquido=None, bruto=None, volumes=None):
+    def kg(v):
+        return None if v is None else Medida(valor=v, unidade="KG", texto_original=f"{v} KG", pagina=pagina)
+
     return ItemExtraido(codigo=codigo, descricao=descricao, referencia=referencia, lotes=list(lotes),
                         validades=list(validades), quantidade=quantidade, unidade=unidade, sem_valor_comercial=foc,
-                        valor_total=valor, pagina=pagina)
+                        valor_total=valor, pagina=pagina, peso_liquido=kg(liquido), peso_bruto=kg(bruto),
+                        volumes=None if volumes is None else Contagem(valor=volumes[0], unidade=volumes[1],
+                                                                       texto_original=f"{volumes[0]} {volumes[1]}",
+                                                                       pagina=pagina))
 
 
-def rodar(*docs_por_arquivo, modalidade=None):
-    entradas = [(arquivo(f"a{i}"), ExtracaoArquivo(documentos=list(docs))) for i, docs in enumerate(docs_por_arquivo)]
+def rodar(*docs_por_arquivo, modalidade=None, escaneado=None):
+    entradas = [(arquivo(f"a{i}"), ExtracaoArquivo(documentos=list(docs), escaneado=escaneado))
+                for i, docs in enumerate(docs_por_arquivo)]
     return comparar(entradas, modalidade)
 
 

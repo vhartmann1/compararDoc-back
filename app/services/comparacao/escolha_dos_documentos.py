@@ -37,7 +37,7 @@ def escolher_documentos(
     for i, (arquivo, extracao) in enumerate(extracoes):
         for j, doc in enumerate(extracao.documentos):
             if doc.tipo in por_tipo:
-                por_tipo[doc.tipo].append(Fonte(arquivo, doc, (i, j)))
+                por_tipo[doc.tipo].append(Fonte(arquivo, doc, (i, j), escaneado=extracao.escaneado))
         if extracao.documentos and all(d.tipo not in por_tipo for d in extracao.documentos):
             lidos = ", ".join(dict.fromkeys(d.subtipo or "documento de outro tipo" for d in extracao.documentos))
             avisos.append(f"{arquivo.nome} não entrou na comparação: não é invoice, packing list nem conhecimento ({lidos}).")

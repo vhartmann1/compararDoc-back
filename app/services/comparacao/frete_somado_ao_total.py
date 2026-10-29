@@ -18,7 +18,7 @@ def _frete_no_total(f: Fonte) -> Divergencia | None:
     total, mercadoria = f.doc.valor_total, _soma_das_linhas(f)
     if sigla not in INCOTERMS_EF or total is None or mercadoria is None:
         return None
-    somados = _parcelas_que_fecham(f, total.valor - mercadoria)
+    somados = parcelas_que_fecham(f, total.valor - mercadoria)
     if not somados:
         return None
     moeda = total.moeda
@@ -36,7 +36,7 @@ def _soma_das_linhas(f: Fonte) -> float | None:
     return sum(valores) if valores and None not in valores else None
 
 
-def _parcelas_que_fecham(f: Fonte, diferenca: float) -> list[tuple[str, float]]:
+def parcelas_que_fecham(f: Fonte, diferenca: float) -> list[tuple[str, float]]:
     """Frete e/ou seguro informados cuja soma é exatamente o que o total tem a mais que as linhas."""
     parcelas = [(nome, v.valor) for nome, v in (("frete", f.doc.valor_frete), ("seguro", f.doc.valor_seguro))
                 if v is not None and v.valor > 0]

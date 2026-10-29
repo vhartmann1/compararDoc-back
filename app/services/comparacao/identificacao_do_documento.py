@@ -18,13 +18,20 @@ def e_proforma(doc: DocumentoExtraido) -> bool:
 
 def nome_doc(f: Fonte) -> str:
     """'Invoice L30518777', 'Proforma PI-9', 'AWB 123-4567 8901'; sem número, pelo arquivo: 'Packing List (PL.pdf)'."""
-    if f.doc.tipo == "conhecimento":
-        nome = f.doc.subtipo or "Conhecimento"
-    elif e_proforma(f.doc):
-        nome = "Proforma"
-    else:
-        nome = NOME_TIPO[f.doc.tipo]
+    nome = nome_do_tipo(f)
     return f"{nome} {f.doc.numero}" if f.doc.numero else f"{nome} ({f.arquivo.nome})"
+
+
+def nome_doc_escaneado(f: Fonte) -> str:
+    """'Invoice 7 (INV.pdf, escaneado)'; sem número: 'Packing List (PL.pdf, escaneado)'."""
+    nome = " ".join(filter(None, (nome_do_tipo(f), f.doc.numero)))
+    return f"{nome} ({f.arquivo.nome}, escaneado)"
+
+
+def nome_do_tipo(f: Fonte) -> str:
+    if f.doc.tipo == "conhecimento":
+        return f.doc.subtipo or "Conhecimento"
+    return "Proforma" if e_proforma(f.doc) else NOME_TIPO[f.doc.tipo]
 
 
 def numero_normalizado(numero: str | None) -> str:

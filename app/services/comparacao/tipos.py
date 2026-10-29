@@ -15,6 +15,7 @@ class Fonte:
     ordem: tuple[int, int]  # (posição do arquivo no envio, posição do documento no arquivo)
     invoice_par: DocumentoExtraido | None = None  # para packing list: a invoice com quem foi pareado
     duplicatas: list["Fonte"] = field(default_factory=list)  # o mesmo documento em outros arquivos, do melhor ao pior
+    escaneado: bool | None = None  # imagem ou scan; None quando não se sabe
 
 
 @dataclass
