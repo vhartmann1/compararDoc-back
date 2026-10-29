@@ -52,9 +52,9 @@ formas (ex.: "70012345 / 0070012345"), liste as duas. Numa invoice, deixe [] (o 
 `numero`). Proforma ("PI", "Proforma Invoice") e contrato ("Sales Contract", "S/C No.") não são invoice: \
 não liste.
 - `po`: número do pedido do comprador (PO, Purchase Order, Pedido, "Your Order", "Your Ref.", \
-"Customer Ref."). Se o documento traz também a referência interna do vendedor ("Our Ref.", "Our Order", \
-Sales Order, "Order No." do vendedor), use a do comprador; só use a do vendedor se for a única. \
-Número de proforma ("PI") ou de contrato não é PO.
+"Customer Ref."). Referência do vendedor nunca é PO: "Sales Order", "S/O", "Order Confirmation", \
+"Our Ref.", "Our Order", "Order No." do vendedor. Ex.: "Your reference:" em branco e "Sales Order No. 7730041" \
+=> null. Sem o pedido do comprador, null. Número de proforma ("PI") ou de contrato não é PO.
 - `versao`: `original` se o documento se identifica como ORIGINAL; `draft` se for rascunho (DRAFT, \
 "for approval"); `copia` se for COPY / NON-NEGOTIABLE COPY / cópia; `desconhecida` se não der \
 para saber (comum em Word/Excel).
@@ -98,9 +98,12 @@ USD 9,000.00" => 9000.0; incoterm FOB com "Total FOB USD 8,400.00" e só "Total 
 referência => 8400.0; linhas "Valve 120.00", "Pump 380.00", "Freight 25.00" e "Total 525.00" => 525.0. \
 Null em packing list e conhecimento.
 - `valor_frete` e `valor_seguro`: o valor do frete ("Freight", "Ocean freight", "Flete") e do seguro \
-("Insurance") quando o documento informa um valor, com a moeda. No conhecimento, só o frete básico do quadro \
-de fretes (linha "Ocean freight"/"Air freight"/"Frete"), nunca taxas (THC, BAF, documentação, AFRMM, \
-tratamento de embalagem de madeira) nem a soma delas. Sem valor de frete => null.
+("Insurance") quando o documento informa um valor, com a moeda. No conhecimento, o frete marítimo/aéreo: \
+a linha "Ocean freight"/"Air freight"/"Frete" do quadro de fretes; sem essa linha, o total do campo \
+"Total Freight Prepaid"/"Total Freight Collect". Nunca taxas locais (THC, BAF, documentação, AFRMM, \
+tratamento de embalagem de madeira), nem a soma delas, nem o "LUMPSUM" de uma folha de taxas. Ex.: quadro \
+"Total Freight Prepaid 9,310.00" e folha anexa "THC ORIGIN 650.00 ... LUMPSUM USD 4,200.00" => 9310.0. \
+Sem valor de frete => null.
 - `peso_liquido_total` e `peso_bruto_total`: o **total** do documento (soma de todos os itens / \
 containers), não o peso de um item. Se só houver pesos por item e nenhum total, deixe null. Se o \
 documento traz dois pesos brutos totais, um sem e outro com a embalagem de transporte (pallets, \
