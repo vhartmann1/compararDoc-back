@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
 StatusProcessamento = Literal["PROCESSANDO", "CONCLUIDA", "ERRO"]
 Etapa = Literal["RECEBIDO", "LENDO_DOCUMENTOS", "COMPARANDO", "FINALIZADO"]
@@ -104,13 +105,16 @@ class ItemExtraido(BaseModel):
     unidade: str | None = Field(description="Unidade da quantidade como aparece: 'PCS', 'PAIRS', 'TON', 'KG'...")
     sem_valor_comercial: bool = Field(description="Linha marcada como FOC / free of charge / no commercial value")
     valor_total: float | None = Field(description="Valor total da linha (preço × quantidade), se houver")
+    peso_liquido: Medida | None = Field(default=None, description="Peso líquido da linha, se a tabela traz por linha")
+    peso_bruto: Medida | None = Field(default=None, description="Peso bruto da linha, se a tabela traz por linha")
+    volumes: Contagem | None = Field(default=None, description="Volumes/embalagens da linha, se a tabela traz por linha")
     pagina: int | None
 
 
 class InconsistenciaInterna(BaseModel):
     descricao: str = Field(
         description="Contradição objetiva DENTRO deste documento, em português, ex. "
-        "'Peso líquido do rodapé (1.712,00) diferente do total da tabela (1.540,00)'"
+        "'Peso líquido do rodapé (1.712,00) diferente do da linha de total (1.540,00)'"
     )
     evidencia: str = Field(description="Trechos do documento que se contradizem, citados literalmente")
     pagina: int | None
@@ -197,6 +201,7 @@ class ExtracaoArquivo(BaseModel):
     paginas_giradas: list[PaginaGirada] = Field(
         default_factory=list, description="Páginas escaneadas de lado ou invertidas; [] se todas estão na posição normal"
     )
+    escaneado: SkipJsonSchema[bool | None] = None  # preenchido pelo código (documento_escaneado), fora do schema do modelo
 
 
 # ---------------------------------------------------------------------------

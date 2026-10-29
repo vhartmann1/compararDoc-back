@@ -62,6 +62,7 @@ def montar_extracoes(analise_id: str, por_arquivo: dict[str, Documento], gravado
             "_id": arquivo_id,
             "analise_id": analise_id,
             "documentos": extracao.get("documentos", []),
+            "escaneado": extracao.get("escaneado"),
             "gravado_em": gravado_em,
         }
         for arquivo_id, extracao in por_arquivo.items()
@@ -94,4 +95,7 @@ def ler_resultado(analise_id: str) -> Documento | None:
 
 def ler_extracoes(arquivo_ids: list[str]) -> dict[str, Documento]:
     """arquivo_id -> extração gravada; arquivo sem extração fica de fora."""
-    return {e["_id"]: {"documentos": e["documentos"]} for e in extracoes.find({"_id": {"$in": arquivo_ids}})}
+    return {
+        e["_id"]: {"documentos": e["documentos"], "escaneado": e.get("escaneado")}
+        for e in extracoes.find({"_id": {"$in": arquivo_ids}})
+    }

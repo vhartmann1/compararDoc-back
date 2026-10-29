@@ -9,7 +9,10 @@ from pymongo.errors import PyMongoError
 from app import mongo
 
 RESULTADO = {"status": "OK", "documentos": [], "comparacoes": [], "itens": [], "divergencias": [], "avisos": []}
-POR_ARQUIVO = {"arquivo-b": {"documentos": [{"tipo": "invoice"}]}, "arquivo-a": {"documentos": []}}
+POR_ARQUIVO = {
+    "arquivo-b": {"documentos": [{"tipo": "invoice"}], "escaneado": True},
+    "arquivo-a": {"documentos": [], "escaneado": False},
+}
 AGORA = datetime(2026, 1, 1, tzinfo=UTC)
 
 
@@ -19,8 +22,9 @@ def test_resultado_vira_um_documento_com_o_id_da_analise():
 
 def test_cada_arquivo_vira_um_documento_de_extracao_com_o_id_dele():
     assert mongo.montar_extracoes("analise-1", POR_ARQUIVO, AGORA) == [
-        {"_id": "arquivo-b", "analise_id": "analise-1", "documentos": [{"tipo": "invoice"}], "gravado_em": AGORA},
-        {"_id": "arquivo-a", "analise_id": "analise-1", "documentos": [], "gravado_em": AGORA},
+        {"_id": "arquivo-b", "analise_id": "analise-1", "documentos": [{"tipo": "invoice"}], "escaneado": True,
+         "gravado_em": AGORA},
+        {"_id": "arquivo-a", "analise_id": "analise-1", "documentos": [], "escaneado": False, "gravado_em": AGORA},
     ]
 
 
@@ -75,7 +79,8 @@ def test_regravar_substitui_em_vez_de_duplicar(colecoes_temporarias):
 
 def test_le_as_extracoes_gravadas_por_arquivo(colecoes_temporarias):
     mongo.salvar("analise-1", RESULTADO, POR_ARQUIVO)
-    assert mongo.ler_extracoes(["arquivo-b", "nao-existe"]) == {"arquivo-b": {"documentos": [{"tipo": "invoice"}]}}
+    lidas = mongo.ler_extracoes(["arquivo-b", "nao-existe"])
+    assert lidas == {"arquivo-b": {"documentos": [{"tipo": "invoice"}], "escaneado": True}}
 
 
 def test_regravar_so_o_resultado_mantem_as_extracoes(colecoes_temporarias):

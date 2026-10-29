@@ -194,16 +194,18 @@ lotes, liste os dois. `validades`: validade(s)/expiry/vencimento da linha como a
 número de volumes/caixas/bolsas, a não ser que seja a única quantidade.
   - `sem_valor_comercial`: true se a linha é FOC / free of charge / no commercial value / sin valor comercial.
   - `valor_total`: o valor total da linha (amount), se houver; mesmo em linha FOC, copie o valor que estiver \
-escrito. `pagina` como nos demais.
+escrito.
+  - `peso_liquido`, `peso_bruto` e `volumes`: o peso líquido, o peso bruto e os volumes/embalagens da linha, \
+quando a tabela traz por linha (no mesmo formato dos totais); null se a linha não traz. Copie cada linha como \
+está, mesmo que a soma não feche com o total. `pagina` como nos demais.
 
 ## 3. Inconsistências internas
 Em `inconsistencias_internas`, liste só **contradições objetivas dentro do mesmo documento**: o próprio \
 documento afirma duas coisas incompatíveis sobre o mesmo dado. Cada uma com `descricao` (em português, \
 curta, citando os dois valores) e `evidencia` (os trechos que se contradizem, copiados literalmente). \
 Exemplos do tipo de coisa que procuramos:
-- totais que não batem entre si: total da tabela × total do rodapé (ex.: peso líquido e bruto trocados \
-entre a linha de total e o rodapé: NW 1.540,00 / GW 1.712,00 × N.W 1.712,00 / G.W 1.540,00); total por \
-extenso ("SAY: ...") diferente do total numérico;
+- o mesmo total escrito com valores diferentes em dois lugares (ex.: linha de total "NW 1.540,00" e rodapé \
+"N.W 1.712,00"); total por extenso ("SAY: ...") diferente do total numérico;
 - endereço da mesma empresa com rua, número ou CEP diferentes, em dois lugares do documento ou no mesmo bloco, \
 não só abreviado ou formatado de outro jeito (ex.: cabeçalho "Harbor Light Trading Ltd., 45 Quay Road" e \
 carimbo "Harbor Light Trading Ltd., 54 Quay Road"; um bloco com "CEP 89010-120" e, mais abaixo, "89010-210");
@@ -222,6 +224,8 @@ Não entra (deixe a lista vazia se nada disso existir):
 - suposições sobre plausibilidade (ex.: endereço que parece de outra cidade, data estranha) sem que o \
 próprio documento se contradiga;
 - item FOC com valor cobrado (o sistema verifica isso pelos itens);
+- soma das linhas diferente do total (valor, quantidade, volumes ou peso) e peso bruto menor que o líquido: \
+o sistema calcula isso pelos itens e totais extraídos, não faça a conta;
 - total que difere do subtotal da mercadoria exatamente por uma linha de frete, seguro ou embalagem listada \
 no próprio documento (ex.: "Subtotal 2.000,00", "Freight 300,00", "Total 2.300,00"): o quadro fecha.
 Seja rigoroso: na dúvida, não liste.
