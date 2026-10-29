@@ -60,7 +60,7 @@ def _soma_dos_valores(f: Fonte) -> ContaQueNaoFecha | None:
     total, valores = f.doc.valor_total, [i.valor_total for i in f.doc.itens]
     if total is None or not valores or None in valores:
         return None
-    soma = fsum(valores)
+    soma = fsum(valores) + fsum(d.valor for d in f.doc.outras_despesas)  # taxas e descontos fora da mercadoria
     if abs(soma - total.valor) < 0.005 or parcelas_que_fecham(f, abs(total.valor - soma)):
         return None  # fecha sozinha ou com o frete/seguro informados, no total ou nas linhas (CFR com total FOB)
     moeda = total.moeda or (f.doc.moeda.valor if f.doc.moeda else None)

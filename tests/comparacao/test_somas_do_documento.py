@@ -1,4 +1,4 @@
-from app.schemas import ValorMonetario
+from app.schemas import OutraDespesa, ValorMonetario
 from tests.comparacao.apoio import doc, item, mensagens, rodar
 
 
@@ -93,3 +93,19 @@ def test_frete_que_nao_explica_a_diferenca_continua_acusando():
     d = _invoice(1531.00, 1000.00, 500.00)
     frete = ValorMonetario(valor=30.0, moeda="USD", texto_original="30.00", pagina=1)
     assert len(mensagens(rodar([d.model_copy(update={"valor_frete": frete})], escaneado=False), "interna")) == 1
+
+
+def _com_despesas(d, *valores):
+    despesas = [OutraDespesa(descricao=f"TAXA {n}", valor=v, texto_original=str(v), pagina=1)
+                for n, v in enumerate(valores)]
+    return d.model_copy(update={"outras_despesas": despesas})
+
+
+def test_outras_despesas_e_descontos_entram_na_soma():
+    d = _com_despesas(_invoice(1530.00, 1000.00, 500.00), 50.0, -20.0)
+    assert not mensagens(rodar([d], escaneado=False), "interna")
+
+
+def test_despesa_que_nao_explica_a_diferenca_continua_acusando():
+    d = _com_despesas(_invoice(1530.00, 1000.00, 500.00), 25.0)
+    assert len(mensagens(rodar([d], escaneado=False), "interna")) == 1
