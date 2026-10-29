@@ -118,6 +118,7 @@ def _enviar(*arquivos_e_docs):
 
 
 PDF, XLSX = "application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+XLS = "application/vnd.ms-excel"
 
 
 @pytest.mark.parametrize("pdf_primeiro", [True, False])
@@ -126,7 +127,7 @@ def test_mesmo_documento_em_pdf_e_excel_usa_o_pdf_em_qualquer_ordem(pdf_primeiro
     excel = ("CI.xlsx", XLSX, [doc("invoice", 100, 110, ["39221000"], numero="A1")])
     pl = ("PL.pdf", PDF, [doc("packing_list", 100, 110, refs=["A1"])])
     r = _enviar(*([pdf, excel] if pdf_primeiro else [excel, pdf]), pl)
-    assert any("usado original (CI.pdf" in a for a in r.avisos)
+    assert any("usado CI.pdf (original, pág. 1), por ser o PDF (vale mais que Excel ou Word)" in a for a in r.avisos)
     assert campo(r.comparacoes[0], "ncm").valores["invoice"].exibicao == "6910.10.00"
 
 
@@ -135,7 +136,7 @@ def test_versao_vale_mais_que_o_formato():
         ("INV.xlsx", XLSX, [doc("invoice", 100, 110, numero="A1", versao="draft")]),
         ("INV.pdf", PDF, [doc("invoice", 100, 110, numero="A1", versao="original")]),
     )
-    assert any("usado original (INV.pdf" in a for a in r.avisos)
+    assert any("usado INV.pdf (original, pág. 1), pela versão lida no documento" in a for a in r.avisos)
 
 
 def test_campo_que_falta_no_documento_usado_vem_da_duplicata():
@@ -155,7 +156,7 @@ def test_proforma_com_o_numero_da_invoice_nao_vence_a_invoice():
         ("INVOICE.pdf", PDF, [doc("invoice", 100, 110, numero="A1")]),
         ("PROFORMA INVOICE.pdf", PDF, [doc("invoice", 100, 110, numero="A1")]),
     )
-    assert any("usado original (INVOICE.pdf" in a for a in r.avisos)
+    assert any("usado INVOICE.pdf (original, pág. 1), porque o outro é proforma" in a for a in r.avisos)
 
 
 def test_arquivo_que_nao_e_invoice_pl_nem_conhecimento_gera_aviso():
@@ -227,7 +228,8 @@ def test_rascunho_pelo_nome_perde_para_o_original_com_os_mesmos_totais():
         ("CI ORIGINAL.pdf", PDF, [doc("invoice", 100, 110, versao="desconhecida")]),
         ("CI DRAFT.pdf", PDF, [doc("invoice", 100, 110, versao="desconhecida")]),
     )
-    assert any("usado desconhecida (CI ORIGINAL.pdf" in a for a in r.avisos)
+    usado = "usado CI ORIGINAL.pdf (pág. 1), pelo nome do arquivo (original × rascunho ou cópia)"
+    assert any(usado in a for a in r.avisos)
 
 
 def test_planilha_resumo_de_duas_invoices_sai_da_soma():
@@ -279,10 +281,11 @@ def test_proforma_em_dois_arquivos_e_conferida_por_dentro_uma_vez_com_o_proprio_
     assert "Proforma PI-9 (PI.pdf, pág. 1) não entrou na comparação: há invoice comercial." in r.avisos
 
 
-def test_mesma_carga_renumerada_em_excel_e_pdf_conta_uma_vez_com_aviso_do_numero():
+@pytest.mark.parametrize("planilha", [("CI.xlsx", XLSX), ("CI.xls", XLS)])
+def test_mesma_carga_renumerada_em_excel_e_pdf_conta_uma_vez_com_aviso_do_numero(planilha):
     linhas = [item(None, "CAPACETE MODELO ORION TAM M", 120, "PCS"), item(None, "VISEIRA FUME", 40, "PCS")]
     r = _enviar(
-        ("CI.xlsx", XLSX, [doc("invoice", 300.4, 350.6884, numero="Z-009", itens=linhas, pagina=None)]),
+        (*planilha, [doc("invoice", 300.4, 350.6884, numero="Z-009", itens=linhas, pagina=None)]),
         ("CI.pdf", PDF, [doc("invoice", 300.4, 350.69, numero="Z-050", itens=linhas)]),
         ("PL.pdf", PDF, [doc("packing_list", 300.4, 350.69, refs=["Z-050"], itens=linhas)]),
     )

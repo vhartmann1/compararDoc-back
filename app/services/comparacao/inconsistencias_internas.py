@@ -1,5 +1,7 @@
 """Inconsistências internas (do modelo + determinísticas)."""
 
+import re
+
 from app.schemas import Divergencia
 from app.services.comparacao.cabecalho_e_assinatura import divergencias_do_cabecalho
 from app.services.comparacao.encurtar_texto import encurtar
@@ -15,7 +17,7 @@ def divergencias_internas(f: Fonte) -> list[Divergencia]:
             categoria="interna",
             comparacao_id=None,
             campo=None,
-            mensagem=f"{nome}: {i.descricao}",
+            mensagem=f"{nome}: {sem_leitura_entre_parenteses(i.descricao)}",
             documento=ref_documento(f),
             evidencia=i.evidencia,
             pagina=i.pagina,
@@ -42,6 +44,14 @@ def divergencias_internas(f: Fonte) -> list[Divergencia]:
                 )
             )
     return divergencias
+
+
+LIDO_COMO = re.compile(r"(?i)\s*\(lid[oa]s? como [^()]*\)")
+
+
+def sem_leitura_entre_parenteses(texto: str) -> str:
+    """'escrito 101,00.00 (lido como 10.100,00)' -> 'escrito 101,00.00': como o modelo leu não interessa ao usuário."""
+    return LIDO_COMO.sub("", texto)
 
 
 def so_amostras(f: Fonte) -> bool:

@@ -12,8 +12,8 @@ def test_caso_4_par_divergencias():
     assert campo(par2, "quantidade").status == "DIVERGENTE"  # 200 PAIRS × 210 pair
     assert campo(par2, "peso_bruto").status == "OK"
     mensagens = [d.mensagem for d in r.divergencias]
-    assert "Par 2 (L30518777) — Peso líquido: Invoice 113,20 kg × Packing List 130,20 kg" in mensagens
-    assert ("Par 1 (L30514262) — Exportador: Invoice Orion Pacific Trading Co., Ltd. × "
+    assert "Invoice L30518777 — Peso líquido: Invoice 113,20 kg × Packing List 130,20 kg" in mensagens
+    assert ("Invoice L30514262 — Exportador: Invoice Orion Pacific Trading Co., Ltd. × "
             "Packing List Delta Fast-Run Footwear Ltd.") in mensagens
 
 
@@ -61,7 +61,7 @@ def test_caso_6():
     mensagens = [d.mensagem for d in r.divergencias]
     assert mensagens == [
         "Peso bruto: BL 24.000,00 kg × Invoice/Packing List 24.592,00 kg",
-        "NCM: Packing List 3904.10.20 × Invoice/BL 3904.10.10",
+        "NCM: Packing List cita o NCM 3904.10.20 no lugar do NCM 3904.10.10, que consta em Invoice/BL; pedir correção.",
         "Nº da invoice: Invoice 0077032707 × Packing List 70023077",
         "PO: Invoice 246731-01 × Packing List 243918-01",
         "Porto de destino: Invoice ITAPOA × BL NAVEGANTES",

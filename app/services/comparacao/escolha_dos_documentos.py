@@ -4,7 +4,13 @@ import re
 from dataclasses import dataclass
 
 from app.schemas import ArquivoEntrada, DocumentoExtraido, ExtracaoArquivo, ItemExtraido, TipoDocumento
-from app.services.comparacao.constantes import NOME_TIPO, PRIORIDADE_FORMATO, PRIORIDADE_VERSAO, TIPOS
+from app.services.comparacao.constantes import (
+    MEDIAS_DE_ESCRITORIO,
+    NOME_TIPO,
+    PRIORIDADE_FORMATO,
+    PRIORIDADE_VERSAO,
+    TIPOS,
+)
 from app.services.comparacao.identificacao_do_documento import PROFORMA, e_proforma, nome_doc, numero_normalizado
 from app.services.comparacao.normalizacao import (
     descricoes_equivalentes,
@@ -15,7 +21,7 @@ from app.services.comparacao.normalizacao import (
     unidade_quantidade,
 )
 from app.services.comparacao.tipos import Fonte
-from app.services.leitura.arquivo_para_conteudo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLSX
+from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF
 
 
 @dataclass
@@ -62,7 +68,8 @@ def _melhores_versoes(
             escolhidos[tipo].append(melhor)
             if ignorados:
                 avisos.append(
-                    f"Mais de um documento {nome_doc(melhor)}; usado {_descrever(melhor)}. "
+                    f"Mais de um documento {nome_doc(melhor)}; usado {_descrever(melhor)}, "
+                    f"{_motivo(melhor, ignorados[0])}. "
                     f"Ignorado(s): {'; '.join(_descrever(f) + _diferencas(melhor, f) for f in ignorados)}."
                 )
         escolhidos[tipo].sort(key=lambda f: f.ordem)
@@ -182,7 +189,7 @@ def _mesmo_documento(a: Fonte, b: Fonte, citados: set[str]) -> bool:
 def _mesma_carga_em_outro_formato(a: Fonte, b: Fonte, citados: set[str]) -> bool:
     """Excel/Word × PDF com outro número, mesmos totais e itens, e o número do Excel/Word não citado: renumerado."""
     pdf, office = (a, b) if a.arquivo.media_type == MEDIA_PDF else (b, a)
-    if pdf.arquivo.media_type != MEDIA_PDF or office.arquivo.media_type not in (MEDIA_XLSX, MEDIA_DOCX):
+    if pdf.arquivo.media_type != MEDIA_PDF or office.arquivo.media_type not in MEDIAS_DE_ESCRITORIO:
         return False
     if numero_normalizado(office.doc.numero) in citados:
         return False  # outro documento cita esse número: é outra invoice, não uma versão antiga
@@ -270,7 +277,29 @@ def _totais_diferentes(melhor: Fonte, outra: Fonte) -> str:
 
 
 def _descrever(f: Fonte) -> str:
-    return f"{f.doc.versao} ({_onde(f)})"
+    """'BL.pdf (original, pág. 1)': o arquivo, com a versão quando a leitura a identificou."""
+    paginas = ", ".join(str(p) for p in f.doc.paginas)
+    partes = [NOME_VERSAO.get(f.doc.versao, ""), f"pág. {paginas}" if paginas else ""]
+    detalhe = ", ".join(p for p in partes if p)
+    return f"{f.arquivo.nome} ({detalhe})" if detalhe else f.arquivo.nome
+
+
+NOME_VERSAO = {"original": "original", "copia": "cópia", "draft": "rascunho"}
+MOTIVOS = (
+    "porque o outro é proforma",
+    "pela versão lida no documento",
+    "pelo nome do arquivo (original × rascunho ou cópia)",
+    "por ser a revisão mais nova pelo nome do arquivo",
+    "por ser o PDF (vale mais que Excel ou Word)",
+    "por trazer o número",
+    "por ser o último enviado",
+)
+
+
+def _motivo(melhor: Fonte, outra: Fonte) -> str:
+    """O primeiro critério de `_preferencia` em que o usado vence o ignorado."""
+    pares = zip(_preferencia(melhor), _preferencia(outra))
+    return next((m for m, (a, b) in zip(MOTIVOS, pares) if a != b), MOTIVOS[-1])
 
 
 def _onde(f: Fonte) -> str:

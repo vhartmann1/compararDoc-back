@@ -13,8 +13,12 @@ def _da_capital_no_conhecimento(col: Col, valor: Valor) -> bool:
 
 def _do_cliente(col: Col, valor: Valor) -> bool:
     """Invoice/PL sem nenhum sinal da Capital: nem o nome nem a raiz do CNPJ."""
-    # Não usa eh_capital de propósito: lá o CNPJ decide, e um CNPJ da Capital lido errado viraria cliente.
-    return not col.chave.startswith("conhecimento") and not any(
+    return not col.chave.startswith("conhecimento") and sem_sinal_da_capital(valor)
+
+
+def sem_sinal_da_capital(valor: Valor) -> bool:
+    """Nem o nome nem a raiz do CNPJ da Capital (não usa eh_capital: um CNPJ lido errado viraria cliente)."""
+    return not any(
         "CAPITAL TRADE" in nome.upper() or (cnpj or "").startswith(CNPJ_RAIZ_CAPITAL) for nome, cnpj, _ in valor.chave
     )
 

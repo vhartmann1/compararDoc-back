@@ -39,7 +39,7 @@ class Col:
 @dataclass
 class Contexto:
     comparacao_id: str
-    prefixo: str  # "Par 1 (L30518777) — " ou ""
+    prefixo: str  # "Invoice L30518777 — " ou ""
     avisos: list[str]
     modalidade: Modalidade | None = None
     divergencias: list[Divergencia] = field(default_factory=list)

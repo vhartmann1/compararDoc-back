@@ -1,7 +1,7 @@
 """Constantes das regras de comparação."""
 
 from app.schemas import NomeCampo, TipoDocumento
-from app.services.leitura.arquivo_para_conteudo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLSX
+from app.services.leitura.arquivo_para_conteudo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX
 
 # Até 0,5 kg (inclusive) de diferença não é divergência; mudou a regra, atualize o contrato e os testes.
 TOLERANCIA_PESO_KG = 0.5
@@ -17,7 +17,8 @@ NOME_TIPO: dict[TipoDocumento, str] = {
 PRIORIDADE_VERSAO = {"original": 3, "copia": 2, "draft": 1, "desconhecida": 0}
 
 # Mesmo documento em dois formatos: vale o PDF emitido, que em tese não foi editado; Excel/Word só completam
-PRIORIDADE_FORMATO = {MEDIA_PDF: 2, MEDIA_XLSX: 1, MEDIA_DOCX: 1}
+PRIORIDADE_FORMATO = {MEDIA_PDF: 2, MEDIA_XLSX: 1, MEDIA_XLS: 1, MEDIA_DOCX: 1}
+MEDIAS_DE_ESCRITORIO = (MEDIA_XLSX, MEDIA_XLS, MEDIA_DOCX)  # planilha ou Word: perde para o PDF do mesmo documento
 
 ROTULOS: dict[NomeCampo, str] = {
     "peso_liquido": "Peso líquido",

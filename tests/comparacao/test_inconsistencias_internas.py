@@ -50,3 +50,11 @@ def test_invoice_que_mistura_item_cobrado_e_foc_cobrado_continua_apontando():
         item("A-2", "LUMINARIA INFANTIL", 1, "PCS", foc=True, valor=8.0),
     ])])
     assert mensagens(r, "interna") == ["Invoice S-2: item A-2 marcado como FOC (sem valor comercial), mas cobrado 8,00"]
+
+
+def test_leitura_entre_parenteses_sai_da_mensagem():
+    interna = ("Total escrito 5,00.00 (lido como 500,00) diferente da soma 5.000,00", "TOTAL 5,00.00")
+    r = rodar([doc("invoice", numero="9", internas=[interna])])
+    assert [d.mensagem for d in r.divergencias if d.categoria == "interna"] == [
+        "Invoice 9: Total escrito 5,00.00 diferente da soma 5.000,00"
+    ]

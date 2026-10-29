@@ -14,12 +14,14 @@ from app.services.comparacao.constantes import (
     CAMPOS_UNICOS_NA_SOMA,
     ROTULOS,
 )
+from app.services.comparacao.capital_nos_documentos import texto_sem_a_capital
 from app.services.comparacao.chegada_por_dta import separar_chegada_por_dta
 from app.services.comparacao.conferencia_do_adquirente import campo_do_adquirente
 from app.services.comparacao.conhecimento_com_parte import conhecimentos_contidos
 from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
 from app.services.comparacao.endereco_do_consignatario import avisos_de_endereco
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
+from app.services.comparacao.mensagem_de_ncm import texto_ncm
 from app.services.comparacao.pareamento_invoice_packing_list import pls_em_outra_numeracao
 from app.services.comparacao.operacao_triangular import (
     CAMPOS_DO_EXPORTADOR,
@@ -166,7 +168,8 @@ def _status_campo(
             )
             return "INSUFICIENTE"
     if campo == "ncm":
-        iguais = _iguais_ncm(ctx, [v for _, v in informados])
+        digitos = _digitos_ncm(ctx, [v for _, v in informados])
+        iguais = _iguais_nos_digitos(digitos)
 
     grupos = _agrupar_iguais(ctx, campo, regra, iguais, informados)
     if len(grupos) == 1:
@@ -183,6 +186,10 @@ def _status_campo(
     nota = ""
     if campo == "quantidade":
         nota = nota_fator_mil([(v.chave[1], v.exibicao, v.unidade) for _, v in grupos])
+    if campo == "ncm":
+        partes, nota = [texto_ncm(ordenados, digitos)], ""
+    if campo == "consignatario" and (texto := texto_sem_a_capital(ordenados)):
+        partes, nota = [texto], ""
     ctx.divergencias.append(
         Divergencia(
             categoria="comparacao",
@@ -320,7 +327,11 @@ def _status_mais_grave(status: list[StatusCampo]) -> StatusCampo:
     return next(s for s in ("DIVERGENTE", "INSUFICIENTE", "OK", "NAO_ENCONTRADO") if s in status)
 
 
-def _iguais_ncm(ctx: Contexto, valores: list[Valor]) -> Callable[[Any, Any], bool]:
+def _iguais_nos_digitos(digitos: int) -> Callable[[Any, Any], bool]:
+    return lambda a, b: {c[:digitos] for c in a} == {c[:digitos] for c in b}
+
+
+def _digitos_ncm(ctx: Contexto, valores: list[Valor]) -> int:
     """Compara com 8 dígitos; se algum documento só traz HS (6) ou posição (4), compara por aí."""
     menor = min(len(c) for v in valores for c in v.chave)
     digitos = 8 if menor >= 8 else 6 if menor >= 6 else 4
@@ -329,7 +340,7 @@ def _iguais_ncm(ctx: Contexto, valores: list[Valor]) -> Callable[[Any, Any], boo
             f"{ctx.prefixo}NCM comparado pelos {digitos} primeiros dígitos "
             "(algum documento traz só o HS Code ou a posição)."
         )
-    return lambda a, b: {c[:digitos] for c in a} == {c[:digitos] for c in b}
+    return digitos
 
 
 def _para_valor_campo(v: Valor | None) -> ValorCampo | None:

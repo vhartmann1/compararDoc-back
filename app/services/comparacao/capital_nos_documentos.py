@@ -3,8 +3,9 @@
 from app.schemas import Divergencia, Modalidade, Parte
 from app.services.comparacao.colunas_da_comparacao import listar_pares
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.regras_por_campo.exportador_consignatario import parte_da_capital
-from app.services.comparacao.tipos import Fonte
+from app.services.comparacao.consignatario_pela_modalidade import sem_sinal_da_capital
+from app.services.comparacao.regras_por_campo.exportador_consignatario import parte_da_capital, valor_da_capital
+from app.services.comparacao.tipos import Col, Fonte, Valor
 
 
 def divergencias_da_capital(
@@ -28,9 +29,26 @@ def _pl_sem_a_capital(comparacao_id: str, prefixo: str, inv: Fonte, pl: Fonte) -
     clientes = " / ".join(dict.fromkeys(p.nome.strip() for p in partes))
     return Divergencia(
         categoria="comparacao", comparacao_id=comparacao_id, campo="consignatario", documento=ref_documento(pl),
-        mensagem=(f"{prefixo}Consignatário: {nome_doc(pl)} sem a Capital Trade (traz só {clientes}), e a "
-                  f"{nome_doc(inv)} a traz como consignatária; pedir a inclusão"),
+        mensagem=f"{prefixo}Consignatário: {falta_a_capital(nome_doc(pl), f'só {clientes}', nome_doc(inv))}",
     )
+
+
+def falta_a_capital(sem: str, traz: str, com: str) -> str:
+    return f"falta a Capital Trade em {sem}, que traz {traz}; ela consta em {com}; pedir inclusão."
+
+
+def texto_sem_a_capital(grupos: list[tuple[list[Col], Valor]]) -> str | None:
+    """Um lado com a Capital consignatária e o outro só com o cliente: o que pedir, em vez dos dois nomes."""
+    com = [(cols, v) for cols, v in grupos if valor_da_capital(v)]
+    sem = [(cols, v) for cols, v in grupos if sem_sinal_da_capital(v)]
+    if len(grupos) != 2 or len(com) != 1 or len(sem) != 1:
+        return None
+    (cols_sem, valor), (cols_com, _) = sem[0], com[0]
+    return falta_a_capital(_nomes(cols_sem), valor.exibicao, _nomes(cols_com))
+
+
+def _nomes(cols: list[Col]) -> str:
+    return "/".join(c.nome_curto for c in cols)
 
 
 def _conta_e_ordem_sem_a_capital(fontes: list[Fonte]) -> Divergencia | None:

@@ -41,5 +41,6 @@ def test_frete_coerente_nao_gera_divergencia():
         [doc("conhecimento", 1, 2, ["39011010"], subtipo="BL", frete="FREIGHT COLLECT", destino="NAVEGANTES")],
     )
     assert mensagens(r, "coerencia") == [
-        "BL com frete COLLECT, mas o incoterm da Invoice 1 é CIF (frete por conta do vendedor; esperado PREPAID)"
+        "BL (a1.pdf) com frete COLLECT, mas o incoterm da Invoice 1 é CIF "
+        "(frete por conta do vendedor; esperado PREPAID)"
     ]

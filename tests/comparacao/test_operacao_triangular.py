@@ -204,6 +204,7 @@ def test_shipper_de_uma_das_invoices_compara_so_com_ela_e_avisa_a_outra():
         assert len(r.avisos) == len(set(r.avisos))
         mensagens = [d.mensagem for d in _do_exportador(r)]
         assert len(mensagens) == 1
+        pl = f"a{ordem.index('A1')}.pdf"  # PL sem número: identificado pelo arquivo
         assert mensagens == ["Consolidado — Endereço do exportador: BL Avenida Tres 3, Portoalto × "
-                             "Invoice A1/Packing List Rua Um 1, Portoalto"]
+                             f"Invoice A1/Packing List ({pl}) Rua Um 1, Portoalto"]
         assert any("(Montanha Azul Fabrica Ltd)" in a and "triangular" in a for a in r.avisos)

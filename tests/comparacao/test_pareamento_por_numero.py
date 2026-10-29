@@ -21,7 +21,7 @@ def test_um_pl_para_varias_invoices_entra_so_na_soma():
         [doc("packing_list", 30, 33, refs=["NF A 5001", "NF A 5002"])],
         [doc("conhecimento", None, 33, subtipo="BL", numero="B1", refs=["5001", "5002"])],
     )
-    assert "Packing List cobre as invoices 5001, 5002: comparado só na soma." in r.avisos
+    assert "Packing List (a1.pdf) cobre as invoices 5001, 5002: comparado só na soma." in r.avisos
     assert not any("sem packing list" in a or "sem invoice" in a for a in r.avisos)
     assert campo(r.comparacoes[-1], "peso_bruto").status == "OK"
 

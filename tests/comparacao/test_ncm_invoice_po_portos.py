@@ -15,7 +15,28 @@ def test_ncm_hs_na_invoice_compara_6_digitos():
 
 def test_ncm_divergente():
     r = tres_ok(ncms=["3901.20.10"])
-    assert r.divergencias[0].mensagem == "NCM: BL 3901.20.10 × Invoice/Packing List 3901.10.10"
+    assert r.divergencias[0].mensagem == (
+        "NCM: BL cita o NCM 3901.20.10 no lugar do NCM 3901.10.10, que consta em Invoice/Packing List; pedir correção."
+    )
+
+
+def test_ncm_que_sobra_e_que_falta_sao_ditos_pelo_codigo():
+    r = rodar([doc("invoice", ncms=["8401.10.00", "8402.20.00"], numero="I1"),
+               doc("packing_list", ncms=["8401.10.00", "8402.20.00"], numero="I1")],
+              [doc("conhecimento", subtipo="BL", ncms=["8401", "8402", "8403"])])
+    assert mensagens(r, "comparacao") == [
+        "NCM: BL cita o NCM 8403, que não consta em Invoice/Packing List; pedir correção."
+    ]
+    r = rodar([doc("invoice", ncms=["8401.10.00", "8402.20.00"], numero="I1"),
+               doc("packing_list", ncms=["8401.10.00"], numero="I1")])
+    assert mensagens(r, "comparacao") == [
+        "NCM: Invoice cita o NCM 8402.20.00, que não consta em Packing List; pedir correção."
+    ]
+    r = rodar([doc("invoice", ncms=["8401.10.00"], numero="I1"),
+               doc("packing_list", ncms=["8401.10.00", "8402.20.00"], numero="I1")])
+    assert mensagens(r, "comparacao") == [
+        "NCM: Invoice não cita o NCM 8402.20.00, que consta em Packing List; pedir correção."
+    ]
 
 
 def test_ncm_posicao_redundante_no_mesmo_documento_e_ignorada():

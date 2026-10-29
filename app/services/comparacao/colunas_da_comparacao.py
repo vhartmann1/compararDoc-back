@@ -38,9 +38,7 @@ def listar_pares(grupos: list[tuple[Fonte | None, Fonte | None]]) -> list[tuple[
         return [("unica", "", inv, pl) for inv, pl in grupos]
     resultado = []
     for n, (inv, pl) in enumerate(grupos, start=1):
-        numero = (inv or pl).doc.numero
-        prefixo = f"Par {n} ({numero}) — " if numero else f"Par {n} — "
-        resultado.append((f"par-{n}", prefixo, inv, pl))
+        resultado.append((f"par-{n}", f"{nome_doc(inv or pl)} — ", inv, pl))
     return resultado
 
 
