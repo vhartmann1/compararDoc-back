@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import openpyxl
+import xlrd
+from xlrd.compdoc import CompDocError
 from docx import Document
 from docx.table import Table
 from docx.text.paragraph import Paragraph
@@ -21,6 +23,7 @@ from app.schemas import ArquivoEntrada
 MEDIA_PDF = "application/pdf"
 MEDIA_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 MEDIA_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+MEDIA_XLS = "application/vnd.ms-excel"
 TIPOS_IMAGEM = {"image/jpeg", "image/png"}
 
 # Limites da API: lado até 2576 px (2000 com mais de 20 imagens), 5 MB por imagem em base64, 100 por requisição.
@@ -59,8 +62,10 @@ def converter(arquivo: ArquivoEntrada) -> list[dict]:
         return _blocos_office(_texto_docx(arquivo.caminho), arquivo.caminho, arquivo.nome)
     if media == MEDIA_XLSX:
         return _blocos_office(_texto_xlsx(arquivo.caminho), arquivo.caminho, arquivo.nome)
+    if media == MEDIA_XLS:
+        return _blocos_xls(arquivo.caminho, arquivo.nome)
     raise ErroConversao(
-        f"Tipo de arquivo não suportado: {arquivo.nome} ({media}). Use PDF, JPG, PNG, Word (.docx) ou Excel (.xlsx)."
+        f"Tipo de arquivo não suportado: {arquivo.nome} ({media}). Use PDF, JPG, PNG, Word (.docx) ou Excel (.xlsx/.xls)."
     )
 
 
@@ -76,7 +81,7 @@ def _blocos_office(texto: str, caminho: Path, nome: str) -> list[dict]:
 
     blocos: list[dict] = []
     if texto.strip():
-        blocos.append({"type": "text", "text": f"Conteúdo em texto do arquivo {nome}:\n\n{texto}"})
+        blocos.append(_bloco_texto(texto, nome))
     if imagens:
         blocos.append({"type": "text", "text": f"Imagens embutidas no arquivo {nome} ({len(imagens)}):"})
         blocos.extend(_bloco_imagem(dados, lado, nome) for dados in imagens)
@@ -86,6 +91,18 @@ def _blocos_office(texto: str, caminho: Path, nome: str) -> list[dict]:
     if not blocos:
         raise ErroConversao(f"{nome} está vazio (sem texto nem imagens).")
     return blocos
+
+
+def _bloco_texto(texto: str, nome: str) -> dict:
+    return {"type": "text", "text": f"Conteúdo em texto do arquivo {nome}:\n\n{texto}"}
+
+
+def _blocos_xls(caminho: Path, nome: str) -> list[dict]:
+    """Excel antigo (.xls): só o texto das células; as imagens embutidas não são extraídas."""
+    texto = _texto_xls(caminho, nome)
+    if not texto.strip():
+        raise ErroConversao(f"{nome} está vazio (sem texto).")
+    return [_bloco_texto(texto, nome)]
 
 
 def _texto_docx(caminho: Path) -> str:
@@ -120,18 +137,44 @@ def _linhas_tabela(tabela: Table) -> list[str]:
 
 def _texto_xlsx(caminho: Path) -> str:
     livro = openpyxl.load_workbook(caminho, data_only=True, read_only=True)
-    partes: list[str] = []
     try:
-        for planilha in livro.worksheets:
-            linhas = []
-            for valores in planilha.iter_rows(values_only=True):
-                celulas = [_texto_celula(v) for v in valores if v is not None and str(v).strip()]
-                if celulas:
-                    linhas.append(" | ".join(celulas))
-            if linhas:
-                partes.append(f"=== Planilha: {planilha.title} ===\n" + "\n".join(linhas))
+        planilhas = [(p.title, p.iter_rows(values_only=True)) for p in livro.worksheets]
+        return _texto_planilhas(planilhas)
     finally:
         livro.close()
+
+
+def _texto_xls(caminho: Path, nome: str) -> str:
+    try:
+        livro = xlrd.open_workbook(str(caminho))
+    except (xlrd.XLRDError, CompDocError) as e:
+        raise ErroConversao(f"Não consegui abrir {nome} como planilha do Excel.") from e
+    return _texto_planilhas([(p.name, _linhas_xls(p, livro.datemode)) for p in livro.sheets()])
+
+
+def _linhas_xls(planilha: xlrd.sheet.Sheet, datemode: int):
+    for i in range(planilha.nrows):
+        yield [_valor_xls(c, datemode) for c in planilha.row(i)]
+
+
+def _valor_xls(celula: xlrd.sheet.Cell, datemode: int):
+    """Data do .xls vem como número de série: converte para datetime, como faz o openpyxl."""
+    if celula.ctype == xlrd.XL_CELL_DATE:
+        return xlrd.xldate_as_datetime(celula.value, datemode)
+    return celula.value
+
+
+def _texto_planilhas(planilhas) -> str:
+    """Uma seção por planilha (título, linhas); cada linha com as células não vazias separadas por ' | '."""
+    partes: list[str] = []
+    for titulo, linhas_de_valores in planilhas:
+        linhas = []
+        for valores in linhas_de_valores:
+            celulas = [_texto_celula(v) for v in valores if v is not None and str(v).strip()]
+            if celulas:
+                linhas.append(" | ".join(celulas))
+        if linhas:
+            partes.append(f"=== Planilha: {titulo} ===\n" + "\n".join(linhas))
     return "\n\n".join(partes)
 
 

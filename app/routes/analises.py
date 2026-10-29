@@ -42,6 +42,7 @@ router = APIRouter(prefix="/api/analises", tags=["analises"])
 
 MEDIA_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 MEDIA_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+MEDIA_XLS = "application/vnd.ms-excel"
 
 # media_type -> extensões aceitas
 TIPOS_ACEITOS: dict[str, tuple[str, ...]] = {
@@ -50,12 +51,15 @@ TIPOS_ACEITOS: dict[str, tuple[str, ...]] = {
     "image/png": (".png",),
     MEDIA_DOCX: (".docx",),
     MEDIA_XLSX: (".xlsx",),
+    MEDIA_XLS: (".xls",),
 }
-# Word/Excel: browsers às vezes mandam content-type genérico; aceitamos pela extensão + assinatura ZIP.
-OFFICE_POR_EXTENSAO = {".docx": MEDIA_DOCX, ".xlsx": MEDIA_XLSX}
+# Word/Excel: browsers às vezes mandam content-type genérico; aceitamos pela extensão + assinatura do arquivo.
+OFFICE_POR_EXTENSAO = {".docx": MEDIA_DOCX, ".xlsx": MEDIA_XLSX, ".xls": MEDIA_XLS}
 CONTENT_TYPES_GENERICOS = {"", "application/octet-stream", "application/zip", "application/x-zip-compressed"}
 ASSINATURA_ZIP = b"PK\x03\x04"
-EXTENSOES_ANTIGAS = {".doc", ".xls"}
+ASSINATURA_OLE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"  # Office antigo (.xls)
+ASSINATURA_POR_EXTENSAO = {".docx": ASSINATURA_ZIP, ".xlsx": ASSINATURA_ZIP, ".xls": ASSINATURA_OLE}
+EXTENSOES_ANTIGAS = {".doc"}
 TIPOS_INLINE = {"application/pdf", "image/jpeg", "image/png"}
 TAMANHO_BLOCO = 1024 * 1024
 
@@ -149,17 +153,18 @@ def _validar_tipo(arquivo: UploadFile) -> tuple[str, str]:
     if ext in EXTENSOES_ANTIGAS:
         raise HTTPException(
             status_code=400,
-            detail=f"Formato antigo não suportado: salve como .docx/.xlsx ('{nome}').",
+            detail=f"Formato antigo não suportado: salve como .docx ('{nome}').",
         )
 
     if ext in OFFICE_POR_EXTENSAO:
         canonico = OFFICE_POR_EXTENSAO[ext]
         if media_type != canonico and media_type not in CONTENT_TYPES_GENERICOS:
             raise HTTPException(status_code=400, detail=f"Tipo de arquivo não aceito: '{nome}'.")
-        # .docx/.xlsx são ZIP: confere a assinatura para não aceitar arquivo renomeado.
-        inicio = arquivo.file.read(len(ASSINATURA_ZIP))
+        # Confere a assinatura (ZIP no .docx/.xlsx, OLE no .xls) para não aceitar arquivo renomeado.
+        assinatura = ASSINATURA_POR_EXTENSAO[ext]
+        inicio = arquivo.file.read(len(assinatura))
         arquivo.file.seek(0)
-        if inicio != ASSINATURA_ZIP:
+        if inicio != assinatura:
             raise HTTPException(
                 status_code=400,
                 detail=f"Arquivo '{nome}' não é um {ext} válido (salve novamente no Word/Excel).",
@@ -169,7 +174,7 @@ def _validar_tipo(arquivo: UploadFile) -> tuple[str, str]:
     if media_type not in TIPOS_ACEITOS or ext not in TIPOS_ACEITOS[media_type]:
         raise HTTPException(
             status_code=400,
-            detail=f"Tipo de arquivo não aceito: '{nome}'. Envie PDF, JPG, PNG, Word (.docx) ou Excel (.xlsx).",
+            detail=f"Tipo de arquivo não aceito: '{nome}'. Envie PDF, JPG, PNG, Word (.docx) ou Excel (.xlsx/.xls).",
         )
     return media_type, ext
 
@@ -193,7 +198,7 @@ def _salvar(arquivo: UploadFile, destino: Path) -> int:
 
 
 def _contar_paginas(caminho: Path, media_type: str) -> int | None:
-    if media_type in (MEDIA_DOCX, MEDIA_XLSX):
+    if media_type in (MEDIA_DOCX, MEDIA_XLSX, MEDIA_XLS):
         return None  # Word/Excel não têm páginas fixas
     if media_type != "application/pdf":
         return 1

@@ -11,6 +11,7 @@ from PIL import Image
 from app.schemas import ArquivoEntrada
 from app.services.leitura.arquivo_para_conteudo import (
     MEDIA_DOCX,
+    MEDIA_XLS,
     MEDIA_XLSX,
     ROTULO_FUNDO,
     ErroConversao,
@@ -163,3 +164,30 @@ def test_xlsx_com_imagem_que_nao_decodifica_segue_com_o_texto(tmp_path):
             z.writestr(n, dados)
     blocos = converter(entrada(caminho))
     assert "PACKING LIST" in textos(blocos) and imagens(blocos) == []
+
+
+def test_xls_vira_texto_das_planilhas(tmp_path):
+    import datetime
+
+    import xlwt
+
+    caminho = tmp_path / "a.xls"
+    livro = xlwt.Workbook()
+    planilha = livro.add_sheet("Invoice")
+    planilha.write(0, 0, "COMMERCIAL INVOICE")
+    planilha.write(2, 0, "Qty")
+    planilha.write(2, 1, 120.0)
+    planilha.write(2, 2, 3.5)
+    planilha.write(3, 0, datetime.datetime(2026, 3, 9), xlwt.easyxf(num_format_str="DD/MM/YYYY"))
+    livro.add_sheet("Packing").write(0, 0, "PACKING LIST")
+    livro.save(str(caminho))
+    (bloco,) = converter(entrada(caminho, MEDIA_XLS))
+    assert "=== Planilha: Invoice ===" in bloco["text"] and "=== Planilha: Packing ===\nPACKING LIST" in bloco["text"]
+    assert "Qty | 120 | 3.5" in bloco["text"] and "2026-03-09" in bloco["text"]
+
+
+def test_xls_invalido_da_erro_legivel(tmp_path):
+    caminho = tmp_path / "a.xls"
+    caminho.write_bytes(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 600)
+    with pytest.raises(ErroConversao, match="Não consegui abrir"):
+        converter(entrada(caminho, MEDIA_XLS))

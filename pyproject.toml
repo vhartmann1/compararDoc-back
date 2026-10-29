@@ -15,10 +15,14 @@ dependencies = [
     "python-docx>=1.2.0",
     "python-multipart",
     "sqlmodel",
+    "xlrd>=2.0.2",
 ]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "pytest",
+    "xlwt>=1.3.0",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
