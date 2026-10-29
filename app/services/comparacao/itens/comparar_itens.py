@@ -6,6 +6,7 @@ from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.identificacao_do_documento import ref_documento
 from app.services.comparacao.itens.agrupar_linhas_do_mesmo_item import agrupar_itens
 from app.services.comparacao.itens.casar_itens import casar, casar_base
+from app.services.comparacao.itens.categoria_do_conhecimento import descreve_categoria
 from app.services.comparacao.itens.chave_da_linha import chaves_unicas
 from app.services.comparacao.itens.diferencas_do_item import diferencas_item
 from app.services.comparacao.itens.linhas_detalhadas import linhas_a_juntar
@@ -122,7 +123,10 @@ def _comparar_itens(
         casados, _, sobras = casar([list(l.values()) for l in linhas], c.itens, generico_nao_casa=True)
         for i, item in casados:
             linhas[i][c.col.chave] = item
+        itens_base = [x for l in linhas for x in l.values() if x not in c.itens]
         for item in sobras:  # BL costuma ter descrição genérica: não é divergência
+            if descreve_categoria(item, itens_base):
+                continue
             avisos.append(
                 f"{prefixo}{c.col.nome_curto} descreve '{encurtar(item.descricao)}'; "
                 "não foi possível relacionar aos itens."

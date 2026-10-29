@@ -74,7 +74,7 @@ def test_conhecimento_com_descricao_que_serve_para_varios_itens_so_aviso():
         [doc("conhecimento", subtipo="AWB", itens=[item(None, "SYNTHETIC SHOES")])],
     )
     assert all(l.valores["conhecimento"] is None and l.status == "OK" for l in r.itens[0].linhas)
-    assert "AWB descreve 'SYNTHETIC SHOES'; não foi possível relacionar aos itens." in r.avisos
+    assert not any("descreve" in a for a in r.avisos)  # 'Synthetic Shoes' começa a descrição dos dois itens
 
 
 def test_descricao_generica_do_conhecimento_casado_pelo_codigo_nao_diverge():
@@ -84,3 +84,19 @@ def test_descricao_generica_do_conhecimento_casado_pelo_codigo_nao_diverge():
         [doc("conhecimento", subtipo="BL", itens=[item("A1", "Synthetic yarn")])],
     )
     assert all(l.status == "OK" for i in r.itens for l in i.linhas)
+
+
+def test_conhecimento_por_categoria_contida_nos_itens_nao_avisa():
+    itens = [item("K1", "CABO USB TIPO-C 1M REF:K1", 10, "PCS"), item("K2", "CABO USB MICRO 2M REF:K2", 5, "PCS"),
+             item("K3", "2 EM 1 SUPORTE DOBRAVEL REF:K3", 4, "PCS")]
+    r = rodar(
+        [doc("invoice", numero="1", itens=itens), doc("packing_list", numero="1", itens=itens)],
+        [doc("conhecimento", subtipo="BL", itens=[item(None, "CABO USB (DATA CABLE)"),
+                                                  item(None, "SUPORTE DOBRAVEL (HOLDER)"),
+                                                  item(None, "CABO HDMI (VIDEO CABLE)"), item(None, "CABOS")])],
+    )
+    assert mensagens(r, "item") == []
+    assert [a for a in r.avisos if "descreve" in a] == [
+        "BL descreve 'CABO HDMI (VIDEO CABLE)'; não foi possível relacionar aos itens.",
+        "BL descreve 'CABOS'; não foi possível relacionar aos itens.",
+    ]
