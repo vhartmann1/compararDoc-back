@@ -111,6 +111,13 @@ class ItemExtraido(BaseModel):
     pagina: int | None
 
 
+class OutraDespesa(BaseModel):
+    descricao: str = Field(description="Descrição da linha como aparece, ex. 'Pallets', 'Bank charges', 'Discount 3%'")
+    valor: float = Field(description="Positivo para despesa, negativo para desconto, ex. 'Discount -150.00' -> -150.0")
+    texto_original: str = Field(description="Texto do valor exatamente como aparece no documento")
+    pagina: int | None
+
+
 class InconsistenciaInterna(BaseModel):
     descricao: str = Field(
         description="Contradição objetiva DENTRO deste documento, em português, ex. "
@@ -170,6 +177,11 @@ class DocumentoExtraido(BaseModel):
     valor_total: ValorMonetario | None = Field(default=None, description="Total final da invoice, na condição de venda (incoterm)")
     valor_frete: ValorMonetario | None = Field(default=None, description="Valor do frete informado no documento")
     valor_seguro: ValorMonetario | None = Field(default=None, description="Valor do seguro informado no documento")
+    outras_despesas: list[OutraDespesa] = Field(
+        default_factory=list,
+        description="Na invoice: linhas que entram no valor_total sem ser mercadoria, frete nem seguro (embalagem, "
+        "pallets, taxas, desconto); [] se não houver",
+    )
     assinatura_manuscrita: bool | None = Field(
         default=None, description="Há assinatura feita à mão (não só carimbo ou nome digitado)? null se não der para ver"
     )

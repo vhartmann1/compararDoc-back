@@ -104,6 +104,14 @@ a linha "Ocean freight"/"Air freight"/"Frete" do quadro de fretes; sem essa linh
 tratamento de embalagem de madeira), nem a soma delas, nem o "LUMPSUM" de uma folha de taxas. Ex.: quadro \
 "Total Freight Prepaid 9,310.00" e folha anexa "THC ORIGIN 650.00 ... LUMPSUM USD 4,200.00" => 9310.0. \
 Sem valor de frete => null.
+- `outras_despesas`: só na invoice, as linhas de valor que entram no `valor_total` e não são mercadoria, \
+frete nem seguro: embalagem, pallets, caixas de madeira, taxas e sobretaxas ("surcharge", "bank charges", \
+"handling fee", "truck fee") e descontos sobre o total ("Discount", "Rebate"). Uma entrada por linha, com a \
+`descricao` como aparece, `valor` positivo para despesa e negativo para desconto, e `texto_original`. Não \
+inclua subtotais, o próprio total, nem desconto já aplicado no valor de uma linha de mercadoria. Ex.: \
+"Goods USD 12,400.00 / Pallets USD 90.00 / Bank charges USD 35.00 / Discount USD 200.00 / Freight USD 500.00 / \
+Total USD 12,825.00" => [Pallets 90.0, Bank charges 35.0, Discount -200.0] (o frete vai em `valor_frete`). \
+Packing list e conhecimento => [].
 - `peso_liquido_total` e `peso_bruto_total`: o **total** do documento (soma de todos os itens / \
 containers), não o peso de um item. Se só houver pesos por item e nenhum total, deixe null. Se o \
 documento traz dois pesos brutos totais, um sem e outro com a embalagem de transporte (pallets, \
@@ -169,7 +177,8 @@ AND CERTIFIED", "NO WOOD PACKING MATERIAL"); null se o documento não fala disso
 - `free_time`: o free time informado (ex.: "10 DAYS FREE TIME AT DESTINATION"), como escrito; null se não houver.
 - `itens`: as linhas de mercadoria de invoice e packing list, na ordem do documento, uma entrada por \
 linha da tabela. Não liste como item paletes, embalagens, frete, seguro nem serviços (seções como \
-"Additionals" ou "Packing material"), mesmo que tenham código e linha própria. No **conhecimento** (BL/AWB/CRT), extraia também a(s) mercadoria(s) do campo \
+"Additionals" ou "Packing material"), mesmo que tenham código e linha própria (na invoice, as de valor \
+vão em `outras_despesas`). No **conhecimento** (BL/AWB/CRT), extraia também a(s) mercadoria(s) do campo \
 "Description of goods" / "Nature and quantity of goods": uma entrada por produto descrito, com a \
 descrição/referência comercial como aparece; se o texto traz uma referência/modelo comercial além do \
 nome genérico, comece a `descricao` por ela (ex.: "POLYETHYLENE RESIN - REF: LUMIPOL HD 450" => \
