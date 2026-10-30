@@ -1,7 +1,8 @@
 """Aviso: a mesma empresa (CNPJ ou nome) como consignatário em endereços diferentes entre os documentos."""
 
 from app.schemas import Parte
-from app.services.comparacao.partes.conferencia_do_adquirente import mesma_empresa_registrada, mesmo_endereco
+from app.services.comparacao.partes.conferencia_do_adquirente import mesmo_endereco
+from app.services.comparacao.partes.mesma_empresa import mesma_empresa_registrada, registro
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Col
 
@@ -16,7 +17,7 @@ def avisos_de_endereco(colunas: list[Col]) -> list[str]:
 def _lugares_por_empresa(colunas: list[Col]) -> list[list[Lugar]]:
     empresas: list[list[Lugar]] = []
     for col, parte in _consignatarios(colunas):
-        lugares = next((e for e in empresas if mesma_empresa_registrada(parte, e[0][1])), None)
+        lugares = next((e for e in empresas if mesma_empresa_registrada(registro(parte), registro(e[0][1]))), None)
         if lugares is None:
             empresas.append([([col], parte)])
             continue

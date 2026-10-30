@@ -8,7 +8,7 @@ from app.services.comparacao.normalizacao.codigos import normalizar_cnpj
 from app.services.comparacao.normalizacao.enderecos import normalizar_cidade, normalizar_endereco
 from app.services.comparacao.normalizacao.texto import sem_acento
 from app.services.comparacao.partes.capital import parte_da_capital
-from app.services.comparacao.partes.mesma_empresa import relacao_entre_partes
+from app.services.comparacao.partes.mesma_empresa import mesma_empresa_registrada, registro, relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Col, Contexto, Fonte
 
@@ -94,7 +94,8 @@ def _conferir(col: Col, papel: str, p: Parte, clientes: list[tuple[Col, Parte]])
         c, x = com_cnpj[0]
         return True, [f"CNPJ do {papel}: {col.nome_curto} {p.cnpj.strip()} × adquirente da {c.nome_curto} "
                       f"{x.cnpj.strip()}"]
-    iguais = [(c, x) for c, x in mesmos if mesma_empresa_registrada(p, x) and x.endereco and x.endereco.strip()]
+    iguais = [(c, x) for c, x in mesmos
+              if mesma_empresa_registrada(registro(p), registro(x)) and x.endereco and x.endereco.strip()]
     if not p.endereco or not p.endereco.strip() or not iguais:
         return bool(mesmos), []
     if any(mesmo_endereco(p, x) for _, x in iguais):
@@ -102,12 +103,6 @@ def _conferir(col: Col, papel: str, p: Parte, clientes: list[tuple[Col, Parte]])
     c, x = iguais[0]
     return True, [f"Endereço do {papel}: {col.nome_curto} {p.endereco.strip()} × adquirente da {c.nome_curto} "
                   f"{x.endereco.strip()}"]
-
-
-def mesma_empresa_registrada(a: Parte, b: Parte) -> bool:
-    """Mesmo CNPJ; sem CNPJ num dos lados, o nome decide."""
-    ca, cb = normalizar_cnpj(a.cnpj), normalizar_cnpj(b.cnpj)
-    return ca == cb if ca and cb else relacao_entre_partes(a, b) == "mesma"
 
 
 def mesmo_endereco(a: Parte, b: Parte) -> bool:

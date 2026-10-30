@@ -9,6 +9,7 @@ from app.services.comparacao.normalizacao.empresas import nomes_equivalentes
 from app.services.comparacao.normalizacao.texto import distancia_de_edicao, sem_acento
 
 Relacao = Literal["mesma", "outra", "incerta"]
+Registro = tuple[str, str | None]  # (razão social, CNPJ/Tax ID)
 
 # Só forma jurídica e termos que não distinguem uma empresa da outra; artigos e IMPORT/EXPORT distinguem.
 TERMOS_GENERICOS = {
@@ -72,3 +73,13 @@ def relacao_entre_partes(a: Parte, b: Parte) -> Relacao:
     if ca and ca == cb:
         return "mesma"
     return relacao_entre_nomes(a.nome, b.nome)
+
+
+def registro(parte: Parte) -> Registro:
+    return parte.nome, parte.cnpj
+
+
+def mesma_empresa_registrada(a: Registro, b: Registro) -> bool:
+    """CNPJ estrito: os dois com CNPJ/Tax ID => os dígitos decidem; senão, o nome tem de ser da mesma empresa."""
+    ca, cb = normalizar_cnpj(a[1]), normalizar_cnpj(b[1])
+    return ca == cb if ca and cb else relacao_entre_nomes(a[0], b[0]) == "mesma"
