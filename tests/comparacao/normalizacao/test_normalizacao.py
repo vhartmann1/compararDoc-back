@@ -2,7 +2,7 @@ import pytest
 
 from app.schemas import Medida
 from app.services.comparacao.normalizacao.codigos import normalizar_ncm
-from app.services.comparacao.normalizacao.enderecos import enderecos_compativeis
+from app.services.comparacao.normalizacao.enderecos import enderecos_de_texto_parecido
 from app.services.comparacao.normalizacao.formatacao import formatar_cnpj, formatar_contagem, formatar_kg, formatar_ncm
 from app.services.comparacao.normalizacao.item import referencias_iguais
 from app.services.comparacao.normalizacao.numeros_de_documento import normalizar_numero_documento, normalizar_po
@@ -166,8 +166,8 @@ def test_endereco_em_outra_ordem_e_com_o_pais_abreviado_e_o_mesmo():
         (("Rua A, 10 - Seoul", None), ("Av. Paulista 1000, São Paulo", None), False),
     ],
 )
-def test_enderecos_compativeis(a, b, esperado):
-    assert enderecos_compativeis(a, b) is esperado
+def test_enderecos_de_texto_parecido(a, b, esperado):
+    assert enderecos_de_texto_parecido(a, b) is esperado
 
 
 @pytest.mark.parametrize(

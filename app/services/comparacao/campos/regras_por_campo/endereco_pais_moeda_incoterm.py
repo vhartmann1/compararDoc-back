@@ -7,7 +7,7 @@ from app.services.comparacao.campos.regras_por_campo.exportador_consignatario im
 from app.services.comparacao.campos.regras_por_campo.regra import com_alternativas_iguais, texto_soma, valor_conjunto
 from app.services.comparacao.normalizacao.codigos import normalizar_incoterm
 from app.services.comparacao.normalizacao.dinheiro import normalizar_moeda
-from app.services.comparacao.normalizacao.enderecos import enderecos_compativeis
+from app.services.comparacao.normalizacao.enderecos import enderecos_de_texto_parecido
 from app.services.comparacao.normalizacao.paises import normalizar_pais
 from app.services.comparacao.normalizacao.portos import nome_do_porto
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -42,7 +42,7 @@ def juntar_enderecos(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col:
 
 
 def _enderecos_iguais(a: tuple, b: tuple) -> bool:
-    return enderecos_compativeis(a[:2], b[:2])
+    return enderecos_de_texto_parecido(a[:2], b[:2])
 
 
 def listas_de_enderecos_iguais(a: tuple, b: tuple) -> bool:

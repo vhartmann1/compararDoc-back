@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from app.schemas import NomeCampo, Parte
 from app.services.comparacao.campos.regras_por_campo.exportador_consignatario import fabricante_alternativo
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
-from app.services.comparacao.normalizacao.enderecos import enderecos_compativeis
+from app.services.comparacao.normalizacao.enderecos import enderecos_de_texto_parecido
 from app.services.comparacao.partes.mesma_empresa import relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Col, Fonte
@@ -55,17 +55,17 @@ def _de_outra_empresa(shipper: Parte, f: Fonte) -> bool:
     partes = _partes_do_exportador(f)
     if not partes or not _tem_endereco(shipper):
         return False
-    return all(relacao_entre_partes(shipper, p) == "outra" and not _mesmo_endereco(shipper, p) for p in partes)
+    return all(relacao_entre_partes(shipper, p) == "outra" and not _endereco_de_texto_parecido(shipper, p) for p in partes)
 
 
 def _tem_endereco(parte: Parte) -> bool:
     return bool(parte.endereco and parte.endereco.strip())
 
 
-def _mesmo_endereco(a: Parte, b: Parte) -> bool:
+def _endereco_de_texto_parecido(a: Parte, b: Parte) -> bool:
     if not (_tem_endereco(a) and _tem_endereco(b)):
         return False
-    return enderecos_compativeis((a.endereco.strip(), a.cidade), (b.endereco.strip(), b.cidade))
+    return enderecos_de_texto_parecido((a.endereco.strip(), a.cidade), (b.endereco.strip(), b.cidade))
 
 
 def aviso_triangular(prefixo: str, t: Triangulacao) -> str:
