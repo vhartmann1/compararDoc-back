@@ -1,7 +1,7 @@
 """Pedaços que se repetem nas mensagens: o que pedir, o que conferir e a divergência interna de um documento."""
 
 from app.schemas import Divergencia
-from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
+from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.tipos import Fonte
 
 

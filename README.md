@@ -48,7 +48,7 @@ O caminho de um envio, com o lugar de cada etapa:
 
 1. **Recebe** — `app/routes/analises.py` salva os arquivos em `storage/`, responde na hora e segue em segundo plano.
 2. **Lê** — `app/services/leitura/`: cada arquivo vira conteúdo (`arquivo_para_conteudo.py`), vai ao Claude com o prompt (`prompts.py`) e a resposta é validada (`formato_da_resposta.py`). O Claude **só extrai**, um arquivo por chamada. PDF com página escaneada de lado é endireitado e lido de novo (`endireitar_paginas.py`).
-3. **Compara** — `app/services/comparacao/`: o Python escolhe os documentos, pareia invoice e packing list e aplica as regras de cada campo (`regras_por_campo/`), dos itens (`itens/`) e de coerência. Nenhuma decisão de comparação é do modelo.
+3. **Compara** — `app/services/comparacao/`: o Python escolhe os documentos, pareia invoice e packing list e aplica as regras de cada campo (`campos/regras_por_campo/`), dos itens (`campos/itens/`) e de coerência. Nenhuma decisão de comparação é do modelo.
 4. **Grava** — `app/mongo.py` guarda a extração de cada arquivo e o resultado; `app/db.py` guarda o status (`OK`, `DIVERGENTE` ou `INCOMPLETO`), o total de divergências e o custo.
 5. **Entrega** — a tela consulta `GET /api/analises/{id}` até a análise concluir.
 
@@ -87,8 +87,9 @@ uv run pytest -q    # não chama a API
 | `app/mongo.py` | MongoDB: coleções `resultados` (por análise) e `extracoes` (por arquivo), com os mesmos ids do Postgres. |
 | `docker/` | Arquivos usados pelo `docker-compose.yaml` (criação do usuário da aplicação no MongoDB). |
 | `app/schemas.py` | Tipos da API, da extração e do resultado. |
+| `app/tipos_de_arquivo.py` | Tipos MIME aceitos (PDF, imagens, Word, Excel). |
 | `app/services/leitura/` | Ler os documentos: `arquivo_para_conteudo.py`, `prompts.py`, `formato_da_resposta.py`, `endireitar_paginas.py` e um leitor por modo (`ler_pela_api.py`, `ler_pelo_claude_code.py`, `ler_simulado.py`). |
-| `app/services/comparacao/` | Comparar o que foi lido: `comparar_documentos.py` (entrada), `escolha_dos_documentos.py`, `pareamento_invoice_packing_list.py`, `identificacao_do_documento.py`, `colunas_da_comparacao.py`, `comparar_campos.py`, `regras_por_campo/`, `itens/`, `coerencia_incoterm_frete.py`, `inconsistencias_internas.py` e `normalizacao.py`. |
+| `app/services/comparacao/` | Comparar o que foi lido: `comparar_documentos.py` (entrada); `documentos/` (escolha, pareamento, colunas, versões), `normalizacao/`, `partes/` (empresas, Capital, notify, adquirente), `campos/` (com `regras_por_campo/` e `itens/`), `dentro_do_documento/` (contas e inconsistências internas) e `coerencia/`. |
 | `app/services/pipeline.py` | Orquestra extração e comparação. |
 
 Arquivos enviados ficam em `storage/`, fora do git. Regras para mexer no código: `AGENTS.md`.

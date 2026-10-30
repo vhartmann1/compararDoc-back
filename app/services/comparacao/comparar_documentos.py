@@ -10,23 +10,33 @@ from app.schemas import (
     StatusResultado,
     TipoDocumento,
 )
-from app.services.comparacao.cabecalho_e_assinatura import avisos_do_cabecalho
-from app.services.comparacao.capital_nos_documentos import divergencias_da_capital
-from app.services.comparacao.coerencia_incoterm_frete import divergencias_de_coerencia
-from app.services.comparacao.colunas_da_comparacao import montar_comparacoes
-from app.services.comparacao.comparar_campos import comparar_colunas
-from app.services.comparacao.conferencia_do_notify import avisos_do_notify, divergencias_do_notify
+from app.services.comparacao.campos.comparar_campos import comparar_colunas
+from app.services.comparacao.campos.itens.comparar_itens import comparar_todos_os_itens
+from app.services.comparacao.coerencia.coerencia_incoterm_frete import divergencias_de_coerencia
+from app.services.comparacao.coerencia.frete_somado_ao_total import divergencias_de_frete_no_total
 from app.services.comparacao.constantes import CAMPOS_SEMPRE_VISIVEIS
-from app.services.comparacao.escolha_dos_documentos import escolher_documentos
-from app.services.comparacao.frete_somado_ao_total import divergencias_de_frete_no_total
-from app.services.comparacao.identificacao_do_documento import ref_documento
-from app.services.comparacao.inconsistencias_internas import avisos_amostras, avisos_pais_origem, divergencias_internas
-from app.services.comparacao.itens.comparar_itens import comparar_todos_os_itens
-from app.services.comparacao.pareamento_invoice_packing_list import parear
-from app.services.comparacao.presenca_no_checklist import avisos_do_checklist, divergencias_do_checklist
-from app.services.comparacao.somas_do_documento import avisos_das_somas, divergencias_das_somas
+from app.services.comparacao.dentro_do_documento.cabecalho_e_assinatura import avisos_do_cabecalho
+from app.services.comparacao.dentro_do_documento.inconsistencias_internas import (
+    avisos_amostras,
+    avisos_pais_origem,
+    divergencias_internas,
+)
+from app.services.comparacao.dentro_do_documento.presenca_no_checklist import (
+    avisos_do_checklist,
+    divergencias_do_checklist,
+)
+from app.services.comparacao.dentro_do_documento.somas_do_documento import avisos_das_somas, divergencias_das_somas
+from app.services.comparacao.documentos.colunas_da_comparacao import montar_comparacoes
+from app.services.comparacao.documentos.escolha_dos_documentos import escolher_documentos
+from app.services.comparacao.documentos.identificacao_do_documento import ref_documento
+from app.services.comparacao.documentos.pareamento_invoice_packing_list import parear
+from app.services.comparacao.documentos.versoes_com_valor_diferente import (
+    avisos_entre_versoes,
+    divergencias_entre_versoes,
+)
+from app.services.comparacao.partes.capital_nos_documentos import divergencias_da_capital
+from app.services.comparacao.partes.conferencia_do_notify import avisos_do_notify, divergencias_do_notify
 from app.services.comparacao.tipos import Contexto, Fonte
-from app.services.comparacao.versoes_com_valor_diferente import avisos_entre_versoes, divergencias_entre_versoes
 
 
 def comparar(
