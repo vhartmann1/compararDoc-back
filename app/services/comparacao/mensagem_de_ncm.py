@@ -1,5 +1,6 @@
 """Divergência de NCM dita pelo código que sobra ou falta em cada lado, não pelas duas listas inteiras."""
 
+from app.services.comparacao.mensagens import pedir
 from app.services.comparacao.normalizacao import formatar_ncm
 from app.services.comparacao.tipos import Col, Valor
 
@@ -31,4 +32,4 @@ def texto_ncm(grupos: list[tuple[list[Col], Valor]], digitos: int) -> str:
         for cols, valor in outros
         if (sobra := _fora(valor.chave, ref.chave, digitos)) + (falta := _fora(ref.chave, valor.chave, digitos))
     ]
-    return "; ".join(partes) + "; pedir correção."
+    return pedir("; ".join(partes), "correção")

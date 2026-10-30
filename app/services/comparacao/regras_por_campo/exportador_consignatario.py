@@ -4,13 +4,14 @@ from app.schemas import NomeCampo, Parte
 from app.services.comparacao.constantes import CNPJ_RAIZ_CAPITAL
 from app.services.comparacao.mesma_empresa import relacao_entre_nomes, relacao_entre_partes
 from app.services.comparacao.normalizacao import formatar_cnpj, normalizar_cnpj
+from app.services.comparacao.parte_preenchida import parte_preenchida
 from app.services.comparacao.regras_por_campo.regra import com_alternativas_iguais, texto_soma
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
 
 def obter_parte(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     parte: Parte | None = f.doc.exportador if campo == "exportador" else f.doc.consignatario
-    if parte is None or not parte.nome.strip():
+    if not parte_preenchida(parte):
         return None
     itens = [(parte.nome.strip(), normalizar_cnpj(parte.cnpj), False)]
     fabricante = fabricante_alternativo(f) if campo == "exportador" else None
@@ -23,7 +24,7 @@ def obter_parte(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
 def fabricante_alternativo(f: Fonte) -> Parte | None:
     """Fabricante da invoice/PL, que o checklist aceita como shipper do BL."""
     fab = f.doc.fabricante
-    return fab if f.doc.tipo != "conhecimento" and fab and fab.nome.strip() else None
+    return fab if f.doc.tipo != "conhecimento" and parte_preenchida(fab) else None
 
 
 def fabricantes_iguais(fontes: list[Fonte]) -> bool:

@@ -6,7 +6,8 @@ from math import fsum
 from app.schemas import Contagem, Divergencia, ItemExtraido, Medida
 from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.frete_somado_ao_total import parcelas_que_fecham
-from app.services.comparacao.identificacao_do_documento import nome_doc, nome_doc_escaneado, ref_documento
+from app.services.comparacao.identificacao_do_documento import nome_doc_escaneado
+from app.services.comparacao.mensagens import divergencia_interna, pedir
 from app.services.comparacao.normalizacao import (
     fecham_no_centavo,
     formatar_contagem,
@@ -33,8 +34,7 @@ def divergencias_das_somas(f: Fonte) -> list[Divergencia]:
     if f.escaneado is not False:
         return []
     return [
-        Divergencia(categoria="interna", comparacao_id=None, campo=None, documento=ref_documento(f),
-                    mensagem=f"{nome_doc(f)}: {c.erro}; pedir correção.", evidencia=c.evidencia, pagina=c.pagina)
+        divergencia_interna(f, pedir(c.erro, "correção"), c.evidencia, c.pagina)
         for c in contas_que_nao_fecham(f)
     ]
 

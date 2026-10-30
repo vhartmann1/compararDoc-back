@@ -2,6 +2,7 @@
 
 from app.schemas import Parte
 from app.services.comparacao.conferencia_do_adquirente import mesma_empresa_registrada, mesmo_endereco
+from app.services.comparacao.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Col
 
 Lugar = tuple[list[Col], Parte]  # um endereço e as colunas que o trazem
@@ -29,7 +30,7 @@ def _lugares_por_empresa(colunas: list[Col]) -> list[list[Lugar]]:
 
 def _consignatarios(colunas: list[Col]) -> list[tuple[Col, Parte]]:
     return [(col, p) for col in colunas for f in col.fontes
-            if (p := f.doc.consignatario) and p.nome.strip() and p.endereco and p.endereco.strip()]
+            if parte_preenchida(p := f.doc.consignatario) and p.endereco and p.endereco.strip()]
 
 
 def _mensagem(lugares: list[Lugar]) -> str:

@@ -6,6 +6,7 @@ from app.schemas import NomeCampo, Parte
 from app.services.comparacao.identificacao_do_documento import nome_doc
 from app.services.comparacao.mesma_empresa import relacao_entre_partes
 from app.services.comparacao.normalizacao import enderecos_compativeis
+from app.services.comparacao.parte_preenchida import parte_preenchida
 from app.services.comparacao.regras_por_campo.exportador_consignatario import fabricante_alternativo
 from app.services.comparacao.tipos import Col, Fonte
 
@@ -28,7 +29,7 @@ def triangulacoes(colunas: list[Col]) -> list[Triangulacao]:
     resultado = []
     for col in colunas:
         shipper = col.fontes[0].doc.exportador if col.so_conhecimento() else None
-        if shipper is None or not shipper.nome.strip():
+        if not parte_preenchida(shipper):
             continue
         proprias, outras = separar_por_empresa(shipper, referencias)
         if outras:
@@ -46,7 +47,7 @@ def separar_por_empresa(shipper: Parte, fontes: list[Fonte]) -> tuple[list[Fonte
 
 
 def _partes_do_exportador(f: Fonte) -> list[Parte]:
-    return [p for p in (f.doc.exportador, fabricante_alternativo(f)) if p and p.nome.strip()]
+    return [p for p in (f.doc.exportador, fabricante_alternativo(f)) if parte_preenchida(p)]
 
 
 def _de_outra_empresa(shipper: Parte, f: Fonte) -> bool:

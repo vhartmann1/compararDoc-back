@@ -5,6 +5,7 @@ import re
 from app.schemas import CampoComparado, Divergencia, Parte, StatusCampo, ValorCampo
 from app.services.comparacao.constantes import ROTULOS
 from app.services.comparacao.mesma_empresa import relacao_entre_partes
+from app.services.comparacao.parte_preenchida import parte_preenchida
 from app.services.comparacao.normalizacao import (
     normalizar_cidade,
     normalizar_cnpj,
@@ -70,7 +71,7 @@ def _clientes(colunas: list[Col], partes: dict[str, list]) -> list[tuple[Col, Pa
 
 
 def _do_cliente(p: Parte | None) -> bool:
-    return p is not None and bool(p.nome.strip()) and not parte_da_capital(p)
+    return parte_preenchida(p) and not parte_da_capital(p)
 
 
 def _a_mostrar(conferidos: list[tuple[tuple[Fonte, str, Parte], bool, list[str]]]) -> list[tuple[Fonte, str, Parte]]:

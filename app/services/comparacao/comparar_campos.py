@@ -23,6 +23,7 @@ from app.services.comparacao.endereco_do_consignatario import avisos_de_endereco
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.leitura_incerta_entre_documentos import aviso_de_leitura_incerta
 from app.services.comparacao.mensagem_de_ncm import texto_ncm
+from app.services.comparacao.mensagens import confira
 from app.services.comparacao.pareamento_invoice_packing_list import pls_em_outra_numeracao
 from app.services.comparacao.operacao_triangular import (
     CAMPOS_DO_EXPORTADOR,
@@ -165,7 +166,7 @@ def _status_campo(
         if len(unidades) > 1:
             textos = " × ".join(f"{col.nome_curto} {v.exibicao}" for col, v in informados)
             ctx.avisos.append(
-                f"{ctx.prefixo}Quantidade em unidades que não dá para comparar ({textos}); confira manualmente."
+                confira(f"{ctx.prefixo}Quantidade em unidades que não dá para comparar ({textos})", "manualmente")
             )
             return "INSUFICIENTE"
     if campo == "ncm":
@@ -179,7 +180,7 @@ def _status_campo(
         return "OK"
     if campo == "volumes" and embalagens_distintas([valor for _, valor in grupos]):
         textos = " × ".join(f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in grupos)
-        ctx.avisos.append(f"{ctx.prefixo}Volumes em embalagens diferentes ({textos}); confira manualmente.")
+        ctx.avisos.append(confira(f"{ctx.prefixo}Volumes em embalagens diferentes ({textos})", "manualmente"))
         return "INSUFICIENTE"
     if aviso := aviso_de_leitura_incerta(ctx, campo, grupos):
         ctx.avisos.append(aviso)

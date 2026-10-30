@@ -1,7 +1,8 @@
 """Duas versões do mesmo documento com valor total, preços ou nº de invoice citado diferentes: divergência."""
 
 from app.schemas import Divergencia
-from app.services.comparacao.identificacao_do_documento import e_proforma, nome_doc, ref_documento
+from app.services.comparacao.identificacao_do_documento import e_proforma, nome_doc
+from app.services.comparacao.mensagens import divergencia_interna
 from app.services.comparacao.normalizacao import (
     iguais_no_centavo,
     normalizar_moeda,
@@ -27,9 +28,8 @@ def _numeros_citados_diferentes(usada: Fonte) -> Divergencia | None:
     if len(lados) == 1:
         return None
     textos = [f"{f.arquivo.nome} {', '.join(f.doc.invoices_referenciadas)}" for f in lados]
-    return Divergencia(categoria="interna", comparacao_id=None, campo=None,
-                       mensagem=f"{nome_doc(usada)}: duas versões citam nº de invoice diferente — {' × '.join(textos)}",
-                       documento=ref_documento(usada), evidencia=" × ".join(textos))
+    return divergencia_interna(usada, f"duas versões citam nº de invoice diferente — {' × '.join(textos)}",
+                               " × ".join(textos))
 
 
 def _citados(f: Fonte) -> frozenset[str]:
@@ -49,14 +49,8 @@ def _divergencia(usada: Fonte, outra: Fonte) -> Divergencia | None:
     if usada.doc.tipo != "invoice" or e_proforma(outra.doc) or not _valores_diferentes(usada, outra):
         return None
     lados = sorted((usada, outra), key=lambda f: f.ordem)
-    return Divergencia(
-        categoria="interna",
-        comparacao_id=None,
-        campo=None,
-        mensagem=f"{nome_doc(usada)}: duas versões com valores diferentes — {' × '.join(map(_valor, lados))}",
-        documento=ref_documento(usada),
-        evidencia=" × ".join(f"{f.arquivo.nome}: {_precos(f)}" for f in lados),
-    )
+    return divergencia_interna(usada, f"duas versões com valores diferentes — {' × '.join(map(_valor, lados))}",
+                               " × ".join(f"{f.arquivo.nome}: {_precos(f)}" for f in lados))
 
 
 def _valores_diferentes(a: Fonte, b: Fonte) -> bool:

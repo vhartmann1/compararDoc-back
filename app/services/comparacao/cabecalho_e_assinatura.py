@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 
 from app.schemas import Divergencia
-from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
+from app.services.comparacao.identificacao_do_documento import nome_doc
+from app.services.comparacao.mensagens import divergencia_interna
 from app.services.comparacao.mesma_empresa import relacao_entre_nomes
 from app.services.comparacao.tipos import Fonte
 
@@ -67,8 +68,7 @@ def avisos_do_cabecalho(fontes: list[Fonte]) -> list[str]:
 def _interna(f: Fonte, e: Empresas, mensagem: str) -> Divergencia:
     evidencia = f"Cabeçalho: {e.cabecalho} × Assinatura: {e.assinatura} × Vendedor: {e.vendedor}"
     pagina = f.doc.exportador.pagina if f.doc.exportador else None
-    return Divergencia(categoria="interna", comparacao_id=None, campo=None, mensagem=f"{nome_doc(f)}: {mensagem}",
-                       documento=ref_documento(f), evidencia=evidencia, pagina=pagina)
+    return divergencia_interna(f, mensagem, evidencia, pagina)
 
 
 def _fabricante_declarado(f: Fonte) -> str | None:

@@ -2,7 +2,9 @@
 
 from app.schemas import Divergencia, Parte
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
+from app.services.comparacao.mensagens import confira
 from app.services.comparacao.mesma_empresa import relacao_entre_partes
+from app.services.comparacao.parte_preenchida import parte_preenchida
 from app.services.comparacao.regras_por_campo.exportador_consignatario import parte_da_capital
 from app.services.comparacao.tipos import Fonte
 
@@ -21,7 +23,7 @@ def avisos_do_notify(invoices: list[Fonte], invoices_e_pls: list[Fonte], conheci
 
 def _outro_que_o_da_invoice(conhecimento: Fonte, pedidos: list[Parte]) -> Divergencia | None:
     notify = conhecimento.doc.notify
-    if notify is None or not notify.nome.strip():
+    if not parte_preenchida(notify):
         return None
     if any(relacao_entre_partes(notify, pedido) != "outra" for pedido in pedidos):
         return None
@@ -34,7 +36,7 @@ def _outro_que_o_da_invoice(conhecimento: Fonte, pedidos: list[Parte]) -> Diverg
 
 
 def _preenchidas(partes: list[Parte | None]) -> list[Parte]:
-    return [p for p in partes if p and p.nome.strip()]
+    return [p for p in partes if parte_preenchida(p)]
 
 
 def _clientes(fontes: list[Fonte]) -> list[Parte]:
@@ -49,10 +51,10 @@ def _fora_da_capital(partes: list[Parte | None]) -> list[Parte]:
 
 def _aviso(conhecimento: Fonte, clientes: list[Parte]) -> str | None:
     notify = conhecimento.doc.notify
-    if notify is None or not notify.nome.strip() or parte_da_capital(notify) or not clientes:
+    if not parte_preenchida(notify) or parte_da_capital(notify) or not clientes:
         return None
     if any(relacao_entre_partes(notify, cliente) != "outra" for cliente in clientes):
         return None
     nomes = " / ".join(dict.fromkeys(c.nome.strip() for c in clientes))
-    return (f"Notify do {nome_doc(conhecimento)} ({notify.nome.strip()}) não é a Capital Trade nem o adquirente "
-            f"da invoice ({nomes}); confira.")
+    return confira(f"Notify do {nome_doc(conhecimento)} ({notify.nome.strip()}) não é a Capital Trade nem o "
+                   f"adquirente da invoice ({nomes})")
