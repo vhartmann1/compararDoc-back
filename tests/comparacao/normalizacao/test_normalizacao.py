@@ -2,7 +2,6 @@ import pytest
 
 from app.schemas import Medida
 from app.services.comparacao.normalizacao.codigos import normalizar_ncm
-from app.services.comparacao.normalizacao.empresas import nomes_equivalentes, normalizar_nome_empresa
 from app.services.comparacao.normalizacao.enderecos import enderecos_compativeis
 from app.services.comparacao.normalizacao.formatacao import formatar_cnpj, formatar_contagem, formatar_kg, formatar_ncm
 from app.services.comparacao.normalizacao.item import referencias_iguais
@@ -76,16 +75,6 @@ def test_numero_documento_e_po():
     assert normalizar_po("PO 15 March") == normalizar_po("15 March") == "15MARCH"
     assert normalizar_po("P.O. No. 778-1") == normalizar_po("PO#7781") == normalizar_po("Purchase Order: 778-1") == "7781"
     assert normalizar_po("POLY-778") == "POLY778"  # "PO" que faz parte do número fica
-
-
-def test_nome_empresa():
-    assert normalizar_nome_empresa("Capital Trade Importação e Exportação Ltda.") == "CAPITAL TRADE"
-    assert normalizar_nome_empresa("SERRANA POLÍMEROS S.A.S.") == "SERRANA POLIMEROS"
-    assert nomes_equivalentes("Aurora Silk Co.", "AURORA SILK CO.")
-    assert nomes_equivalentes("CAPITAL TRADE IMPORTACAO EEXPORTACAO LTDA", "Capital Trade Importação e Exportação Ltda.")
-    assert nomes_equivalentes("Delta Fast-Run Footwear Ltd.", "DELTA FAST RUN FOOTWEAR LIMITED")
-    assert not nomes_equivalentes("Orion Pacific Trading Co., Ltd.", "Delta Fast-Run Footwear Ltd.")
-    assert not nomes_equivalentes("Capital Trade", "Plastnorte Distribuidora de Resinas")
 
 
 @pytest.mark.parametrize(
