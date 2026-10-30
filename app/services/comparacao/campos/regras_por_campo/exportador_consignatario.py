@@ -2,7 +2,6 @@
 
 from app.schemas import NomeCampo, Parte
 from app.services.comparacao.campos.regras_por_campo.regra import com_alternativas_iguais, texto_soma
-from app.services.comparacao.constantes import CNPJ_RAIZ_CAPITAL
 from app.services.comparacao.normalizacao.codigos import normalizar_cnpj
 from app.services.comparacao.normalizacao.formatacao import formatar_cnpj
 from app.services.comparacao.partes.mesma_empresa import relacao_entre_nomes, relacao_entre_partes
@@ -54,20 +53,6 @@ def _partes_iguais(a: tuple, b: tuple) -> bool:
     if a[1] and b[1]:
         return a[1] == b[1]
     return relacao_entre_nomes(a[0], b[0]) == "mesma"
-
-
-def eh_capital(nome: str, cnpj: str | None) -> bool:
-    if cnpj:
-        return cnpj.startswith(CNPJ_RAIZ_CAPITAL)
-    return "CAPITAL TRADE" in nome.upper()
-
-
-def valor_da_capital(valor: Valor) -> bool:
-    return all(eh_capital(nome, cnpj) for nome, cnpj, _ in valor.chave)
-
-
-def parte_da_capital(parte: Parte) -> bool:
-    return eh_capital(parte.nome, normalizar_cnpj(parte.cnpj))
 
 
 def listas_de_partes_iguais(a: tuple, b: tuple) -> bool:

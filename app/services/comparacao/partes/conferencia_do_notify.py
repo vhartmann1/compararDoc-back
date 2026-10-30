@@ -1,9 +1,9 @@
 """Notify do conhecimento: o da invoice, se ela tem; senão a Capital ou o adquirente (outra empresa vira aviso)."""
 
 from app.schemas import Divergencia, Parte
-from app.services.comparacao.campos.regras_por_campo.exportador_consignatario import parte_da_capital
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.mensagens import confira
+from app.services.comparacao.partes.capital import parte_da_capital
 from app.services.comparacao.partes.mesma_empresa import relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Fonte

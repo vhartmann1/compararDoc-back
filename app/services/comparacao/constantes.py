@@ -49,7 +49,6 @@ CAMPOS_SOMADOS: set[NomeCampo] = {"peso_liquido", "peso_bruto", "volumes", "quan
 # Em conta e ordem ou encomenda, a Capital Trade pode ser a consignatária no conhecimento.
 MODALIDADES_CAPITAL_CONSIGNATARIA: set[str] = {"conta_e_ordem", "encomenda"}
 
-CNPJ_RAIZ_CAPITAL = "07872326"  # Capital Trade Importação e Exportação Ltda. (qualquer filial)
 
 # Campos em que invoices somadas com valores diferentes merecem aviso.
 CAMPOS_UNICOS_NA_SOMA: set[NomeCampo] = {

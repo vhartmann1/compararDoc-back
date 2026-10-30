@@ -3,11 +3,11 @@
 import re
 
 from app.schemas import CampoComparado, Divergencia, Parte, StatusCampo, ValorCampo
-from app.services.comparacao.campos.regras_por_campo.exportador_consignatario import parte_da_capital
 from app.services.comparacao.constantes import ROTULOS
 from app.services.comparacao.normalizacao.codigos import normalizar_cnpj
 from app.services.comparacao.normalizacao.enderecos import normalizar_cidade, normalizar_endereco
 from app.services.comparacao.normalizacao.texto import sem_acento
+from app.services.comparacao.partes.capital import parte_da_capital
 from app.services.comparacao.partes.mesma_empresa import relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Col, Contexto, Fonte

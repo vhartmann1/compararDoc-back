@@ -1,11 +1,10 @@
 """Onde a Capital tem de aparecer: no PL quando a invoice a traz; em algum documento na conta e ordem."""
 
 from app.schemas import Divergencia, Modalidade
-from app.services.comparacao.campos.regras_por_campo.exportador_consignatario import parte_da_capital, valor_da_capital
 from app.services.comparacao.documentos.colunas_da_comparacao import listar_pares
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.mensagens import pedir
-from app.services.comparacao.partes.consignatario_pela_modalidade import sem_sinal_da_capital
+from app.services.comparacao.partes.capital import parte_da_capital, sem_sinal_da_capital, valor_da_capital
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Col, Fonte, Valor
 

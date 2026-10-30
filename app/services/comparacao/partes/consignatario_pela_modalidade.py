@@ -1,7 +1,7 @@
 """Conhecimento em nome da Capital e invoice/PL em nome do cliente: alerta conforme a modalidade, não divergência."""
 
-from app.services.comparacao.campos.regras_por_campo.exportador_consignatario import valor_da_capital
-from app.services.comparacao.constantes import CNPJ_RAIZ_CAPITAL, MODALIDADES_CAPITAL_CONSIGNATARIA
+from app.services.comparacao.constantes import MODALIDADES_CAPITAL_CONSIGNATARIA
+from app.services.comparacao.partes.capital import sem_sinal_da_capital, valor_da_capital
 from app.services.comparacao.tipos import Col, Contexto, Valor
 
 NOME_MODALIDADE = {"conta_e_ordem": "conta e ordem", "encomenda": "encomenda"}
@@ -14,13 +14,6 @@ def _da_capital_no_conhecimento(col: Col, valor: Valor) -> bool:
 def _do_cliente(col: Col, valor: Valor) -> bool:
     """Invoice/PL sem nenhum sinal da Capital: nem o nome nem a raiz do CNPJ."""
     return not col.so_conhecimento() and sem_sinal_da_capital(valor)
-
-
-def sem_sinal_da_capital(valor: Valor) -> bool:
-    """Nem o nome nem a raiz do CNPJ da Capital (não usa eh_capital: um CNPJ lido errado viraria cliente)."""
-    return not any(
-        "CAPITAL TRADE" in nome.upper() or (cnpj or "").startswith(CNPJ_RAIZ_CAPITAL) for nome, cnpj, _ in valor.chave
-    )
 
 
 def separar_conhecimentos_da_capital(
