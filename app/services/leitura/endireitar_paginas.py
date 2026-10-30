@@ -9,7 +9,7 @@ from pypdf import PdfReader, PdfWriter
 from pypdf.errors import DependencyError, PyPdfError
 
 from app.schemas import ArquivoEntrada, ExtracaoArquivo, PaginaGirada, Uso
-from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF
+from app.tipos_de_arquivo import MEDIA_PDF
 
 logger = logging.getLogger(__name__)
 

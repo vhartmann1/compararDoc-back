@@ -6,7 +6,8 @@ import pytest
 from fastapi import HTTPException, UploadFile
 from starlette.datastructures import Headers
 
-from app.routes.analises import ASSINATURA_OLE, MEDIA_XLS, _validar_tipo
+from app.routes.analises import ASSINATURA_OLE, _validar_tipo
+from app.tipos_de_arquivo import MEDIA_XLS
 
 
 def envio(nome: str, conteudo: bytes, content_type: str) -> UploadFile:

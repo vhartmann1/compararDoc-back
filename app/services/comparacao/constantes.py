@@ -1,7 +1,7 @@
 """Constantes das regras de comparação."""
 
 from app.schemas import NomeCampo, TipoDocumento
-from app.services.leitura.arquivo_para_conteudo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX
+from app.tipos_de_arquivo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX
 
 # Até 0,5 kg (inclusive) de diferença não é divergência; mudou a regra, atualize o contrato e os testes.
 TOLERANCIA_PESO_KG = 0.5

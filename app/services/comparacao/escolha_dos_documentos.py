@@ -22,7 +22,7 @@ from app.services.comparacao.normalizacao import (
     unidade_quantidade,
 )
 from app.services.comparacao.tipos import Fonte
-from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX
+from app.tipos_de_arquivo import MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX
 
 MEDIAS_DE_PLANILHA = (MEDIA_XLS, MEDIA_XLSX)
 

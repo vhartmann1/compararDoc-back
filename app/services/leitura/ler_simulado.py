@@ -14,7 +14,7 @@ from app.schemas import (
     Texto,
     Uso,
 )
-from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF, TIPOS_IMAGEM
+from app.tipos_de_arquivo import MEDIA_PDF, TIPOS_IMAGEM
 
 ATLASFIT = "AtlasFit Brasil Importação e Comércio de Artigos Esportivos Ltda."
 CAPITAL = "CAPITAL TRADE IMPORTACAO E EXPORTACAO LTDA."

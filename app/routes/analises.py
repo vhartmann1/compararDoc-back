@@ -35,18 +35,15 @@ from app.schemas import (
     ResultadoComparacao,
     Uso,
 )
+from app.tipos_de_arquivo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX, TIPOS_IMAGEM
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/analises", tags=["analises"])
 
-MEDIA_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-MEDIA_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-MEDIA_XLS = "application/vnd.ms-excel"
-
 # media_type -> extensões aceitas
 TIPOS_ACEITOS: dict[str, tuple[str, ...]] = {
-    "application/pdf": (".pdf",),
+    MEDIA_PDF: (".pdf",),
     "image/jpeg": (".jpg", ".jpeg"),
     "image/png": (".png",),
     MEDIA_DOCX: (".docx",),
@@ -60,7 +57,7 @@ ASSINATURA_ZIP = b"PK\x03\x04"
 ASSINATURA_OLE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"  # Office antigo (.xls)
 ASSINATURA_POR_EXTENSAO = {".docx": ASSINATURA_ZIP, ".xlsx": ASSINATURA_ZIP, ".xls": ASSINATURA_OLE}
 EXTENSOES_ANTIGAS = {".doc"}
-TIPOS_INLINE = {"application/pdf", "image/jpeg", "image/png"}
+TIPOS_INLINE = {MEDIA_PDF, *TIPOS_IMAGEM}
 TAMANHO_BLOCO = 1024 * 1024
 
 ERRO_RESULTADO_ANTIGO = "Análise feita em versão anterior; envie novamente"
@@ -200,7 +197,7 @@ def _salvar(arquivo: UploadFile, destino: Path) -> int:
 def _contar_paginas(caminho: Path, media_type: str) -> int | None:
     if media_type in (MEDIA_DOCX, MEDIA_XLSX, MEDIA_XLS):
         return None  # Word/Excel não têm páginas fixas
-    if media_type != "application/pdf":
+    if media_type != MEDIA_PDF:
         return 1
     try:
         return len(PdfReader(caminho).pages)

@@ -6,7 +6,7 @@ from pypdf import PageObject, PdfReader
 from pypdf.errors import DependencyError, PyPdfError
 
 from app.schemas import ArquivoEntrada
-from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF, TIPOS_IMAGEM
+from app.tipos_de_arquivo import MEDIA_PDF, TIPOS_IMAGEM
 
 logger = logging.getLogger(__name__)
 

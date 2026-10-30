@@ -5,7 +5,7 @@ from pathlib import Path
 from PIL import Image
 
 from app.schemas import ArquivoEntrada
-from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF, MEDIA_XLSX
+from app.tipos_de_arquivo import MEDIA_PDF, MEDIA_XLSX
 from app.services.leitura.documento_escaneado import escaneado
 
 TEXTO = "COMMERCIAL INVOICE No. 1234 Kestrel Valve Works Total USD 9,000.00"

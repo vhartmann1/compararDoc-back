@@ -9,14 +9,8 @@ import pytest
 from PIL import Image
 
 from app.schemas import ArquivoEntrada
-from app.services.leitura.arquivo_para_conteudo import (
-    MEDIA_DOCX,
-    MEDIA_XLS,
-    MEDIA_XLSX,
-    ROTULO_FUNDO,
-    ErroConversao,
-    converter,
-)
+from app.services.leitura.arquivo_para_conteudo import ROTULO_FUNDO, ErroConversao, converter
+from app.tipos_de_arquivo import MEDIA_DOCX, MEDIA_XLS, MEDIA_XLSX
 
 
 def entrada(caminho: Path, media_type: str | None = None) -> ArquivoEntrada:

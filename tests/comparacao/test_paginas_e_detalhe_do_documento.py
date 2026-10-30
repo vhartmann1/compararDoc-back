@@ -7,7 +7,7 @@ import pytest
 from app.schemas import ArquivoEntrada, ExtracaoArquivo, ValorMonetario
 from app.services.comparacao.escolha_dos_documentos import escolher_documentos
 from app.services.comparacao.versoes_com_valor_diferente import divergencias_entre_versoes
-from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF, MEDIA_XLS
+from app.tipos_de_arquivo import MEDIA_PDF, MEDIA_XLS
 from tests.comparacao.apoio import doc, item
 
 ORDENS = [False, True]

@@ -8,7 +8,6 @@ from app.services.comparacao.normalizacao import (
     formatar_contagem,
     formatar_kg,
     formatar_ncm,
-    interpretar_numero,
     nomes_equivalentes,
     normalizar_ncm,
     normalizar_nome_empresa,
@@ -42,29 +41,6 @@ def test_para_kg(valor, unidade, esperado):
 
 def test_unidade_desconhecida_nao_converte():
     assert para_kg(medida(10, "OUTRA")) is None
-
-
-@pytest.mark.parametrize(
-    ("texto", "esperado"),
-    [
-        ("27,200.00", 27200.0),
-        ("27.200,00", 27200.0),
-        ("46,737.000 LBS", 46737.0),
-        ("1.234.567,8", 1234567.8),
-        ("1,234,567", 1234567.0),
-        ("27.200", 27200.0),
-        ("27,5", 27.5),
-        ("27.5", 27.5),
-        ("46737", 46737.0),
-    ],
-)
-def test_interpretar_numero(texto, esperado):
-    assert interpretar_numero(texto) == esperado
-
-
-def test_interpretar_numero_invalido():
-    with pytest.raises(ValueError):
-        interpretar_numero("N/A")
 
 
 def test_ncm():

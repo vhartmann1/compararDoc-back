@@ -19,12 +19,7 @@ from docx.text.paragraph import Paragraph
 from PIL import Image
 
 from app.schemas import ArquivoEntrada
-
-MEDIA_PDF = "application/pdf"
-MEDIA_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-MEDIA_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-MEDIA_XLS = "application/vnd.ms-excel"
-TIPOS_IMAGEM = {"image/jpeg", "image/png"}
+from app.tipos_de_arquivo import MEDIA_DOCX, MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX, TIPOS_IMAGEM
 
 # Limites da API: lado até 2576 px (2000 com mais de 20 imagens), 5 MB por imagem em base64, 100 por requisição.
 LADO_MAXIMO = 2576

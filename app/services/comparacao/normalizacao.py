@@ -85,27 +85,6 @@ def fecham_no_centavo(x: float, y: float) -> bool:
     return abs(x - y) < MEIO_CENTAVO
 
 
-def interpretar_numero(texto: str) -> float:
-    """Lê '27,200.00', '27.200,00', '46737', '1.234': o último separador é o decimal, salvo se parecer milhar."""
-    limpo = re.sub(r"[^\d.,]", "", texto)
-    if not limpo or not re.search(r"\d", limpo):
-        raise ValueError(f"Número inválido: {texto!r}")
-
-    tem_ponto, tem_virgula = "." in limpo, "," in limpo
-    if tem_ponto and tem_virgula:
-        decimal = "." if limpo.rfind(".") > limpo.rfind(",") else ","
-        milhar = "," if decimal == "." else "."
-        return float(limpo.replace(milhar, "").replace(decimal, "."))
-
-    separador = "." if tem_ponto else "," if tem_virgula else None
-    if separador is None:
-        return float(limpo)
-    partes = limpo.split(separador)
-    if len(partes) > 2 or len(partes[-1]) == 3:
-        return float(limpo.replace(separador, ""))  # separador de milhar
-    return float(limpo.replace(separador, "."))
-
-
 # Embalagens de níveis diferentes: 2 paletes e 160 caixas podem ser a mesma carga.
 EMBALAGENS = {"SACOS", "CAIXAS", "PALETES", "TAMBORES", "PECAS"}  # espécies de volume; peça = bobina etc.
 
