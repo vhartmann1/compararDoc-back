@@ -1,12 +1,9 @@
-from app.schemas import OutraDespesa, ValorMonetario
 from tests.comparacao.apoio import doc, item, mensagens, rodar
 
 
-def _invoice(total, *valores):
+def _invoice(total, *valores, frete=None, despesas=()):
     linhas = [item(f"C-{n}", f"CADEIRA MODELO {n}", 10, "PCS", valor=v) for n, v in enumerate(valores)]
-    d = doc("invoice", numero="INV-7", itens=linhas)
-    return d.model_copy(update={"valor_total": ValorMonetario(valor=total, moeda="USD", texto_original=str(total),
-                                                              pagina=1)})
+    return doc("invoice", numero="INV-7", itens=linhas, valor_total=total, valor_frete=frete, despesas=despesas)
 
 
 def _pl(volumes_total, linhas, liquido=None, bruto=None):
@@ -84,28 +81,20 @@ def test_ordem_das_linhas_nao_muda_o_resultado():
 
 
 def test_total_com_frete_informado_somado_fecha():
-    d = _invoice(1530.00, 1000.00, 500.00)
-    frete = ValorMonetario(valor=30.0, moeda="USD", texto_original="30.00", pagina=1)
-    assert not mensagens(rodar([d.model_copy(update={"valor_frete": frete})], escaneado=False), "interna")
+    d = _invoice(1530.00, 1000.00, 500.00, frete=30.0)
+    assert not mensagens(rodar([d], escaneado=False), "interna")
 
 
 def test_frete_que_nao_explica_a_diferenca_continua_acusando():
-    d = _invoice(1531.00, 1000.00, 500.00)
-    frete = ValorMonetario(valor=30.0, moeda="USD", texto_original="30.00", pagina=1)
-    assert len(mensagens(rodar([d.model_copy(update={"valor_frete": frete})], escaneado=False), "interna")) == 1
-
-
-def _com_despesas(d, *valores):
-    despesas = [OutraDespesa(descricao=f"TAXA {n}", valor=v, texto_original=str(v), pagina=1)
-                for n, v in enumerate(valores)]
-    return d.model_copy(update={"outras_despesas": despesas})
+    d = _invoice(1531.00, 1000.00, 500.00, frete=30.0)
+    assert len(mensagens(rodar([d], escaneado=False), "interna")) == 1
 
 
 def test_outras_despesas_e_descontos_entram_na_soma():
-    d = _com_despesas(_invoice(1530.00, 1000.00, 500.00), 50.0, -20.0)
+    d = _invoice(1530.00, 1000.00, 500.00, despesas=(50.0, -20.0))
     assert not mensagens(rodar([d], escaneado=False), "interna")
 
 
 def test_despesa_que_nao_explica_a_diferenca_continua_acusando():
-    d = _com_despesas(_invoice(1530.00, 1000.00, 500.00), 25.0)
+    d = _invoice(1530.00, 1000.00, 500.00, despesas=(25.0,))
     assert len(mensagens(rodar([d], escaneado=False), "interna")) == 1

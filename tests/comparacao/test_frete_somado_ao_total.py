@@ -1,18 +1,12 @@
 """Invoice FOB/EXW com frete ou seguro somados ao total: a operação pede para remover."""
 
-from app.schemas import ValorMonetario
 from tests.comparacao.apoio import doc, item, mensagens, rodar
-
-
-def _dinheiro(valor):
-    return None if valor is None else ValorMonetario(valor=valor, moeda="USD", texto_original=f"USD {valor}", pagina=1)
 
 
 def _invoice(incoterm, total, frete=None, seguro=None):
     itens = [item("A1", "Valvula de esfera", valor=1500.0), item("A2", "Valvula de gaveta", valor=500.0)]
-    d = doc("invoice", numero="1", incoterm=incoterm, itens=itens)
-    return d.model_copy(update={"valor_total": _dinheiro(total), "valor_frete": _dinheiro(frete),
-                                "valor_seguro": _dinheiro(seguro)})
+    return doc("invoice", numero="1", incoterm=incoterm, itens=itens, valor_total=total, valor_frete=frete,
+               valor_seguro=seguro)
 
 
 def _somados(r):

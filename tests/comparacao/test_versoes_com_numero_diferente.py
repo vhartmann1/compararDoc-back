@@ -1,8 +1,7 @@
 """Versões do mesmo packing list que citam outro nº de invoice: o número errado é apontado, não aceito."""
 
-from tests.comparacao.apoio import arquivo, doc, mensagens
-from app.schemas import ExtracaoArquivo
-from app.services.comparacao import comparar
+from app.tipos_de_arquivo import MEDIA_PDF
+from tests.comparacao.apoio import doc, enviar, mensagens
 
 
 def _pl(refs):
@@ -10,9 +9,7 @@ def _pl(refs):
 
 
 def _rodar(*arquivos):
-    entradas = [(arquivo(nome).model_copy(update={"nome": f"{nome}.pdf"}), ExtracaoArquivo(documentos=docs))
-                for nome, docs in arquivos]
-    return comparar(entradas)
+    return enviar(*((f"{nome}.pdf", MEDIA_PDF, docs) for nome, docs in arquivos))
 
 
 def _versoes(r):

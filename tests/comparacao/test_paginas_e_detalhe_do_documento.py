@@ -1,20 +1,18 @@
 """Documento dividido em arquivos (páginas) e planilha de detalhe do PL: nem descartar nem somar em dobro."""
 
-from pathlib import Path
-
 import pytest
 
-from app.schemas import ArquivoEntrada, ExtracaoArquivo, ValorMonetario
+from app.schemas import ExtracaoArquivo
 from app.services.comparacao.escolha_dos_documentos import escolher_documentos
 from app.services.comparacao.versoes_com_valor_diferente import divergencias_entre_versoes
 from app.tipos_de_arquivo import MEDIA_PDF, MEDIA_XLS
-from tests.comparacao.apoio import doc, item
+from tests.comparacao.apoio import arquivo, doc, item
 
 ORDENS = [False, True]
 
 
 def _arquivo(nome, media=MEDIA_PDF):
-    return ArquivoEntrada(id=nome, nome=nome, caminho=Path(f"/tmp/{nome}"), media_type=media)
+    return arquivo(nome, nome, media)
 
 
 def _escolher(*arquivos, invertido=False):
@@ -24,13 +22,8 @@ def _escolher(*arquivos, invertido=False):
     return escolher_documentos(entradas, avisos).por_tipo, avisos
 
 
-def _valor(v):
-    return ValorMonetario(valor=v, moeda="USD", texto_original=f"USD {v}", pagina=1)
-
-
 def _invoice(itens, total=None, liquido=None, bruto=None):
-    d = doc("invoice", liquido, bruto, numero="Z-100", itens=itens)
-    return d.model_copy(update={"valor_total": _valor(total) if total else None})
+    return doc("invoice", liquido, bruto, numero="Z-100", itens=itens, valor_total=total)
 
 
 PAGINA_1 = [item("AB-1", "MOCHILA ESCOLAR", 10, valor=100.0), item("AB-2", "ESTOJO ESCOLAR", 20, valor=40.0)]

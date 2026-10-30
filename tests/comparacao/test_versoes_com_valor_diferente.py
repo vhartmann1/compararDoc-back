@@ -1,14 +1,12 @@
 """Duas versões da mesma invoice com valores diferentes: divergência, não só aviso."""
 
-from app.schemas import ValorMonetario
-from tests.comparacao.apoio import doc, item, mensagens, rodar
+from tests.comparacao.apoio import dinheiro, doc, item, mensagens, rodar
 
 
-def _invoice(total, precos, versao="original"):
+def _invoice(total, precos, versao="original", frete=None, seguro=None):
     itens = [item("A1", "Chave de boca", 10, valor=precos[0]), item("B2", "Alicate", 5, valor=precos[1])]
-    base = doc("invoice", numero="77", bruto=100, liquido=90, volumes=(4, "CTN"), itens=itens, versao=versao)
-    return base.model_copy(update={"valor_total": ValorMonetario(valor=total, moeda="USD", texto_original=str(total),
-                                                                  pagina=1)})
+    return doc("invoice", numero="77", bruto=100, liquido=90, volumes=(4, "CTN"), itens=itens, versao=versao,
+               valor_total=total, valor_frete=frete, valor_seguro=seguro)
 
 
 def _pl():
@@ -51,31 +49,25 @@ def test_linha_que_nao_soma_o_total_e_leitura_duvidosa_e_nao_diverge():
     assert not _versoes(r)
 
 
-def _com_frete(invoice, frete, seguro=None):
-    def m(v):
-        return None if v is None else ValorMonetario(valor=v, moeda="USD", texto_original=str(v), pagina=1)
-    return invoice.model_copy(update={"valor_frete": m(frete), "valor_seguro": m(seguro)})
-
-
 def test_diferenca_igual_a_frete_e_seguro_declarados_nao_diverge_e_avisa():
-    r = rodar([_com_frete(_invoice(330.0, [100.0, 200.0]), 25.0, 5.0), _pl()], [_invoice(300.0, [100.0, 200.0])])
+    r = rodar([_invoice(330.0, [100.0, 200.0], frete=25.0, seguro=5.0), _pl()], [_invoice(300.0, [100.0, 200.0])])
     assert not _versoes(r)
     assert any("total FOB" in a for a in r.avisos)
 
 
 def test_diferenca_igual_so_ao_frete_nao_diverge():
-    r = rodar([_invoice(300.0, [100.0, 200.0]), _pl()], [_com_frete(_invoice(325.0, [100.0, 200.0]), 25.0, 5.0)])
+    r = rodar([_invoice(300.0, [100.0, 200.0]), _pl()], [_invoice(325.0, [100.0, 200.0], frete=25.0, seguro=5.0)])
     assert not _versoes(r)
 
 
 def test_diferenca_que_nao_e_frete_continua_divergindo():
-    r = rodar([_com_frete(_invoice(300.0, [100.0, 200.0]), 25.0, 5.0), _pl()], [_invoice(250.0, [80.0, 170.0])])
+    r = rodar([_invoice(300.0, [100.0, 200.0], frete=25.0, seguro=5.0), _pl()], [_invoice(250.0, [80.0, 170.0])])
     assert len(_versoes(r)) == 1
 
 
 def test_moedas_diferentes_nao_divergem():
     eur = _invoice(330.0, [110.0, 220.0])
-    eur = eur.model_copy(update={"valor_total": eur.valor_total.model_copy(update={"moeda": "EUR"})})
+    eur = eur.model_copy(update={"valor_total": dinheiro(330.0, "EUR")})
     r = rodar([_invoice(300.0, [100.0, 200.0]), _pl()], [eur])
     assert not _versoes(r)
 
