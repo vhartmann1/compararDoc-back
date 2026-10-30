@@ -14,6 +14,7 @@ from app.services.comparacao.constantes import (
 from app.services.comparacao.identificacao_do_documento import PROFORMA, e_proforma, nome_doc, numero_normalizado
 from app.services.comparacao.normalizacao import (
     descricoes_equivalentes,
+    iguais_no_centavo,
     normalizar_codigo_item,
     numero_sem_serie,
     porto_brasileiro,
@@ -124,7 +125,7 @@ def _tem_totais(f: Fonte) -> bool:
 def _total_e_a_soma(f: Fonte, fontes: list[Fonte]) -> bool:
     valores = [i.valor_total for g in fontes for i in g.doc.itens]
     total = f.doc.valor_total
-    return total is not None and None not in valores and _iguais_no_centesimo(round(sum(valores), 2), total.valor)
+    return total is not None and None not in valores and iguais_no_centavo(round(sum(valores), 2), total.valor)
 
 
 def _documento_juntado(base: DocumentoExtraido, paginas: list[DocumentoExtraido]) -> DocumentoExtraido:
@@ -259,8 +260,8 @@ def _detalhe_em_planilha(planilha: Fonte, pdf: Fonte) -> bool:
 def _mesmos_pesos_e_quantidade(x: DocumentoExtraido, y: DocumentoExtraido) -> bool:
     pesos = [(x.peso_liquido_total, y.peso_liquido_total), (x.peso_bruto_total, y.peso_bruto_total)]
     qa, qb = x.quantidade_total, y.quantidade_total
-    return all(p and q and _iguais_no_centesimo(p.valor, q.valor) for p, q in pesos) and (
-        not (qa and qb) or _iguais_no_centesimo(qa.valor, qb.valor)
+    return all(p and q and iguais_no_centavo(p.valor, q.valor) for p, q in pesos) and (
+        not (qa and qb) or iguais_no_centavo(qa.valor, qb.valor)
     )
 
 
@@ -273,10 +274,10 @@ def _citam_outras_invoices(x: DocumentoExtraido, y: DocumentoExtraido) -> bool:
 
 def _mesmos_totais(a: Fonte, b: Fonte) -> bool:
     """Ao menos 2 totais iguais; se um deles é a quantidade e só há 2, também o mesmo número de linhas."""
-    iguais = [_iguais_no_centesimo(x.valor, y.valor) for x, y in zip(_totais(a), _totais(b)) if x and y]
+    iguais = [iguais_no_centavo(x.valor, y.valor) for x, y in zip(_totais(a), _totais(b)) if x and y]
     qa, qb = _quantidade(a), _quantidade(b)
     if qa and qb:
-        iguais.append(qa[0] == qb[0] and _iguais_no_centesimo(qa[1], qb[1]))
+        iguais.append(qa[0] == qb[0] and iguais_no_centavo(qa[1], qb[1]))
     if len(iguais) < 2 or not all(iguais):
         return False
     return len(iguais) > 2 or not (qa and qb) or _mesmo_numero_de_linhas(a, b)
@@ -295,11 +296,6 @@ def _mesmo_numero_de_linhas(a: Fonte, b: Fonte) -> bool:
     return bool(a.doc.itens) and len(a.doc.itens) == len(b.doc.itens)
 
 
-def _iguais_no_centesimo(x: float, y: float) -> bool:
-    """15532.6884 (Excel, sem arredondar) e 15532.69 (PDF impresso) são o mesmo total."""
-    return abs(x - y) <= 0.005 + 1e-9
-
-
 def _mesmos_itens(a: Fonte, b: Fonte) -> bool:
     """Cada linha de um tem par no outro: primeiro todos os pares exatos, depois as sobras por descrição equivalente."""
     sobra_a, sobra_b = list(a.doc.itens), list(b.doc.itens)
@@ -316,7 +312,7 @@ def _mesma_linha(x: ItemExtraido, y: ItemExtraido, exata: bool) -> bool:
     """Mesma quantidade e mesmo código; sem código, as mesmas palavras (em qualquer ordem) ou descrição parecida."""
     if (x.quantidade is None) != (y.quantidade is None):
         return False
-    if x.quantidade is not None and not _iguais_no_centesimo(x.quantidade, y.quantidade):
+    if x.quantidade is not None and not iguais_no_centavo(x.quantidade, y.quantidade):
         return False
     if x.codigo and y.codigo:
         return normalizar_codigo_item(x.codigo) == normalizar_codigo_item(y.codigo)
@@ -346,7 +342,7 @@ def _totais_diferentes(melhor: Fonte, outra: Fonte) -> str:
     difs = [
         f"{nome} {x.valor:g} {x.unidade} × {y.valor:g} {y.unidade}"
         for nome, x, y in zip(nomes, _totais(melhor), _totais(outra))
-        if x and y and not _iguais_no_centesimo(x.valor, y.valor)
+        if x and y and not iguais_no_centavo(x.valor, y.valor)
     ]
     return f" com totais diferentes ({'; '.join(difs)})" if difs else ""
 

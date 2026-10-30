@@ -2,11 +2,13 @@
 
 from app.schemas import Divergencia
 from app.services.comparacao.identificacao_do_documento import e_proforma, nome_doc, ref_documento
-from app.services.comparacao.normalizacao import normalizar_moeda, numero_da_invoice_para_conferir
+from app.services.comparacao.normalizacao import (
+    iguais_no_centavo,
+    normalizar_moeda,
+    numero_da_invoice_para_conferir,
+)
 from app.services.comparacao.regras_por_campo.ncm_invoice_po_portos import numeros_iguais
 from app.services.comparacao.tipos import Fonte
-
-TOLERANCIA = 0.005 + 1e-9  # Excel sem arredondar × PDF impresso
 
 
 def divergencias_entre_versoes(fontes: list[Fonte]) -> list[Divergencia]:
@@ -63,18 +65,18 @@ def _valores_diferentes(a: Fonte, b: Fonte) -> bool:
     ta, tb = a.doc.valor_total, b.doc.valor_total
     if ta and tb and not _mesma_moeda(ta.moeda, tb.moeda):
         return False  # outra moeda: os valores não se comparam
-    if ta and tb and abs(ta.valor - tb.valor) > TOLERANCIA:
+    if ta and tb and not iguais_no_centavo(ta.valor, tb.valor):
         return True
     pa, pb = _valores_das_linhas(a), _valores_das_linhas(b)
-    return bool(pa and pb) and len(pa) == len(pb) and any(abs(x - y) > TOLERANCIA for x, y in zip(pa, pb))
+    return bool(pa and pb) and len(pa) == len(pb) and any(not iguais_no_centavo(x, y) for x, y in zip(pa, pb))
 
 
 def _diferenca_e_frete(a: Fonte, b: Fonte) -> bool:
     """A diferença entre os totais é o frete, ou frete + seguro, declarado em alguma das versões."""
     ta, tb = a.doc.valor_total, b.doc.valor_total
-    if not (ta and tb and _mesma_moeda(ta.moeda, tb.moeda)) or abs(ta.valor - tb.valor) <= TOLERANCIA:
+    if not (ta and tb and _mesma_moeda(ta.moeda, tb.moeda)) or iguais_no_centavo(ta.valor, tb.valor):
         return False
-    return any(abs(abs(ta.valor - tb.valor) - p) <= TOLERANCIA for f in (a, b) for p in _parcelas_de_frete(f))
+    return any(iguais_no_centavo(abs(ta.valor - tb.valor), p) for f in (a, b) for p in _parcelas_de_frete(f))
 
 
 def _parcelas_de_frete(f: Fonte) -> list[float]:

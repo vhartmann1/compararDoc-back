@@ -72,6 +72,19 @@ def para_kg(medida: Medida) -> float | None:
     return round(medida.valor * fator, 3)
 
 
+MEIO_CENTAVO = 0.005
+
+
+def iguais_no_centavo(x: float, y: float) -> bool:
+    """Iguais em duas casas: 15532.6884 (Excel, sem arredondar) e 15532.69 (PDF impresso) são o mesmo total."""
+    return abs(x - y) <= MEIO_CENTAVO + 1e-9
+
+
+def fecham_no_centavo(x: float, y: float) -> bool:
+    """Conta que fecha: a diferença fica abaixo de meio centavo, sem a folga do arredondamento."""
+    return abs(x - y) < MEIO_CENTAVO
+
+
 def interpretar_numero(texto: str) -> float:
     """Lê '27,200.00', '27.200,00', '46737', '1.234': o último separador é o decimal, salvo se parecer milhar."""
     limpo = re.sub(r"[^\d.,]", "", texto)

@@ -5,7 +5,7 @@ from itertools import combinations
 from app.schemas import Divergencia
 from app.services.comparacao.constantes import INCOTERMS_EF
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.normalizacao import formatar_dinheiro, normalizar_incoterm
+from app.services.comparacao.normalizacao import fecham_no_centavo, formatar_dinheiro, normalizar_incoterm
 from app.services.comparacao.tipos import Fonte
 
 
@@ -42,6 +42,6 @@ def parcelas_que_fecham(f: Fonte, diferenca: float) -> list[tuple[str, float]]:
                 if v is not None and v.valor > 0]
     for n in range(len(parcelas), 0, -1):
         for grupo in combinations(parcelas, n):
-            if abs(sum(v for _, v in grupo) - diferenca) < 0.005:
+            if fecham_no_centavo(sum(v for _, v in grupo), diferenca):
                 return list(grupo)
     return []

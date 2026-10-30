@@ -8,6 +8,7 @@ from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.frete_somado_ao_total import parcelas_que_fecham
 from app.services.comparacao.identificacao_do_documento import nome_doc, nome_doc_escaneado, ref_documento
 from app.services.comparacao.normalizacao import (
+    fecham_no_centavo,
     formatar_contagem,
     formatar_dinheiro,
     formatar_kg,
@@ -61,7 +62,7 @@ def _soma_dos_valores(f: Fonte) -> ContaQueNaoFecha | None:
     if total is None or not valores or None in valores:
         return None
     soma = fsum(valores) + fsum(d.valor for d in f.doc.outras_despesas)  # taxas e descontos fora da mercadoria
-    if abs(soma - total.valor) < 0.005 or parcelas_que_fecham(f, abs(total.valor - soma)):
+    if fecham_no_centavo(soma, total.valor) or parcelas_que_fecham(f, abs(total.valor - soma)):
         return None  # fecha sozinha ou com o frete/seguro informados, no total ou nas linhas (CFR com total FOB)
     moeda = total.moeda or (f.doc.moeda.valor if f.doc.moeda else None)
     erro = (f"a soma das linhas ({formatar_dinheiro(soma, moeda)}) não bate com o total "
