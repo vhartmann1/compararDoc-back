@@ -21,7 +21,9 @@ from app.services.comparacao.normalizacao import (
     unidade_quantidade,
 )
 from app.services.comparacao.tipos import Fonte
-from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF
+from app.services.leitura.arquivo_para_conteudo import MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX
+
+MEDIAS_DE_PLANILHA = (MEDIA_XLS, MEDIA_XLSX)
 
 
 @dataclass
@@ -62,7 +64,8 @@ def _melhores_versoes(
         if not fontes:
             avisos.append(f"Documento não encontrado nos arquivos enviados: {NOME_TIPO[tipo]}.")
         escolhidos[tipo] = []
-        for mesmas in _grupos_de_duplicatas(fontes, citados):
+        for grupo in _grupos_de_duplicatas(fontes, citados):
+            mesmas = _paginas_juntadas(grupo, avisos)
             melhor, *ignorados = sorted(mesmas, key=_preferencia, reverse=True)
             melhor.duplicatas = ignorados
             escolhidos[tipo].append(melhor)
@@ -86,6 +89,52 @@ def _grupos_de_duplicatas(fontes: list[Fonte], citados: set[str]) -> list[list[F
         else:
             grupos.append([f])
     return grupos
+
+
+def _paginas_juntadas(mesmas: list[Fonte], avisos: list[str]) -> list[Fonte]:
+    """Mesmo número em arquivos com itens que não se repetem e totais só em um: são páginas, viram um documento."""
+    if len(mesmas) < 2 or not _sao_paginas(mesmas):
+        return mesmas
+    paginas = sorted(mesmas, key=lambda f: (f.arquivo.nome, f.ordem))
+    base = next(f for f in paginas if _tem_totais(f))
+    doc = _documento_juntado(base.doc, [f.doc for f in paginas])
+    juntada = Fonte(base.arquivo, doc, base.ordem, escaneado=base.escaneado)
+    nomes = ", ".join(f.arquivo.nome for f in paginas)
+    avisos.append(
+        f"{nome_doc(juntada)} veio em {len(paginas)} arquivos ({nomes}): itens juntados, totais de {base.arquivo.nome}."
+    )
+    return [juntada]
+
+
+def _sao_paginas(fontes: list[Fonte]) -> bool:
+    """Todos com itens, nenhuma linha repetida entre arquivos e totais em um só (ou totais que batem com a soma)."""
+    if not all(f.doc.itens for f in fontes):
+        return False
+    pares = [(a, b) for i, a in enumerate(fontes) for b in fontes[i + 1:]]
+    if any(_mesma_linha(x, y, False) for a, b in pares for x in a.doc.itens for y in b.doc.itens):
+        return False
+    com_totais = [f for f in fontes if _tem_totais(f)]
+    return len(com_totais) == 1 or bool(com_totais) and all(_total_e_a_soma(f, fontes) for f in com_totais)
+
+
+def _tem_totais(f: Fonte) -> bool:
+    return any(_totais(f)) or f.doc.valor_total is not None
+
+
+def _total_e_a_soma(f: Fonte, fontes: list[Fonte]) -> bool:
+    valores = [i.valor_total for g in fontes for i in g.doc.itens]
+    total = f.doc.valor_total
+    return total is not None and None not in valores and _iguais_no_centesimo(round(sum(valores), 2), total.valor)
+
+
+def _documento_juntado(base: DocumentoExtraido, paginas: list[DocumentoExtraido]) -> DocumentoExtraido:
+    """O documento com os totais, com os itens de todas as páginas e os campos que só outra página traz."""
+    vazios = {
+        nome: valor
+        for nome in DocumentoExtraido.model_fields
+        if not getattr(base, nome) and (valor := next((v for d in paginas if (v := getattr(d, nome))), None))
+    }
+    return base.model_copy(update=vazios | {"itens": [i for d in paginas for i in d.itens]})
 
 
 def _separar_proformas(invoices: list[Fonte], avisos: list[str]) -> tuple[list[Fonte], list[Fonte]]:
@@ -174,6 +223,8 @@ def revisao_pelo_nome(nome: str) -> tuple[int, int]:
 
 def _mesmo_documento(a: Fonte, b: Fonte, citados: set[str]) -> bool:
     """Mesmo número (ou carga renumerada em outro formato); sem número, os mesmos totais ou a mesma invoice e itens."""
+    if _detalhe_em_planilha(a, b) or _detalhe_em_planilha(b, a):
+        return True
     na, nb = numero_normalizado(a.doc.numero), numero_normalizado(b.doc.numero)
     if na and nb:
         return na == nb or _mesma_carga_em_outro_formato(a, b, citados)
@@ -194,6 +245,30 @@ def _mesma_carga_em_outro_formato(a: Fonte, b: Fonte, citados: set[str]) -> bool
     if numero_normalizado(office.doc.numero) in citados:
         return False  # outro documento cita esse número: é outra invoice, não uma versão antiga
     return _mesmos_totais(a, b) and _mesmos_itens(a, b)
+
+
+def _detalhe_em_planilha(planilha: Fonte, pdf: Fonte) -> bool:
+    """PL em planilha com os pesos (e a quantidade, se houver) do PL em PDF e sem citar outra invoice: é o detalhe."""
+    if planilha.doc.tipo != "packing_list" or pdf.doc.tipo != "packing_list":
+        return False
+    if planilha.arquivo.media_type not in MEDIAS_DE_PLANILHA or pdf.arquivo.media_type != MEDIA_PDF:
+        return False
+    return _mesmos_pesos_e_quantidade(planilha.doc, pdf.doc) and not _citam_outras_invoices(planilha.doc, pdf.doc)
+
+
+def _mesmos_pesos_e_quantidade(x: DocumentoExtraido, y: DocumentoExtraido) -> bool:
+    pesos = [(x.peso_liquido_total, y.peso_liquido_total), (x.peso_bruto_total, y.peso_bruto_total)]
+    qa, qb = x.quantidade_total, y.quantidade_total
+    return all(p and q and _iguais_no_centesimo(p.valor, q.valor) for p, q in pesos) and (
+        not (qa and qb) or _iguais_no_centesimo(qa.valor, qb.valor)
+    )
+
+
+def _citam_outras_invoices(x: DocumentoExtraido, y: DocumentoExtraido) -> bool:
+    """Os dois citam invoices e nenhuma em comum: são PLs de outras invoices, não detalhe um do outro."""
+    rx = {numero_normalizado(n) for n in x.invoices_referenciadas}
+    ry = {numero_normalizado(n) for n in y.invoices_referenciadas}
+    return bool(rx and ry) and not rx & ry
 
 
 def _mesmos_totais(a: Fonte, b: Fonte) -> bool:
