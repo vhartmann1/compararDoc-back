@@ -4,7 +4,8 @@ from app.schemas import Divergencia
 from app.services.comparacao.colunas_da_comparacao import listar_pares
 from app.services.comparacao.constantes import INCOTERMS_CD, INCOTERMS_EF
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.normalizacao import nome_do_porto, normalizar_incoterm, normalizar_porto, so_o_pais
+from app.services.comparacao.normalizacao.codigos import normalizar_incoterm
+from app.services.comparacao.normalizacao.portos import nome_do_porto, normalizar_porto, so_o_pais
 from app.services.comparacao.tipos import Fonte
 
 

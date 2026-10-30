@@ -3,7 +3,8 @@
 from app.schemas import NomeCampo
 from app.services.comparacao.constantes import ROTULOS, TOLERANCIA_PESO_KG
 from app.services.comparacao.identificacao_do_documento import nome_doc
-from app.services.comparacao.normalizacao import embalagem, formatar_contagem, formatar_kg, para_kg, unidade_quantidade
+from app.services.comparacao.normalizacao.formatacao import formatar_contagem, formatar_kg
+from app.services.comparacao.normalizacao.quantidades import embalagem, para_kg, unidade_quantidade
 from app.services.comparacao.regras_por_campo.regra import texto_soma
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 

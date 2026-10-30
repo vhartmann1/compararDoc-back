@@ -3,13 +3,11 @@
 import re
 
 from app.schemas import NomeCampo
-from app.services.comparacao.normalizacao import (
-    enderecos_compativeis,
-    normalizar_incoterm,
-    normalizar_moeda,
-    normalizar_pais,
-    nome_do_porto,
-)
+from app.services.comparacao.normalizacao.codigos import normalizar_incoterm
+from app.services.comparacao.normalizacao.dinheiro import normalizar_moeda
+from app.services.comparacao.normalizacao.enderecos import enderecos_compativeis
+from app.services.comparacao.normalizacao.paises import normalizar_pais
+from app.services.comparacao.normalizacao.portos import nome_do_porto
 from app.services.comparacao.regras_por_campo.exportador_consignatario import fabricante_alternativo
 from app.services.comparacao.regras_por_campo.regra import com_alternativas_iguais, texto_soma, valor_conjunto
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor

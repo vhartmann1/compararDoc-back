@@ -1,7 +1,7 @@
 """Divergência de NCM dita pelo código que sobra ou falta em cada lado, não pelas duas listas inteiras."""
 
 from app.services.comparacao.mensagens import pedir
-from app.services.comparacao.normalizacao import formatar_ncm
+from app.services.comparacao.normalizacao.formatacao import formatar_ncm
 from app.services.comparacao.tipos import Col, Valor
 
 

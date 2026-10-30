@@ -1,6 +1,6 @@
 """AWB que chega em Guarulhos/Viracopos com destino em SC na invoice: vem por DTA, aviso em vez de divergência."""
 
-from app.services.comparacao.normalizacao import normalizar_porto, uf_do_porto
+from app.services.comparacao.normalizacao.portos import normalizar_porto, uf_do_porto
 from app.services.comparacao.tipos import Col, Contexto, Valor
 
 AEROPORTOS_DA_DTA = {normalizar_porto(a) for a in ("GUARULHOS", "VIRACOPOS")}

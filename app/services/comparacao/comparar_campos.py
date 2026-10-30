@@ -5,6 +5,11 @@ from dataclasses import replace
 from typing import Any
 
 from app.schemas import CampoComparado, Coluna, Comparacao, Divergencia, NomeCampo, StatusCampo, ValorCampo
+from app.services.comparacao.capital_nos_documentos import texto_sem_a_capital
+from app.services.comparacao.chegada_por_dta import separar_chegada_por_dta
+from app.services.comparacao.conferencia_do_adquirente import campo_do_adquirente
+from app.services.comparacao.conhecimento_com_parte import conhecimentos_contidos
+from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
 from app.services.comparacao.constantes import (
     CAMPOS_DIVERGENTES_NA_SOMA,
     CAMPOS_FORA_DO_CONHECIMENTO,
@@ -14,17 +19,11 @@ from app.services.comparacao.constantes import (
     CAMPOS_UNICOS_NA_SOMA,
     ROTULOS,
 )
-from app.services.comparacao.capital_nos_documentos import texto_sem_a_capital
-from app.services.comparacao.chegada_por_dta import separar_chegada_por_dta
-from app.services.comparacao.conferencia_do_adquirente import campo_do_adquirente
-from app.services.comparacao.conhecimento_com_parte import conhecimentos_contidos
-from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
 from app.services.comparacao.endereco_do_consignatario import avisos_de_endereco
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.leitura_incerta_entre_documentos import aviso_de_leitura_incerta
 from app.services.comparacao.mensagem_de_ncm import texto_ncm
 from app.services.comparacao.mensagens import confira
-from app.services.comparacao.pareamento_invoice_packing_list import pls_em_outra_numeracao
 from app.services.comparacao.operacao_triangular import (
     CAMPOS_DO_EXPORTADOR,
     Triangulacao,
@@ -32,8 +31,9 @@ from app.services.comparacao.operacao_triangular import (
     coluna_das_proprias,
     triangulacoes,
 )
-from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import embalagens_distintas, nota_fator_mil
+from app.services.comparacao.pareamento_invoice_packing_list import pls_em_outra_numeracao
 from app.services.comparacao.regras_por_campo.exportador_consignatario import fabricantes_iguais
+from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import embalagens_distintas, nota_fator_mil
 from app.services.comparacao.regras_por_campo.regra import Regra
 from app.services.comparacao.regras_por_campo.regra_de_cada_campo import REGRAS
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor

@@ -7,7 +7,9 @@ from app.services.comparacao.cabecalho_e_assinatura import divergencias_do_cabec
 from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.identificacao_do_documento import nome_doc
 from app.services.comparacao.mensagens import divergencia_interna
-from app.services.comparacao.normalizacao import formatar_dinheiro, normalizar_moeda, normalizar_pais
+from app.services.comparacao.normalizacao.dinheiro import normalizar_moeda
+from app.services.comparacao.normalizacao.formatacao import formatar_dinheiro
+from app.services.comparacao.normalizacao.paises import normalizar_pais
 from app.services.comparacao.tipos import Fonte
 
 

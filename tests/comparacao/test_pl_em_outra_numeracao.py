@@ -1,6 +1,6 @@
 """PL consolidado que cita as invoices por outra numeração (uma por invoice): vai contra a soma."""
 
-from app.services.comparacao.normalizacao import numeros_quase_iguais
+from app.services.comparacao.normalizacao.numeros_de_documento import numeros_quase_iguais
 from tests.comparacao.apoio import campo, doc, rodar
 
 

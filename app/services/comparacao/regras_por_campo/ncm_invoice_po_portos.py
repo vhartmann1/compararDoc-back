@@ -3,20 +3,17 @@
 import re
 
 from app.schemas import NomeCampo
-from app.services.comparacao.normalizacao import (
-    formatar_ncm,
+from app.services.comparacao.normalizacao.codigos import normalizar_ncm
+from app.services.comparacao.normalizacao.formatacao import formatar_ncm
+from app.services.comparacao.normalizacao.numeros_de_documento import (
     mesmo_numero,
-    normalizar_ncm,
-    numero_da_invoice_para_conferir,
     normalizar_po,
-    pos_do_texto,
-    nome_do_porto,
-    normalizar_porto,
-    portos_do_estado,
-    so_o_pais,
+    numero_da_invoice_para_conferir,
     numero_sem_serie,
     numeros_quase_iguais,
+    pos_do_texto,
 )
+from app.services.comparacao.normalizacao.portos import nome_do_porto, normalizar_porto, portos_do_estado, so_o_pais
 from app.services.comparacao.regras_por_campo.regra import primeira_pagina, texto_soma, valor_conjunto
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 

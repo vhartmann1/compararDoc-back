@@ -4,12 +4,9 @@ from dataclasses import replace
 
 from app.schemas import ItemExtraido
 from app.services.comparacao.itens.tipos import ItemAgrupado
-from app.services.comparacao.normalizacao import (
-    formatar_contagem,
-    normalizar_codigo_item,
-    normalizar_descricao,
-    unidade_quantidade,
-)
+from app.services.comparacao.normalizacao.formatacao import formatar_contagem
+from app.services.comparacao.normalizacao.item import normalizar_codigo_item, normalizar_descricao
+from app.services.comparacao.normalizacao.quantidades import unidade_quantidade
 from app.services.comparacao.tipos import Fonte
 
 

@@ -12,15 +12,12 @@ from app.services.comparacao.constantes import (
     TIPOS,
 )
 from app.services.comparacao.identificacao_do_documento import PROFORMA, e_proforma, nome_doc, numero_normalizado
-from app.services.comparacao.normalizacao import (
-    descricoes_equivalentes,
-    iguais_no_centavo,
-    normalizar_codigo_item,
-    numero_sem_serie,
-    porto_brasileiro,
-    sem_acento,
-    unidade_quantidade,
-)
+from app.services.comparacao.normalizacao.dinheiro import iguais_no_centavo
+from app.services.comparacao.normalizacao.item import descricoes_equivalentes, normalizar_codigo_item
+from app.services.comparacao.normalizacao.numeros_de_documento import numero_sem_serie
+from app.services.comparacao.normalizacao.portos import porto_brasileiro
+from app.services.comparacao.normalizacao.quantidades import unidade_quantidade
+from app.services.comparacao.normalizacao.texto import sem_acento
 from app.services.comparacao.tipos import Fonte
 from app.tipos_de_arquivo import MEDIA_PDF, MEDIA_XLS, MEDIA_XLSX
 

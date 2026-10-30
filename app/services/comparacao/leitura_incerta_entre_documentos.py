@@ -2,7 +2,7 @@
 
 from app.schemas import NomeCampo
 from app.services.comparacao.constantes import ROTULOS
-from app.services.comparacao.normalizacao import mesmo_numero, numeros_quase_iguais
+from app.services.comparacao.normalizacao.numeros_de_documento import mesmo_numero, numeros_quase_iguais
 from app.services.comparacao.tipos import Col, Contexto, Valor
 
 # CNPJ e NCM ficam fora: nos processos reais há erros de verdade com 1 dígito trocado e um lado escaneado.

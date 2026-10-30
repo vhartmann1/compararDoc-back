@@ -2,10 +2,10 @@
 
 from app.schemas import Divergencia, Modalidade
 from app.services.comparacao.colunas_da_comparacao import listar_pares
+from app.services.comparacao.consignatario_pela_modalidade import sem_sinal_da_capital
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.mensagens import pedir
 from app.services.comparacao.parte_preenchida import parte_preenchida
-from app.services.comparacao.consignatario_pela_modalidade import sem_sinal_da_capital
 from app.services.comparacao.regras_por_campo.exportador_consignatario import parte_da_capital, valor_da_capital
 from app.services.comparacao.tipos import Col, Fonte, Valor
 

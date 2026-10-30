@@ -3,7 +3,7 @@
 import re
 
 from app.services.comparacao.itens.tipos import ItemAgrupado
-from app.services.comparacao.normalizacao import normalizar_descricao
+from app.services.comparacao.normalizacao.item import normalizar_descricao
 
 
 def _trechos(descricao: str) -> list[list[str]]:

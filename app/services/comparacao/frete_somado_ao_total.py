@@ -5,7 +5,9 @@ from itertools import combinations
 from app.schemas import Divergencia
 from app.services.comparacao.constantes import INCOTERMS_EF
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.normalizacao import fecham_no_centavo, formatar_dinheiro, normalizar_incoterm
+from app.services.comparacao.normalizacao.codigos import normalizar_incoterm
+from app.services.comparacao.normalizacao.dinheiro import fecham_no_centavo
+from app.services.comparacao.normalizacao.formatacao import formatar_dinheiro
 from app.services.comparacao.tipos import Fonte
 
 

@@ -3,11 +3,8 @@
 from app.schemas import Divergencia
 from app.services.comparacao.identificacao_do_documento import e_proforma, nome_doc
 from app.services.comparacao.mensagens import divergencia_interna
-from app.services.comparacao.normalizacao import (
-    iguais_no_centavo,
-    normalizar_moeda,
-    numero_da_invoice_para_conferir,
-)
+from app.services.comparacao.normalizacao.dinheiro import iguais_no_centavo, normalizar_moeda
+from app.services.comparacao.normalizacao.numeros_de_documento import numero_da_invoice_para_conferir
 from app.services.comparacao.regras_por_campo.ncm_invoice_po_portos import numeros_iguais
 from app.services.comparacao.tipos import Fonte
 

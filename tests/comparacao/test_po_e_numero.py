@@ -1,4 +1,8 @@
-from app.services.comparacao.normalizacao import mesmo_numero, numero_da_invoice_para_conferir, pos_do_texto
+from app.services.comparacao.normalizacao.numeros_de_documento import (
+    mesmo_numero,
+    numero_da_invoice_para_conferir,
+    pos_do_texto,
+)
 from tests.comparacao.apoio import campo, doc, rodar
 
 

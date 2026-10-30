@@ -3,7 +3,7 @@
 import re
 
 from app.services.comparacao.itens.tipos import ItemAgrupado
-from app.services.comparacao.normalizacao import sem_acento
+from app.services.comparacao.normalizacao.texto import sem_acento
 
 
 def _palavras(texto: str) -> list[str]:

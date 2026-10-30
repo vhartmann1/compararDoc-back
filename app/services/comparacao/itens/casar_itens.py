@@ -5,14 +5,14 @@ from collections.abc import Callable
 from app.services.comparacao.itens.medidas_do_item import mesmas_medidas
 from app.services.comparacao.itens.nome_do_modelo import mesmo_modelo
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado, Linha
-from app.services.comparacao.normalizacao import (
+from app.services.comparacao.normalizacao.item import (
     SIMILARIDADE_MINIMA_CASAMENTO,
     descricoes_equivalentes,
     normalizar_codigo_item,
     normalizar_descricao,
     normalizar_lote,
-    similaridade,
 )
+from app.services.comparacao.normalizacao.texto import similaridade
 
 
 def _casar_unicos(

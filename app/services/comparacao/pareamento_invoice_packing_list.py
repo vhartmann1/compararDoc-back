@@ -2,7 +2,12 @@
 
 from app.schemas import DocumentoExtraido
 from app.services.comparacao.identificacao_do_documento import nome_doc, numero_normalizado
-from app.services.comparacao.normalizacao import mesmo_numero, numero_sem_serie, numeros_quase_iguais, para_kg
+from app.services.comparacao.normalizacao.numeros_de_documento import (
+    mesmo_numero,
+    numero_sem_serie,
+    numeros_quase_iguais,
+)
+from app.services.comparacao.normalizacao.quantidades import para_kg
 from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import pesos_iguais
 from app.services.comparacao.tipos import Fonte
 

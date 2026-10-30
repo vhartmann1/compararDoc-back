@@ -4,12 +4,9 @@ import re
 from typing import Literal
 
 from app.schemas import Parte
-from app.services.comparacao.normalizacao import (
-    distancia_de_edicao,
-    nomes_equivalentes,
-    normalizar_cnpj,
-    sem_acento,
-)
+from app.services.comparacao.normalizacao.codigos import normalizar_cnpj
+from app.services.comparacao.normalizacao.empresas import nomes_equivalentes
+from app.services.comparacao.normalizacao.texto import distancia_de_edicao, sem_acento
 
 Relacao = Literal["mesma", "outra", "incerta"]
 

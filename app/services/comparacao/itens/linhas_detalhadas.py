@@ -1,7 +1,7 @@
 """Uma linha de um documento que o outro detalha em várias (por tamanho, cor): quais linhas somar para comparar."""
 
 from app.services.comparacao.itens.tipos import ItemAgrupado
-from app.services.comparacao.normalizacao import normalizar_descricao, normalizar_referencia
+from app.services.comparacao.normalizacao.item import normalizar_descricao, normalizar_referencia
 
 
 def linhas_a_juntar(resumo: list[ItemAgrupado], detalhe: list[ItemAgrupado]) -> dict[str, str]:

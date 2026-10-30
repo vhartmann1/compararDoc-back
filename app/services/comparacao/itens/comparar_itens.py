@@ -12,7 +12,8 @@ from app.services.comparacao.itens.diferencas_do_item import diferencas_item
 from app.services.comparacao.itens.linhas_detalhadas import linhas_a_juntar
 from app.services.comparacao.itens.nome_do_modelo import unidades_de_familias_diferentes
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado
-from app.services.comparacao.normalizacao import normalizar_codigo_item, unidade_quantidade
+from app.services.comparacao.normalizacao.item import normalizar_codigo_item
+from app.services.comparacao.normalizacao.quantidades import unidade_quantidade
 from app.services.comparacao.tipos import Col, Fonte
 
 

@@ -9,7 +9,7 @@ from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.itens.medidas_do_item import descricoes_iguais_pela_medida
 from app.services.comparacao.itens.nome_do_modelo import nome_comeca_o_outro
 from app.services.comparacao.itens.tipos import ColItens, ItemAgrupado, Linha
-from app.services.comparacao.normalizacao import (
+from app.services.comparacao.normalizacao.item import (
     descricoes_equivalentes,
     normalizar_codigo_item,
     normalizar_descricao,
@@ -17,8 +17,8 @@ from app.services.comparacao.normalizacao import (
     normalizar_referencia,
     normalizar_validade,
     referencias_iguais,
-    sem_acento,
 )
+from app.services.comparacao.normalizacao.texto import sem_acento
 from app.services.comparacao.regras_por_campo.pesos_volumes_quantidade import nota_fator_mil
 
 

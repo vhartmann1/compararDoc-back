@@ -1,24 +1,15 @@
 import pytest
 
 from app.schemas import Medida
-from app.services.comparacao.normalizacao import (
-    embalagem,
-    enderecos_compativeis,
-    formatar_cnpj,
-    formatar_contagem,
-    formatar_kg,
-    formatar_ncm,
-    nomes_equivalentes,
-    normalizar_ncm,
-    normalizar_nome_empresa,
-    normalizar_numero_documento,
-    normalizar_po,
-    normalizar_porto,
-    para_kg,
-    referencias_iguais,
-    so_digitos,
-    unidade_quantidade,
-)
+from app.services.comparacao.normalizacao.codigos import normalizar_ncm
+from app.services.comparacao.normalizacao.empresas import nomes_equivalentes, normalizar_nome_empresa
+from app.services.comparacao.normalizacao.enderecos import enderecos_compativeis
+from app.services.comparacao.normalizacao.formatacao import formatar_cnpj, formatar_contagem, formatar_kg, formatar_ncm
+from app.services.comparacao.normalizacao.item import referencias_iguais
+from app.services.comparacao.normalizacao.numeros_de_documento import normalizar_numero_documento, normalizar_po
+from app.services.comparacao.normalizacao.portos import normalizar_porto
+from app.services.comparacao.normalizacao.quantidades import embalagem, para_kg, unidade_quantidade
+from app.services.comparacao.normalizacao.texto import so_digitos
 
 
 def medida(valor, unidade):
@@ -129,16 +120,15 @@ def test_formatacao_br():
 
 # v3 ------------------------------------------------------------------------
 
-from app.services.comparacao.normalizacao import (  # noqa: E402
+from app.services.comparacao.normalizacao.codigos import normalizar_incoterm  # noqa: E402
+from app.services.comparacao.normalizacao.dinheiro import normalizar_moeda  # noqa: E402
+from app.services.comparacao.normalizacao.enderecos import enderecos_equivalentes, palavras_do_endereco  # noqa: E402
+from app.services.comparacao.normalizacao.item import (  # noqa: E402
     descricoes_equivalentes,
-    enderecos_equivalentes,
-    palavras_do_endereco,
-    normalizar_incoterm,
     normalizar_lote,
-    normalizar_moeda,
-    normalizar_pais,
     normalizar_validade,
 )
+from app.services.comparacao.normalizacao.paises import normalizar_pais  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -207,7 +197,7 @@ def test_referencias_iguais(a, b, esperado):
 
 
 def test_numero_sem_serie():
-    from app.services.comparacao.normalizacao import numero_sem_serie
+    from app.services.comparacao.normalizacao.numeros_de_documento import numero_sem_serie
 
     assert numero_sem_serie("FT A26/000123") == numero_sem_serie("GR A26/000123") == "A26000123"
     assert numero_sem_serie("SU26081EA") == "SU26081EA"

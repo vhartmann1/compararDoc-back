@@ -1,6 +1,6 @@
 """País de origem: lista com outro separador e código ISO conferem; país a mais ou trocado diverge."""
 
-from app.services.comparacao.normalizacao import enderecos_equivalentes
+from app.services.comparacao.normalizacao.enderecos import enderecos_equivalentes
 from tests.comparacao.apoio import campo, doc, rodar
 
 

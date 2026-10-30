@@ -1,6 +1,6 @@
 """Pareamento invoice × packing list pelo número citado."""
 
-from app.services.comparacao.normalizacao import numero_sem_serie
+from app.services.comparacao.normalizacao.numeros_de_documento import numero_sem_serie
 from tests.comparacao.apoio import campo, doc, rodar
 
 

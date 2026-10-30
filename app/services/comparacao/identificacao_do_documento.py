@@ -4,9 +4,8 @@ import re
 
 from app.schemas import DocumentoExtraido, DocumentoRef
 from app.services.comparacao.constantes import NOME_TIPO
-from app.services.comparacao.normalizacao import normalizar_numero_documento
+from app.services.comparacao.normalizacao.numeros_de_documento import normalizar_numero_documento
 from app.services.comparacao.tipos import Fonte
-
 
 PROFORMA = re.compile(r"(?i)pro[\s_-]?forma")
 

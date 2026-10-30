@@ -8,14 +8,9 @@ from app.services.comparacao.encurtar_texto import encurtar
 from app.services.comparacao.frete_somado_ao_total import parcelas_que_fecham
 from app.services.comparacao.identificacao_do_documento import nome_doc_escaneado
 from app.services.comparacao.mensagens import divergencia_interna, pedir
-from app.services.comparacao.normalizacao import (
-    fecham_no_centavo,
-    formatar_contagem,
-    formatar_dinheiro,
-    formatar_kg,
-    para_kg,
-    unidade_quantidade,
-)
+from app.services.comparacao.normalizacao.dinheiro import fecham_no_centavo
+from app.services.comparacao.normalizacao.formatacao import formatar_contagem, formatar_dinheiro, formatar_kg
+from app.services.comparacao.normalizacao.quantidades import para_kg, unidade_quantidade
 from app.services.comparacao.tipos import Fonte
 
 TIPOS_COM_LINHAS = {"invoice", "packing_list"}

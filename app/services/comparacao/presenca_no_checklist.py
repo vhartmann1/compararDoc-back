@@ -5,7 +5,7 @@ import re
 from app.schemas import Divergencia
 from app.services.comparacao.identificacao_do_documento import nome_doc
 from app.services.comparacao.mensagens import divergencia_interna, pedir
-from app.services.comparacao.normalizacao import sem_acento
+from app.services.comparacao.normalizacao.texto import sem_acento
 from app.services.comparacao.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Fonte
 

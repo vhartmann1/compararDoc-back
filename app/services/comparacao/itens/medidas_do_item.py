@@ -2,7 +2,7 @@
 
 import re
 
-from app.services.comparacao.normalizacao import sem_acento
+from app.services.comparacao.normalizacao.texto import sem_acento
 
 NUMERO = r"(\d*\.\d+|\d+)"
 SEPARADOR = r"\s*(?:MM)?\s*[X×*]\s*"
