@@ -8,12 +8,12 @@ NOME_MODALIDADE = {"conta_e_ordem": "conta e ordem", "encomenda": "encomenda"}
 
 
 def _da_capital_no_conhecimento(col: Col, valor: Valor) -> bool:
-    return col.chave.startswith("conhecimento") and valor_da_capital(valor)
+    return col.so_conhecimento() and valor_da_capital(valor)
 
 
 def _do_cliente(col: Col, valor: Valor) -> bool:
     """Invoice/PL sem nenhum sinal da Capital: nem o nome nem a raiz do CNPJ."""
-    return not col.chave.startswith("conhecimento") and sem_sinal_da_capital(valor)
+    return not col.so_conhecimento() and sem_sinal_da_capital(valor)
 
 
 def sem_sinal_da_capital(valor: Valor) -> bool:

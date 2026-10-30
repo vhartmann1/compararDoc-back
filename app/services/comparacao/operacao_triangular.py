@@ -24,10 +24,10 @@ class Triangulacao:
 
 def triangulacoes(colunas: list[Col]) -> list[Triangulacao]:
     """Conhecimentos cujo shipper é outra empresa que o exportador de alguma invoice/PL da comparação."""
-    referencias = [f for col in colunas if not col.chave.startswith("conhecimento") for f in col.fontes]
+    referencias = [f for col in colunas if not col.so_conhecimento() for f in col.fontes]
     resultado = []
     for col in colunas:
-        shipper = col.fontes[0].doc.exportador if col.chave.startswith("conhecimento") else None
+        shipper = col.fontes[0].doc.exportador if col.so_conhecimento() else None
         if shipper is None or not shipper.nome.strip():
             continue
         proprias, outras = separar_por_empresa(shipper, referencias)

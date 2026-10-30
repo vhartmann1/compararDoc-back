@@ -37,7 +37,7 @@ CIDADE_ANTES_DA_UF = re.compile(r"([A-Za-z .]+?)\s*[-,/]?\s*\b[A-Z]{2}\b[\s,\-0-
 def campo_do_adquirente(ctx: Contexto, colunas: list[Col]) -> CampoComparado | None:
     """None sem conhecimento na comparação ou sem adquirente em nenhum documento."""
     partes = {col.chave: _partes_da_coluna(col) for col in colunas}
-    conhecimentos = [col for col in colunas if _do_conhecimento(col)]
+    conhecimentos = [col for col in colunas if col.so_conhecimento()]
     if not conhecimentos or not any(partes.values()):
         return None
     clientes = _clientes(colunas, partes)
@@ -53,13 +53,9 @@ def campo_do_adquirente(ctx: Contexto, colunas: list[Col]) -> CampoComparado | N
     return CampoComparado(campo="adquirente", rotulo=ROTULOS["adquirente"], status=status, valores=valores)
 
 
-def _do_conhecimento(col: Col) -> bool:
-    return all(f.doc.tipo == "conhecimento" for f in col.fontes)
-
-
 def _partes_da_coluna(col: Col) -> list[tuple[Fonte, str, Parte]]:
     """(documento, papel, parte): no conhecimento o adquirente e o notify; na invoice/PL só o adquirente."""
-    papeis = ("adquirente", "notify") if _do_conhecimento(col) else ("adquirente",)
+    papeis = ("adquirente", "notify") if col.so_conhecimento() else ("adquirente",)
     return [(f, papel, p) for f in col.fontes for papel in papeis if _do_cliente(p := getattr(f.doc, papel))]
 
 

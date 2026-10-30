@@ -36,6 +36,9 @@ class Col:
     fontes: list[Fonte]
     soma: bool = False
 
+    def so_conhecimento(self) -> bool:
+        return all(f.doc.tipo == "conhecimento" for f in self.fontes)
+
 
 @dataclass
 class Contexto:

@@ -102,7 +102,7 @@ def _valor_do_documento(ctx: Contexto, f: Fonte, campo: NomeCampo, regra: Regra)
 
 
 def _valor_coluna(ctx: Contexto, col: Col, campo: NomeCampo, regra: Regra) -> Valor | None:
-    if campo in CAMPOS_FORA_DO_CONHECIMENTO and all(f.doc.tipo == "conhecimento" for f in col.fontes):
+    if campo in CAMPOS_FORA_DO_CONHECIMENTO and col.so_conhecimento():
         return None
     valores = [_valor_do_documento(ctx, f, campo, regra) for f in col.fontes]
     if not col.soma or len(valores) == 1:
@@ -240,7 +240,7 @@ def _na_ordem_de_conferir(regra: Regra, informados: list[tuple[Col, Valor]]) -> 
     """Com `conhecimento_e_referencia`, o conhecimento abre o grupo e os demais conferem com ele."""
     if not regra.conhecimento_e_referencia:
         return informados
-    return sorted(informados, key=lambda cv: not _so_conhecimento(cv[0]))
+    return sorted(informados, key=lambda cv: not cv[0].so_conhecimento())
 
 
 def _aviso_de_comerciais_diferentes(
@@ -249,8 +249,8 @@ def _aviso_de_comerciais_diferentes(
     """Invoice e PL com portos diferentes que o conhecimento aceita (descarga × entrega): confere, com aviso."""
     if not regra.conhecimento_e_referencia:
         return None
-    conhecimentos = [(c, v) for c, v in informados if _so_conhecimento(c)]
-    outros = [(c, v) for c, v in informados if not _so_conhecimento(c)]
+    conhecimentos = [(c, v) for c, v in informados if c.so_conhecimento()]
+    outros = [(c, v) for c, v in informados if not c.so_conhecimento()]
     pares = [(a, b) for n, a in enumerate(outros) for b in outros[n + 1:]]
     diferentes = [(a, b) for a, b in pares if not regra.iguais(a[1].chave, b[1].chave)]
     if not conhecimentos or not diferentes:
@@ -259,10 +259,6 @@ def _aviso_de_comerciais_diferentes(
     cc, vc = conhecimentos[0]
     return (f"{ctx.prefixo}{ROTULOS[campo]}: {ca.nome_curto} diz {va.exibicao} e {cb.nome_curto} diz {vb.exibicao}; "
             f"os dois aparecem no {cc.nome_curto}: {vc.exibicao}.")
-
-
-def _so_conhecimento(col: Col) -> bool:
-    return all(f.doc.tipo == "conhecimento" for f in col.fontes)
 
 
 def _na_ordem_das_colunas(

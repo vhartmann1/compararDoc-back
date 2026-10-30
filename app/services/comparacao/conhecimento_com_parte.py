@@ -6,12 +6,8 @@ from app.services.comparacao.tipos import Col, Valor
 
 def conhecimentos_contidos(regra: Regra, informados: list[tuple[Col, Valor]]) -> set[str]:
     """Chaves das colunas de conhecimento contidas no valor de todas as invoices/PLs."""
-    outros = [v for col, v in informados if not so_conhecimento(col)]
+    outros = [v for col, v in informados if not col.so_conhecimento()]
     if regra.contido_no_outro is None or not outros:
         return set()
     return {col.chave for col, v in informados
-            if so_conhecimento(col) and all(regra.contido_no_outro(v.chave, o.chave) for o in outros)}
-
-
-def so_conhecimento(col: Col) -> bool:
-    return all(f.doc.tipo == "conhecimento" for f in col.fontes)
+            if col.so_conhecimento() and all(regra.contido_no_outro(v.chave, o.chave) for o in outros)}
