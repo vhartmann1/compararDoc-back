@@ -79,9 +79,11 @@ def item(codigo, descricao, quantidade=None, unidade=None, lotes=(), validades=(
                                                                        pagina=pagina))
 
 
-def rodar(*docs_por_arquivo, modalidade=None, escaneado=None):
-    entradas = [(arquivo(f"a{i}"), ExtracaoArquivo(documentos=list(docs), escaneado=escaneado))
-                for i, docs in enumerate(docs_por_arquivo)]
+def rodar(*docs_por_arquivo, modalidade=None, escaneado=None, escaneados=None):
+    """`escaneado` vale para todos os arquivos; `escaneados`, um por arquivo, na ordem."""
+    marcas = escaneados or [escaneado] * len(docs_por_arquivo)
+    entradas = [(arquivo(f"a{i}"), ExtracaoArquivo(documentos=list(docs), escaneado=marca))
+                for i, (docs, marca) in enumerate(zip(docs_por_arquivo, marcas, strict=True))]
     return comparar(entradas, modalidade)
 
 

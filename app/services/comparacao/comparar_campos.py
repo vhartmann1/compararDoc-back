@@ -21,6 +21,7 @@ from app.services.comparacao.conhecimento_com_parte import conhecimentos_contido
 from app.services.comparacao.consignatario_pela_modalidade import separar_conhecimentos_da_capital
 from app.services.comparacao.endereco_do_consignatario import avisos_de_endereco
 from app.services.comparacao.identificacao_do_documento import nome_doc, ref_documento
+from app.services.comparacao.leitura_incerta_entre_documentos import aviso_de_leitura_incerta
 from app.services.comparacao.mensagem_de_ncm import texto_ncm
 from app.services.comparacao.pareamento_invoice_packing_list import pls_em_outra_numeracao
 from app.services.comparacao.operacao_triangular import (
@@ -179,6 +180,9 @@ def _status_campo(
     if campo == "volumes" and embalagens_distintas([valor for _, valor in grupos]):
         textos = " × ".join(f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in grupos)
         ctx.avisos.append(f"{ctx.prefixo}Volumes em embalagens diferentes ({textos}); confira manualmente.")
+        return "INSUFICIENTE"
+    if aviso := aviso_de_leitura_incerta(ctx, campo, grupos):
+        ctx.avisos.append(aviso)
         return "INSUFICIENTE"
 
     ordenados = sorted(grupos, key=lambda g: len(g[0]))  # minoria primeiro
