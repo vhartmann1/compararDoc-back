@@ -1,5 +1,6 @@
 """Operação triangular (shipper de outra empresa) e mesma empresa com o nome escrito de outro jeito."""
 
+from app.services.comparacao.mensagens import trecho
 from app.services.comparacao.partes.mesma_empresa import relacao_entre_nomes
 from tests.comparacao.apoio import campo, doc, rodar
 
@@ -204,7 +205,42 @@ def test_shipper_de_uma_das_invoices_compara_so_com_ela_e_avisa_a_outra():
         assert len(r.avisos) == len(set(r.avisos))
         mensagens = [d.mensagem for d in _do_exportador(r)]
         assert len(mensagens) == 1
-        pl = f"a{ordem.index('A1')}.pdf"  # PL sem número: identificado pelo arquivo
-        assert mensagens == ["Consolidado — Endereço do exportador: BL Avenida Tres 3, Portoalto × "
-                             f"Invoice A1/Packing List ({pl}) Rua Um 1, Portoalto"]
+        assert mensagens == ["Consolidado — Endereço do exportador (SOL NASCENTE TRADING): "
+                             "BL 'Avenida Tres 3, Portoalto' × Invoice A1 'Rua Um 1, Portoalto'; pedir correção."]
         assert any("(Montanha Azul Fabrica Ltd)" in a and "triangular" in a for a in r.avisos)
+
+
+
+def _com_fornecedor_incerto(ordem, endereco_do_bl="Avenida Tres 3, Portoalto"):
+    """Shipper da invoice A1; B2 tem palavra genérica em comum com ele (incerta) e C3 é outra empresa."""
+    pares = {"A1": _par("Sol Nascente Tech Co", endereco="Rua Um 1, Portoalto", pais="CHINA"),
+             "B2": _par("Montanha Azul Tech Ltd", endereco="Rua Dois 2, Serrania", pais="CHINA"),
+             "C3": _par("Rio Claro Fabrica Ltd", endereco="Rua Quatro 4, Vale", pais="CHINA")}
+    for numero, (inv, pl) in pares.items():
+        inv.numero, pl.invoices_referenciadas = numero, [numero]
+    bl = _bl(exportador="SOL NASCENTE TECH CO", endereco_exportador=endereco_do_bl, pais_exportador="CHINA")
+    return rodar(*[pares[n] for n in ordem], [bl])
+
+
+def _enderecos(r):
+    return [d.mensagem for d in r.divergencias if d.campo == "endereco_exportador"]
+
+
+def test_endereco_do_shipper_so_contra_o_documento_da_mesma_empresa():
+    for ordem in (("A1", "B2", "C3"), ("C3", "B2", "A1")):
+        assert _enderecos(_com_fornecedor_incerto(ordem)) == [
+            "Consolidado — Endereço do exportador (SOL NASCENTE TECH): "
+            "BL 'Avenida Tres 3, Portoalto' × Invoice A1 'Rua Um 1, Portoalto'; pedir correção."]
+
+
+def test_endereco_igual_ao_da_mesma_empresa_continua_apontando_o_fornecedor_incerto():
+    r = _com_fornecedor_incerto(("A1", "B2", "C3"), endereco_do_bl="Rua Um 1, Portoalto")
+    assert _enderecos(r) == [
+        "Consolidado — Endereço do exportador (SOL NASCENTE TECH): "
+        "BL 'Rua Um 1, Portoalto' × Invoice B2 'Rua Dois 2, Serrania'; pedir correção."]
+
+
+def test_trecho_corta_depois_de_onde_os_enderecos_diferem():
+    longo = "Bloco 7, Parque Industrial Lagoa Seca, Avenida Central 400, Distrito Norte"
+    assert trecho(longo, "Bloco 7, Parque Industrial Lagoa Seca, Avenida Central 401") == "Bloco 7, Parque Industrial Lagoa Seca, Avenida Central 400, Distrito…"
+    assert trecho(longo, "Sala 2") == "Bloco 7, Parque Industrial Lagoa Seca…"

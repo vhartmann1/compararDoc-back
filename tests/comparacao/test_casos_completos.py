@@ -61,7 +61,8 @@ def test_caso_6():
     mensagens = [d.mensagem for d in r.divergencias]
     assert mensagens == [
         "Peso bruto: BL 24.000,00 kg × Invoice/Packing List 24.592,00 kg",
-        "NCM: Packing List cita o NCM 3904.10.20 no lugar do NCM 3904.10.10, que consta em Invoice/BL; pedir correção.",
+        "NCM: O packing list cita o NCM 3904.10.20 no lugar do NCM 3904.10.10, que consta na invoice e no BL; "
+            "pedir correção.",
         "Nº da invoice: Invoice 0077032707 × Packing List 70023077",
         "PO: Invoice 246731-01 × Packing List 243918-01",
         "Porto de destino: Invoice ITAPOA × BL NAVEGANTES",

@@ -3,7 +3,7 @@
 from app.schemas import Divergencia, Modalidade
 from app.services.comparacao.documentos.colunas_da_comparacao import listar_pares
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.mensagens import pedir
+from app.services.comparacao.mensagens import nos_documentos, pedir, sujeito
 from app.services.comparacao.partes.capital import parte_da_capital, sem_sinal_da_capital, valor_da_capital
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Col, Fonte, Valor
@@ -30,12 +30,14 @@ def _pl_sem_a_capital(comparacao_id: str, prefixo: str, inv: Fonte, pl: Fonte) -
     clientes = " / ".join(dict.fromkeys(p.nome.strip() for p in partes))
     return Divergencia(
         categoria="comparacao", comparacao_id=comparacao_id, campo="consignatario", documento=ref_documento(pl),
-        mensagem=f"{prefixo}Consignatário: {falta_a_capital(nome_doc(pl), f'só {clientes}', nome_doc(inv))}",
+        mensagem=f"{prefixo}Consignatário: {falta_a_capital([nome_doc(pl)], f'só {clientes}', [nome_doc(inv)])}",
     )
 
 
-def falta_a_capital(sem: str, traz: str, com: str) -> str:
-    return pedir(f"falta a Capital Trade em {sem}, que traz {traz}; ela consta em {com}", "inclusão")
+def falta_a_capital(sem: list[str], traz: str, com: list[str]) -> str:
+    verbo = "trazem" if sujeito(sem)[1] else "traz"
+    return pedir(f"falta a Capital Trade {nos_documentos(sem)}, que {verbo} {traz}; ela consta {nos_documentos(com)}",
+                 "inclusão")
 
 
 def texto_sem_a_capital(grupos: list[tuple[list[Col], Valor]]) -> str | None:
@@ -48,8 +50,8 @@ def texto_sem_a_capital(grupos: list[tuple[list[Col], Valor]]) -> str | None:
     return falta_a_capital(_nomes(cols_sem), valor.exibicao, _nomes(cols_com))
 
 
-def _nomes(cols: list[Col]) -> str:
-    return "/".join(c.nome_curto for c in cols)
+def _nomes(cols: list[Col]) -> list[str]:
+    return [c.nome_curto for c in cols]
 
 
 def _conta_e_ordem_sem_a_capital(fontes: list[Fonte]) -> Divergencia | None:

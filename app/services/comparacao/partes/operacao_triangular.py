@@ -5,10 +5,12 @@ from dataclasses import dataclass
 from app.schemas import NomeCampo, Parte
 from app.services.comparacao.campos.regras_por_campo.exportador_consignatario import fabricante_alternativo
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
+from app.services.comparacao.mensagens import pedir, trecho
 from app.services.comparacao.normalizacao.enderecos import enderecos_de_texto_parecido
 from app.services.comparacao.partes.mesma_empresa import relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
-from app.services.comparacao.tipos import Col, Fonte
+from app.services.comparacao.partes.razao_social import palavras_distintivas
+from app.services.comparacao.tipos import Col, Fonte, Valor
 
 CAMPOS_DO_EXPORTADOR: set[NomeCampo] = {"exportador", "endereco_exportador", "pais_exportador"}
 
@@ -89,3 +91,22 @@ def coluna_das_proprias(t: Triangulacao) -> Col:
     """As invoices/PLs da mesma empresa do shipper, como coluna (só dado: rótulo e fontes)."""
     curto = "/".join(dict.fromkeys(nome_doc(f) for f in t.proprias))
     return Col(f"proprias_{t.conhecimento.chave}", curto, curto, t.proprias, soma=len(t.proprias) > 1)
+
+
+def da_mesma_empresa(t: Triangulacao) -> list[Fonte]:
+    """Das próprias, as que são com certeza da empresa do shipper (as incertas ficam de fora)."""
+    return [f for f in t.proprias
+            if any(relacao_entre_partes(t.shipper, p) == "mesma" for p in _partes_do_exportador(f))]
+
+
+def texto_contra_as_proprias(
+    rotulo: str, t: Triangulacao, conhecimento: Valor, lados: list[tuple[Fonte, Valor]], cortar: bool
+) -> str:
+    """Rótulo (EMPRESA): BL 'X…' × Invoice 1 'Y…'; pedir correção. Só o endereço é cortado."""
+    def mostrar(v: Valor, outro: Valor) -> str:
+        return trecho(v.exibicao, outro.exibicao) if cortar else v.exibicao
+
+    empresa = " ".join(palavras_distintivas(t.shipper.nome)) or t.shipper.nome.strip()
+    partes = [f"{t.conhecimento.nome_curto} '{mostrar(conhecimento, lados[0][1])}'"]
+    partes += [f"{nome_doc(f)} '{mostrar(v, conhecimento)}'" for f, v in lados]
+    return pedir(f"{rotulo} ({empresa}): {' × '.join(partes)}", "correção")

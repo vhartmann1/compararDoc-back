@@ -27,7 +27,7 @@ from app.services.comparacao.constantes import (
 )
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
 from app.services.comparacao.documentos.pareamento_invoice_packing_list import pls_em_outra_numeracao
-from app.services.comparacao.mensagens import confira
+from app.services.comparacao.mensagens import confira, maiuscula, sujeito
 from app.services.comparacao.partes.capital_nos_documentos import texto_sem_a_capital
 from app.services.comparacao.partes.conferencia_do_adquirente import campo_do_adquirente
 from app.services.comparacao.partes.consignatario_pela_modalidade import separar_conhecimentos_da_capital
@@ -37,6 +37,8 @@ from app.services.comparacao.partes.operacao_triangular import (
     Triangulacao,
     aviso_triangular,
     coluna_das_proprias,
+    da_mesma_empresa,
+    texto_contra_as_proprias,
     triangulacoes,
 )
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -261,8 +263,13 @@ def _aviso_de_comerciais_diferentes(
         return None
     (ca, va), (cb, vb) = diferentes[0]
     cc, vc = conhecimentos[0]
-    return (f"{ctx.prefixo}{ROTULOS[campo]}: {ca.nome_curto} diz {va.exibicao} e {cb.nome_curto} diz {vb.exibicao}; "
+    return (f"{ctx.prefixo}{ROTULOS[campo]}: {maiuscula(_quem_diz(ca))} {va.exibicao} e {_quem_diz(cb)} {vb.exibicao}; "
             f"os dois aparecem no {cc.nome_curto}: {vc.exibicao}.")
+
+
+def _quem_diz(col: Col) -> str:
+    quem, plural = sujeito([col.nome_curto])
+    return f"{quem} {'dizem' if plural else 'diz'}"
 
 
 def _na_ordem_das_colunas(
@@ -314,12 +321,38 @@ def _conferir_com_as_proprias(
     proprias = presentes[0] if len(presentes) == 1 else regra.juntar(presentes, campo, ctx, col)
     if regra.iguais(proprias.chave, conhecimento.chave):
         return "OK"
-    mensagem = f"{ctx.prefixo}{ROTULOS[campo]}: {t.conhecimento.nome_curto} {conhecimento.exibicao} × "
+    if lados := _lados_que_divergem(ctx, campo, regra, t, conhecimento):
+        mensagem = texto_contra_as_proprias(f"{ctx.prefixo}{ROTULOS[campo]}", t, conhecimento, lados,
+                                            cortar=campo == "endereco_exportador")
+    else:
+        mensagem = (f"{ctx.prefixo}{ROTULOS[campo]}: {t.conhecimento.nome_curto} {conhecimento.exibicao} × "
+                    f"{col.nome_curto} {proprias.exibicao}")
     ctx.divergencias.append(
-        Divergencia(categoria="comparacao", comparacao_id=ctx.comparacao_id, campo=campo,
-                    mensagem=f"{mensagem}{col.nome_curto} {proprias.exibicao}")
+        Divergencia(categoria="comparacao", comparacao_id=ctx.comparacao_id, campo=campo, mensagem=mensagem)
     )
     return "DIVERGENTE"
+
+
+def _lados_que_divergem(
+    ctx: Contexto, campo: NomeCampo, regra: Regra, t: Triangulacao, conhecimento: Valor
+) -> list[tuple[Fonte, Valor]]:
+    """Os documentos da mesma empresa do shipper que divergem do conhecimento; sem nenhum, os das próprias."""
+    for fontes in (da_mesma_empresa(t), t.proprias):
+        if lados := _um_por_valor(ctx, campo, regra, fontes, conhecimento):
+            return lados
+    return []
+
+
+def _um_por_valor(
+    ctx: Contexto, campo: NomeCampo, regra: Regra, fontes: list[Fonte], conhecimento: Valor
+) -> list[tuple[Fonte, Valor]]:
+    """O primeiro documento de cada valor diferente do conhecimento."""
+    lados: list[tuple[Fonte, Valor]] = []
+    for f in fontes:
+        v = _valor_do_documento(ctx, f, campo, regra)
+        if v is not None and not any(regra.iguais(v.chave, o.chave) for o in [conhecimento, *(x for _, x in lados)]):
+            lados.append((f, v))
+    return lados
 
 
 def _informados(colunas: list[Col], valores: dict[str, Valor | None]) -> int:

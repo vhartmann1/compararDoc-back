@@ -8,6 +8,8 @@ from app.services.comparacao.normalizacao.numeros_de_documento import normalizar
 from app.services.comparacao.tipos import Fonte
 
 PROFORMA = re.compile(r"(?i)pro[\s_-]?forma")
+PREFIXO_DE_PASTA = re.compile(r"^[A-ZÀ-Ý][A-ZÀ-Ý ]* - ")  # 'DESPACHO - ' na frente do nome do arquivo
+TAMANHO_DO_NOME_CURTO = 40
 
 
 def e_proforma(doc: DocumentoExtraido) -> bool:
@@ -16,15 +18,29 @@ def e_proforma(doc: DocumentoExtraido) -> bool:
 
 
 def nome_doc(f: Fonte) -> str:
-    """'Invoice L30518777', 'Proforma PI-9', 'AWB 123-4567 8901'; sem número, pelo arquivo: 'Packing List (PL.pdf)'."""
+    """'Invoice L30518777', 'AWB 123'; PL sem número: 'Packing List da invoice 7' ou 'Packing List (PL.pdf)'."""
     nome = nome_do_tipo(f)
-    return f"{nome} {f.doc.numero}" if f.doc.numero else f"{nome} ({f.arquivo.nome})"
+    if f.doc.numero:
+        return f"{nome} {f.doc.numero}"
+    if f.doc.tipo == "packing_list" and f.invoice_par and f.invoice_par.numero:
+        return f"{nome} da invoice {f.invoice_par.numero}"
+    return f"{nome} ({nome_curto_do_arquivo(f.arquivo.nome)})"
 
 
 def nome_doc_escaneado(f: Fonte) -> str:
     """'Invoice 7 (INV.pdf, escaneado)'; sem número: 'Packing List (PL.pdf, escaneado)'."""
     nome = " ".join(filter(None, (nome_do_tipo(f), f.doc.numero)))
-    return f"{nome} ({f.arquivo.nome}, escaneado)"
+    return f"{nome} ({nome_curto_do_arquivo(f.arquivo.nome)}, escaneado)"
+
+
+def nome_curto_do_arquivo(nome: str) -> str:
+    """Sem o prefixo de pasta ('DESPACHO - ') e cortado com reticências se for longo."""
+    curto = PREFIXO_DE_PASTA.sub("", nome, count=1) or nome
+    if len(curto) <= TAMANHO_DO_NOME_CURTO:
+        return curto
+    inicio = curto[:TAMANHO_DO_NOME_CURTO + 1]
+    corte = inicio.rsplit(" ", 1)[0] if " " in inicio.strip() else curto[:TAMANHO_DO_NOME_CURTO]
+    return corte.rstrip(" -_.,") + "…"
 
 
 def nome_do_tipo(f: Fonte) -> str:

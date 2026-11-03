@@ -1,6 +1,6 @@
 """Divergência de NCM dita pelo código que sobra ou falta em cada lado, não pelas duas listas inteiras."""
 
-from app.services.comparacao.mensagens import pedir
+from app.services.comparacao.mensagens import maiuscula, nos_documentos, pedir, sujeito
 from app.services.comparacao.normalizacao.formatacao import formatar_ncm
 from app.services.comparacao.tipos import Col, Valor
 
@@ -14,22 +14,28 @@ def _ncms(codigos: list[str]) -> str:
     return f"o NCM {lista}" if len(codigos) == 1 else f"os NCMs {lista}"
 
 
-def _diferenca(nome: str, sobra: list[str], falta: list[str], nome_ref: str) -> str:
-    """'BL cita o NCM 8451, que não consta em Invoice' / 'BL não cita…' / 'BL cita… no lugar do…'."""
+def _consta(codigos: list[str]) -> str:
+    return "consta" if len(codigos) == 1 else "constam"
+
+
+def _diferenca(nomes: list[str], sobra: list[str], falta: list[str], nomes_ref: list[str]) -> str:
+    """'o BL cita o NCM 8451, que não consta na invoice' / 'as invoices não citam…' / '… no lugar do…'."""
+    quem, plural = sujeito(nomes)
+    cita, onde = ("citam" if plural else "cita"), nos_documentos(nomes_ref)
     if sobra and falta:
-        return f"{nome} cita {_ncms(sobra)} no lugar d{_ncms(falta)}, que consta em {nome_ref}"
+        return f"{quem} {cita} {_ncms(sobra)} no lugar d{_ncms(falta)}, que {_consta(falta)} {onde}"
     if sobra:
-        return f"{nome} cita {_ncms(sobra)}, que não consta em {nome_ref}"
-    return f"{nome} não cita {_ncms(falta)}, que consta em {nome_ref}"
+        return f"{quem} {cita} {_ncms(sobra)}, que não {_consta(sobra)} {onde}"
+    return f"{quem} não {cita} {_ncms(falta)}, que {_consta(falta)} {onde}"
 
 
 def texto_ncm(grupos: list[tuple[list[Col], Valor]], digitos: int) -> str:
     """Cada grupo contra o da maioria (o último da lista), terminando com o que pedir."""
     *outros, (cols_ref, ref) = grupos
-    nome_ref = "/".join(c.nome_curto for c in cols_ref)
+    nomes_ref = [c.nome_curto for c in cols_ref]
     partes = [
-        _diferenca("/".join(c.nome_curto for c in cols), sobra, falta, nome_ref)
+        _diferenca([c.nome_curto for c in cols], sobra, falta, nomes_ref)
         for cols, valor in outros
         if (sobra := _fora(valor.chave, ref.chave, digitos)) + (falta := _fora(ref.chave, valor.chave, digitos))
     ]
-    return pedir("; ".join(partes), "correção")
+    return pedir(maiuscula("; ".join(partes)), "correção")

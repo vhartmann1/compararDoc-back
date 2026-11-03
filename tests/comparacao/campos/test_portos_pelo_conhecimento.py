@@ -18,7 +18,7 @@ def _rodar_destino(invoice, pl, descarga, entrega):
 def test_invoice_com_a_entrega_e_pl_com_a_descarga_conferem():
     status, avisos = _rodar_destino("Azulmar", "Verdemar", "Verdemar", "Azulmar")
     assert status == "OK"
-    assert avisos == ["Porto de destino: Invoice diz AZULMAR e Packing List diz VERDEMAR; "
+    assert avisos == ["Porto de destino: A invoice diz AZULMAR e o packing list diz VERDEMAR; "
                       "os dois aparecem no BL: VERDEMAR (entrega: AZULMAR)."]
     assert _destino("Verdemar", "Azulmar", "Verdemar", "Azulmar") == "OK"
 

@@ -10,8 +10,8 @@ def test_pl_so_com_o_cliente_e_invoice_com_a_capital_e_apontado():
     r = rodar([doc("invoice", numero="1", consignatario=CAPITAL, adquirente=CLIENTE),
                doc("packing_list", numero="1", adquirente=CLIENTE)])
     assert mensagens_de(r, "consignatario") == [
-        "Consignatário: falta a Capital Trade em Packing List 1, que traz só Lume Bicicletas Comercio Ltda; "
-        "ela consta em Invoice 1; pedir inclusão."
+        "Consignatário: falta a Capital Trade no packing list 1, que traz só Lume Bicicletas Comercio Ltda; "
+        "ela consta na invoice 1; pedir inclusão."
     ]
 
 
@@ -19,8 +19,8 @@ def test_pl_com_o_cliente_consignatario_e_invoice_com_a_capital_pede_a_inclusao(
     r = rodar([doc("invoice", numero="1", consignatario=CAPITAL),
                doc("packing_list", numero="1", consignatario=CLIENTE)])
     assert mensagens_de(r, "consignatario") == [
-        "Consignatário: falta a Capital Trade em Packing List, que traz Lume Bicicletas Comercio Ltda "
-        "(12.345.678/0001-90); ela consta em Invoice; pedir inclusão."
+        "Consignatário: falta a Capital Trade no packing list, que traz Lume Bicicletas Comercio Ltda "
+        "(12.345.678/0001-90); ela consta na invoice; pedir inclusão."
     ]
 
 
