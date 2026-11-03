@@ -93,6 +93,13 @@ def so_o_pais(nome: str) -> bool:
     return normalizar_pais(nome) in SIGLAS_PAISES and normalizar_porto(nome) not in PORTOS_COM_NOME_DE_PAIS
 
 
+def portos_separados_por_barra(nome: str) -> list[str]:
+    """'Itajai/Navegantes - SC' -> ['Itajai', 'Navegantes - SC']; 'NAVEGANTES/SC' fica inteiro (UF, país, estado)."""
+    trechos = [t for t in nome.split("/") if nome_do_porto(t)]
+    portos = [t for t in trechos if not (nome_do_porto(t) in SUFIXOS_LOCAL or so_o_pais(t) or portos_do_estado(t))]
+    return portos if len(portos) > 1 else [nome]
+
+
 def normalizar_porto(nome: str) -> str:
     """Nome do porto para comparar, sem espaços: 'XINGANG' -> 'TIANJIN'; 'HO CHI MINH' -> 'HOCHIMINH'."""
     porto = nome_do_porto(nome)

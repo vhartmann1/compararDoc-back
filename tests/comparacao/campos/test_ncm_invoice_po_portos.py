@@ -145,3 +145,17 @@ def test_estado_nao_junta_dois_portos_do_mesmo_estado():
 
 def test_estado_com_preposicao_no_nome_casa_com_porto_do_estado():
     assert _destinos("Rio Grande do Sul - Brazil", "RIO GRANDE") == "OK"
+
+
+def test_destino_com_dois_portos_separados_por_barra_confere_com_qualquer_um():
+    assert _destinos("Itajai/Navegantes - SC", "NAVEGANTES") == "OK"
+    assert _destinos("Itajai/Navegantes - SC", "ITAJAI") == "OK"
+
+
+def test_destino_com_dois_portos_separados_por_barra_nao_aceita_um_terceiro():
+    assert _destinos("Itajai/Navegantes - SC", "SANTOS") == "DIVERGENTE"
+
+
+def test_barra_antes_da_uf_ou_do_pais_nao_vira_alternativa():
+    assert _destinos("NAVEGANTES/SC", "ITAJAI") == "DIVERGENTE"
+    assert _destinos("NAVEGANTES/BRAZIL", "ITAJAI") == "DIVERGENTE"

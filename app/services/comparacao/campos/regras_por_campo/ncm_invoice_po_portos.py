@@ -14,7 +14,13 @@ from app.services.comparacao.normalizacao.numeros_de_documento import (
     numeros_quase_iguais,
     pos_do_texto,
 )
-from app.services.comparacao.normalizacao.portos import nome_do_porto, normalizar_porto, portos_do_estado, so_o_pais
+from app.services.comparacao.normalizacao.portos import (
+    nome_do_porto,
+    normalizar_porto,
+    portos_do_estado,
+    portos_separados_por_barra,
+    so_o_pais,
+)
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
 ALTERNATIVAS = re.compile(r"(?i)\s+(?:OR|OU)\s+")  # 'ITAPOA OR NAVEGANTES'
@@ -89,7 +95,8 @@ def obter_porto(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
     textos = [porto.valor] + ([extra.valor] if extra and extra is not porto else [])
     if f.doc.tipo != "conhecimento":
         trechos = ROTA.split(porto.valor)
-        textos = [a for t in (trechos[:1] if origem else trechos) for a in ALTERNATIVAS.split(t)]
+        opcoes = [a for t in (trechos[:1] if origem else trechos) for a in ALTERNATIVAS.split(t)]
+        textos = [p for a in opcoes for p in portos_separados_por_barra(a)]
     alternativas = {normalizar_porto(t): t for t in textos if normalizar_porto(t)}
     if not alternativas:
         return None

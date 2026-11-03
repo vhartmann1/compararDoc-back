@@ -34,8 +34,9 @@ def _variante_citada(curto: ItemAgrupado, resto: list[str]) -> bool:
 
 
 def unidades_de_familias_diferentes(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """Caixas × dúzias: sem conversão, a quantidade não se compara."""
-    return bool(a.quantidade and b.quantidade) and a.quantidade[0] != b.quantidade[0]
+    """Caixas × dúzias: sem conversão, a quantidade não se compara; unidade em branco num lado não impede."""
+    unidades = [x.quantidade[0] for x in (a, b) if x.quantidade and x.quantidade[0]]
+    return len(unidades) == 2 and unidades[0] != unidades[1]
 
 
 def nome_comeca_o_outro(a: ItemAgrupado, b: ItemAgrupado) -> bool:
