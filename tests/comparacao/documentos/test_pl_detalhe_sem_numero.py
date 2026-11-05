@@ -20,7 +20,7 @@ def _copia():
 def _pls(*arquivos, invertido=False):
     ordem = list(reversed(arquivos)) if invertido else list(arquivos)
     entradas = [(arquivo(f"a{i}"), ExtracaoArquivo(documentos=docs)) for i, docs in enumerate(ordem)]
-    return escolher_documentos(entradas, []).por_tipo["packing_list"]
+    return escolher_documentos(entradas).por_tipo["packing_list"]
 
 
 @pytest.mark.parametrize("invertido", ORDENS)

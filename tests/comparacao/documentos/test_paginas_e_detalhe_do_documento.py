@@ -17,9 +17,9 @@ def _arquivo(nome, media=MEDIA_PDF):
 
 def _escolher(*arquivos, invertido=False):
     ordem = list(reversed(arquivos)) if invertido else list(arquivos)
-    avisos: list[str] = []
     entradas = [(arq, ExtracaoArquivo(documentos=docs)) for arq, docs in ordem]
-    return escolher_documentos(entradas, avisos).por_tipo, avisos
+    escolha = escolher_documentos(entradas)
+    return escolha.por_tipo, escolha.avisos
 
 
 def _invoice(itens, total=None, liquido=None, bruto=None):

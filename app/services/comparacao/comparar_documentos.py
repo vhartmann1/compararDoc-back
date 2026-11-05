@@ -91,8 +91,8 @@ def comparar(
     extracoes: list[tuple[ArquivoEntrada, ExtracaoArquivo]], modalidade: Modalidade | None = None
 ) -> ResultadoComparacao:
     """`extracoes` na ordem em que os arquivos foram enviados."""
-    avisos: list[str] = []
-    escolha = escolher_documentos(extracoes, avisos)
+    escolha = escolher_documentos(extracoes)
+    avisos = escolha.avisos
     por_tipo = escolha.por_tipo
     conhecimentos = por_tipo["conhecimento"]
     grupos = parear(por_tipo["invoice"], por_tipo["packing_list"], avisos)
