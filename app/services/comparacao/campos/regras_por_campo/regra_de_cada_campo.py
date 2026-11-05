@@ -32,6 +32,8 @@ from app.services.comparacao.campos.regras_por_campo.ncm_invoice_po_portos impor
     portos_iguais,
 )
 from app.services.comparacao.campos.regras_por_campo.pesos_volumes_quantidade import (
+    aviso_de_peso_sem_unidade,
+    aviso_de_quantidade_sem_soma,
     embalagens_incomparaveis,
     obter_peso,
     obter_quantidade,
@@ -49,14 +51,15 @@ from app.services.comparacao.partes.consignatario_pela_modalidade import separar
 from app.services.comparacao.partes.endereco_do_consignatario import avisos_de_endereco
 
 REGRAS: dict[NomeCampo, Regra] = {
-    "peso_liquido": Regra(obter_peso, somar_peso, pesos_iguais),
-    "peso_bruto": Regra(obter_peso, somar_peso, pesos_iguais),
+    "peso_liquido": Regra(obter_peso, somar_peso, pesos_iguais, aviso_sem_valor=aviso_de_peso_sem_unidade),
+    "peso_bruto": Regra(obter_peso, somar_peso, pesos_iguais, aviso_sem_valor=aviso_de_peso_sem_unidade),
     "volumes": Regra(
         obter_volumes, somar_volumes, lambda a, b: abs(a - b) < 1e-6, incomparavel_nos_grupos=embalagens_incomparaveis
     ),
     "quantidade": Regra(
         obter_quantidade, somar_quantidade, quantidades_iguais,
-        incomparavel=unidades_incomparaveis, texto_da_divergencia=texto_da_quantidade,
+        aviso_sem_soma=aviso_de_quantidade_sem_soma, incomparavel=unidades_incomparaveis,
+        texto_da_divergencia=texto_da_quantidade,
     ),
     "ncm": Regra(
         obter_ncm, juntar_ncm, lambda a, b: set(a) == set(b), contido_no_outro=ncms_contidos,

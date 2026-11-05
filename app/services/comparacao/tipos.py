@@ -44,7 +44,15 @@ class Col:
 class Contexto:
     comparacao_id: str
     prefixo: str  # "Invoice L30518777 — " ou ""
-    avisos: list[str]
     modalidade: Modalidade | None = None
+
+
+@dataclass
+class Apontamentos:
+    """Avisos e divergências de uma conferência, cada lista na ordem em que surgem."""
+
+    avisos: list[str] = field(default_factory=list)
     divergencias: list[Divergencia] = field(default_factory=list)
-    divergentes_na_soma: set[str] = field(default_factory=set)
+
+    def __add__(self, outros: "Apontamentos") -> "Apontamentos":
+        return Apontamentos(self.avisos + outros.avisos, self.divergencias + outros.divergencias)

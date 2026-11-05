@@ -9,56 +9,55 @@ from app.services.comparacao.campos.regras_por_campo.exportador_consignatario im
 from app.services.comparacao.campos.regras_por_campo.regra import Grupos, Iguais, Informados, Regra
 from app.services.comparacao.constantes import CAMPOS_SEM_AVISO_INSUFICIENTE, ROTULOS
 from app.services.comparacao.mensagens import maiuscula, sujeito
-from app.services.comparacao.tipos import Col, Contexto, Valor
+from app.services.comparacao.tipos import Apontamentos, Col, Contexto, Valor
+
+
+Status = tuple[StatusCampo, Apontamentos]
 
 
 def status_do_campo(
-    ctx: Contexto, campo: NomeCampo, regra: Regra, colunas: list[Col], valores: dict[str, Valor | None]
-) -> StatusCampo:
-    if campo in ctx.divergentes_na_soma:
-        return "DIVERGENTE"  # mensagem já registrada ao montar a soma
+    ctx: Contexto, campo: NomeCampo, regra: Regra, colunas: list[Col], valores: dict[str, Valor | None],
+    divergente_na_soma: bool = False,
+) -> Status:
+    """O status e o que ele aponta; com `divergente_na_soma`, a mensagem já saiu ao montar a soma."""
+    if divergente_na_soma:
+        return "DIVERGENTE", Apontamentos()
     informados = [(col, valores[col.chave]) for col in colunas if valores[col.chave] is not None]
     if not informados:
-        return "NAO_ENCONTRADO"
+        return "NAO_ENCONTRADO", Apontamentos()
     restantes, aviso = _separar_aceitos(ctx, regra, informados)
-    if aviso:
-        ctx.avisos.append(aviso)
+    antes = Apontamentos([aviso] if aviso else [])
     if len(restantes) < len(informados) and len(restantes) <= 1:
-        return "OK"
+        return "OK", antes
     if len(restantes) == 1:
-        if len(colunas) > 1 and campo not in CAMPOS_SEM_AVISO_INSUFICIENTE:
-            ctx.avisos.append(
-                f"{ctx.prefixo}{ROTULOS[campo]} informado só em {restantes[0][0].nome_curto}; "
-                "nada com o que comparar."
-            )
-        return "INSUFICIENTE"
-    return _comparar_informados(ctx, campo, regra, restantes)
+        sem_comparar = len(colunas) > 1 and campo not in CAMPOS_SEM_AVISO_INSUFICIENTE
+        avisos = [f"{ctx.prefixo}{ROTULOS[campo]} informado só em {restantes[0][0].nome_curto}; "
+                  "nada com o que comparar."] if sem_comparar else []
+        return "INSUFICIENTE", antes + Apontamentos(avisos)
+    status, apontamentos = _comparar_informados(ctx, campo, regra, restantes)
+    return status, antes + apontamentos
 
 
-def _comparar_informados(ctx: Contexto, campo: NomeCampo, regra: Regra, informados: Informados) -> StatusCampo:
+def _comparar_informados(ctx: Contexto, campo: NomeCampo, regra: Regra, informados: Informados) -> Status:
     """Dois ou mais valores: agrupa os iguais e, se sobra mais de um grupo, registra a divergência."""
     if regra.incomparavel and (aviso := regra.incomparavel(ctx, informados)):
-        ctx.avisos.append(aviso)
-        return "INSUFICIENTE"
+        return "INSUFICIENTE", Apontamentos([aviso])
     comparador = regra.comparador_para(ctx, [v for _, v in informados])
+    antes = Apontamentos([comparador.aviso] if comparador.aviso else [])
     grupos = _agrupar_iguais(ctx, campo, regra, comparador.iguais, informados)
     if len(grupos) == 1:
-        if aviso := _aviso_de_comerciais_diferentes(ctx, campo, regra, informados):
-            ctx.avisos.append(aviso)
-        return "OK"
+        aviso = _aviso_de_comerciais_diferentes(ctx, campo, regra, informados)
+        return "OK", antes + Apontamentos([aviso] if aviso else [])
     if aviso := _aviso_sem_divergencia(ctx, campo, regra, grupos):
-        ctx.avisos.append(aviso)
-        return "INSUFICIENTE"
+        return "INSUFICIENTE", antes + Apontamentos([aviso])
     ordenados = sorted(grupos, key=lambda g: len(g[0]))  # minoria primeiro
-    ctx.divergencias.append(
-        Divergencia(
-            categoria="comparacao",
-            comparacao_id=ctx.comparacao_id,
-            campo=campo,
-            mensagem=f"{ctx.prefixo}{ROTULOS[campo]}: {comparador.texto(ordenados, grupos)}",
-        )
+    divergencia = Divergencia(
+        categoria="comparacao",
+        comparacao_id=ctx.comparacao_id,
+        campo=campo,
+        mensagem=f"{ctx.prefixo}{ROTULOS[campo]}: {comparador.texto(ordenados, grupos)}",
     )
-    return "DIVERGENTE"
+    return "DIVERGENTE", antes + Apontamentos(divergencias=[divergencia])
 
 
 def _aviso_sem_divergencia(ctx: Contexto, campo: NomeCampo, regra: Regra, grupos: Grupos) -> str | None:

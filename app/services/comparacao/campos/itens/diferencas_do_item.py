@@ -175,8 +175,19 @@ ATRIBUTOS_ITEM = [
 ]
 
 
-def diferencas_item(linha: Linha, colunas: list[ColItens], so_conhecimento: bool) -> list[tuple[str, str]]:
-    """(nome da diferença, mensagem); com `so_conhecimento`, só as diferenças que envolvem o conhecimento."""
+def diferencas_item(linha: Linha, colunas: list[ColItens]) -> list[tuple[str, str]]:
+    """(nome da diferença, mensagem) entre quaisquer duas colunas."""
+    return _diferencas(linha, colunas, lambda c1, c2: True)
+
+
+def diferencas_com_o_conhecimento(linha: Linha, colunas: list[ColItens]) -> list[tuple[str, str]]:
+    """(nome da diferença, mensagem), só entre pares de colunas em que uma é o conhecimento."""
+    return _diferencas(linha, colunas, lambda c1, c2: c1.conhecimento or c2.conhecimento)
+
+
+def _diferencas(
+    linha: Linha, colunas: list[ColItens], conferir_par: Callable[[ColItens, ColItens], bool]
+) -> list[tuple[str, str]]:
     difs: list[tuple[str, str]] = []
     for atributo in ATRIBUTOS_ITEM:
         informados = [(c, linha[c.col.chave]) for c in colunas if c.col.chave in linha]
@@ -187,7 +198,7 @@ def diferencas_item(linha: Linha, colunas: list[ColItens], so_conhecimento: bool
             not atributo.iguais(x, y)
             for n, (c1, x) in enumerate(informados)
             for c2, y in informados[n + 1:]
-            if not so_conhecimento or c1.conhecimento or c2.conhecimento
+            if conferir_par(c1, c2)
         )
         if diferentes:
             nota = ""

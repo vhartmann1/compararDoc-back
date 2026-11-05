@@ -2,7 +2,7 @@
 
 from app.schemas import Divergencia, NomeCampo, StatusCampo
 from app.services.comparacao.campos.regras_por_campo.regra import Regra
-from app.services.comparacao.campos.status_do_campo import status_do_campo
+from app.services.comparacao.campos.status_do_campo import Status, status_do_campo
 from app.services.comparacao.campos.valor_da_coluna import valor_do_documento
 from app.services.comparacao.constantes import ROTULOS
 from app.services.comparacao.partes.operacao_triangular import (
@@ -11,67 +11,76 @@ from app.services.comparacao.partes.operacao_triangular import (
     da_mesma_empresa,
     texto_contra_as_proprias,
 )
-from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
+from app.services.comparacao.tipos import Apontamentos, Col, Contexto, Fonte, Valor
 
 
 def status_com_triangulacao(
     ctx: Contexto, campo: NomeCampo, regra: Regra, colunas: list[Col], valores: dict[str, Valor | None],
-    triangulares: list[Triangulacao],
-) -> StatusCampo:
+    triangulares: list[Triangulacao], divergente_na_soma: bool = False,
+) -> Status:
     """Conhecimento triangular fora da comparação geral; só confere com as invoices/PLs da mesma empresa."""
     chaves = {t.conhecimento.chave for t in triangulares}
     restantes = [col for col in colunas if col.chave not in chaves]
-    status = [status_do_campo(ctx, campo, regra, restantes, valores)] if _informados(restantes, valores) > 1 else []
-    status += [s for t in triangulares if (s := _conferir_com_as_proprias(ctx, campo, regra, t, valores))]
-    if status:
-        return _status_mais_grave(status)
-    return "INSUFICIENTE" if any(v is not None for v in valores.values()) else "NAO_ENCONTRADO"
+    geral = _informados(restantes, valores) > 1
+    conferidos = [status_do_campo(ctx, campo, regra, restantes, valores, divergente_na_soma)] if geral else []
+    conferidos += [_conferir_com_as_proprias(ctx, campo, regra, t, valores) for t in triangulares]
+    apontamentos = sum((a for _, a in conferidos), Apontamentos())
+    if status := [s for s, _ in conferidos if s]:
+        return _status_mais_grave(status), apontamentos
+    status: StatusCampo = "INSUFICIENTE" if any(v is not None for v in valores.values()) else "NAO_ENCONTRADO"
+    return status, apontamentos
 
 
 def _conferir_com_as_proprias(
     ctx: Contexto, campo: NomeCampo, regra: Regra, t: Triangulacao, valores: dict[str, Valor | None]
-) -> StatusCampo | None:
-    """Conhecimento × invoices/PLs da mesma empresa do shipper; None se falta um dos lados."""
+) -> tuple[StatusCampo | None, Apontamentos]:
+    """Conhecimento × invoices/PLs da mesma empresa do shipper; status None se falta um dos lados."""
     conhecimento = valores[t.conhecimento.chave]
     col = coluna_das_proprias(t)
-    presentes = [v for f in t.proprias if (v := valor_do_documento(ctx, f, campo, regra)) is not None]
+    lidos = [valor_do_documento(ctx, f, campo, regra) for f in t.proprias]
+    avisos = [a for _, avisos in lidos for a in avisos]
+    presentes = [v for v, _ in lidos if v is not None]
     if conhecimento is None or not presentes:
-        return None
+        return None, Apontamentos(avisos)
     proprias = presentes[0] if len(presentes) == 1 else regra.juntar(presentes, campo, ctx, col)
     if regra.iguais(proprias.chave, conhecimento.chave):
-        return "OK"
-    if lados := _lados_que_divergem(ctx, campo, regra, t, conhecimento):
+        return "OK", Apontamentos(avisos)
+    lados, dos_lados = _lados_que_divergem(ctx, campo, regra, t, conhecimento)
+    if lados:
         mensagem = texto_contra_as_proprias(f"{ctx.prefixo}{ROTULOS[campo]}", t, conhecimento, lados,
                                             cortar=campo == "endereco_exportador")
     else:
         mensagem = (f"{ctx.prefixo}{ROTULOS[campo]}: {t.conhecimento.nome_curto} {conhecimento.exibicao} × "
                     f"{col.nome_curto} {proprias.exibicao}")
-    ctx.divergencias.append(
-        Divergencia(categoria="comparacao", comparacao_id=ctx.comparacao_id, campo=campo, mensagem=mensagem)
-    )
-    return "DIVERGENTE"
+    divergencia = Divergencia(categoria="comparacao", comparacao_id=ctx.comparacao_id, campo=campo, mensagem=mensagem)
+    return "DIVERGENTE", Apontamentos(avisos + dos_lados, [divergencia])
 
 
 def _lados_que_divergem(
     ctx: Contexto, campo: NomeCampo, regra: Regra, t: Triangulacao, conhecimento: Valor
-) -> list[tuple[Fonte, Valor]]:
+) -> tuple[list[tuple[Fonte, Valor]], list[str]]:
     """Os documentos da mesma empresa do shipper que divergem do conhecimento; sem nenhum, os das próprias."""
+    avisos: list[str] = []
     for fontes in (da_mesma_empresa(t), t.proprias):
-        if lados := _um_por_valor(ctx, campo, regra, fontes, conhecimento):
-            return lados
-    return []
+        lados, lidos = _um_por_valor(ctx, campo, regra, fontes, conhecimento)
+        avisos += lidos
+        if lados:
+            return lados, avisos
+    return [], avisos
 
 
 def _um_por_valor(
     ctx: Contexto, campo: NomeCampo, regra: Regra, fontes: list[Fonte], conhecimento: Valor
-) -> list[tuple[Fonte, Valor]]:
-    """O primeiro documento de cada valor diferente do conhecimento."""
+) -> tuple[list[tuple[Fonte, Valor]], list[str]]:
+    """O primeiro documento de cada valor diferente do conhecimento, e os avisos da leitura dos valores."""
     lados: list[tuple[Fonte, Valor]] = []
+    avisos: list[str] = []
     for f in fontes:
-        v = valor_do_documento(ctx, f, campo, regra)
+        v, lidos = valor_do_documento(ctx, f, campo, regra)
+        avisos += lidos
         if v is not None and not any(regra.iguais(v.chave, o.chave) for o in [conhecimento, *(x for _, x in lados)]):
             lados.append((f, v))
-    return lados
+    return lados, avisos
 
 
 def _informados(colunas: list[Col], valores: dict[str, Valor | None]) -> int:

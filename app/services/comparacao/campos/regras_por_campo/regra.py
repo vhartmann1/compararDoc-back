@@ -19,6 +19,7 @@ class Comparador:
 
     iguais: Iguais
     texto: TextoDaDivergencia
+    aviso: str | None = None  # como a comparação foi feita, quando foge do comum
 
 
 def texto_dos_grupos(ordenados: Grupos, grupos: Grupos | None = None) -> str:
@@ -35,6 +36,8 @@ class Regra:
     conhecimento_e_referencia: bool = False  # invoice e PL conferem com o conhecimento, não entre si
     contido_no_outro: Callable[[Any, Any], bool] | None = None  # o conhecimento pode trazer só parte (PO, NCM)
     # ganchos dos campos com caso próprio; None é o comportamento comum
+    aviso_sem_valor: Callable[[Fonte, NomeCampo, Contexto], str | None] | None = None  # quando `obter` dá None
+    aviso_sem_soma: Callable[[list[Valor], Contexto, Col], str | None] | None = None  # quando `juntar` dá None
     vazio_em: Callable[[list[Col]], set[str]] | None = None  # chaves das colunas em que o campo não se confere
     separar_aceitos: Callable[[Contexto, Informados], tuple[Informados, str | None]] | None = None
     incomparavel: Callable[[Contexto, Informados], str | None] | None = None  # aviso que deixa INSUFICIENTE

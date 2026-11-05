@@ -1,6 +1,6 @@
 """Regras de peso, volumes e quantidade."""
 
-from app.schemas import NomeCampo
+from app.schemas import Medida, NomeCampo
 from app.services.comparacao.campos.regras_por_campo.regra import Grupos, Informados, texto_dos_grupos, texto_soma
 from app.services.comparacao.constantes import ROTULOS, TOLERANCIA_PESO_KG
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
@@ -11,17 +11,26 @@ from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
 
 def obter_peso(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
-    medida = f.doc.peso_liquido_total if campo == "peso_liquido" else f.doc.peso_bruto_total
+    medida = _medida_do_peso(f, campo)
     if medida is None:
         return None
     kg = para_kg(medida)
     if kg is None:
-        ctx.avisos.append(
-            f"{ctx.prefixo}{ROTULOS[campo]} ({nome_doc(f)}) em unidade não reconhecida "
-            f"(\"{medida.texto_original}\"); não comparado."
-        )
         return None
     return Valor(kg, formatar_kg(kg), medida.texto_original, f.arquivo.id, medida.pagina)
+
+
+def aviso_de_peso_sem_unidade(f: Fonte, campo: NomeCampo, ctx: Contexto) -> str | None:
+    """Peso lido numa unidade que não se converte para kg: fica fora da comparação, com aviso."""
+    medida = _medida_do_peso(f, campo)
+    if medida is None or para_kg(medida) is not None:
+        return None
+    return (f"{ctx.prefixo}{ROTULOS[campo]} ({nome_doc(f)}) em unidade não reconhecida "
+            f"(\"{medida.texto_original}\"); não comparado.")
+
+
+def _medida_do_peso(f: Fonte, campo: NomeCampo) -> Medida | None:
+    return f.doc.peso_liquido_total if campo == "peso_liquido" else f.doc.peso_bruto_total
 
 
 def somar_peso(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor:
@@ -75,10 +84,6 @@ def obter_quantidade(f: Fonte, campo: NomeCampo, ctx: Contexto) -> Valor | None:
 def somar_quantidade(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor | None:
     canonicas = {v.chave[0] for v in valores}
     if len(canonicas) > 1:
-        ctx.avisos.append(
-            f"{ctx.prefixo}Quantidade: não dá para somar \"{col.rotulo}\" — unidades diferentes "
-            f"({', '.join(v.exibicao for v in valores)})."
-        )
         return None
     canonica = canonicas.pop()
     total = round(sum(v.chave[1] for v in valores), 3)
@@ -90,6 +95,14 @@ def somar_quantidade(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col:
     else:
         unidade, exibicao = canonica, formatar_contagem(total, canonica)
     return Valor((canonica, total), exibicao, texto_soma(valores), None, None, unidade)
+
+
+def aviso_de_quantidade_sem_soma(valores: list[Valor], ctx: Contexto, col: Col) -> str | None:
+    """Documentos da coluna em unidades que não se somam (peças + kg)."""
+    if len({v.chave[0] for v in valores}) <= 1:
+        return None
+    return (f"{ctx.prefixo}Quantidade: não dá para somar \"{col.rotulo}\" — unidades diferentes "
+            f"({', '.join(v.exibicao for v in valores)}).")
 
 
 def quantidades_iguais(a: tuple[str, float], b: tuple[str, float]) -> bool:

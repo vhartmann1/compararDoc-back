@@ -9,17 +9,18 @@ from app.services.comparacao.normalizacao.numeros_de_documento import (
     numeros_quase_iguais,
 )
 from app.services.comparacao.normalizacao.quantidades import para_kg
+from app.services.comparacao.particao import particionar
 from app.services.comparacao.tipos import Fonte
 
 
-def parear(
-    invoices: list[Fonte], pls: list[Fonte], avisos: list[str]
-) -> list[tuple[Fonte | None, Fonte | None]]:
+def parear(invoices: list[Fonte], pls: list[Fonte]) -> tuple[list[tuple[Fonte | None, Fonte | None]], list[str]]:
+    """Os pares (invoice, PL) e os avisos de quem ficou sem par ou só na soma."""
+    avisos: list[str] = []
     em_outra = pls_em_outra_numeracao(invoices, pls)  # não diz qual invoice: só entra na soma
     cobertas = {p: [i for i in invoices if _pl_da_invoice(p.doc, i.doc)] for p in pls}
-    de_varias = [p for p in pls if len(cobertas[p]) > 1 or p in em_outra]  # um PL para várias invoices: só na soma
+    # um PL para várias invoices: só na soma
+    de_varias, livres = particionar(pls, lambda p: len(cobertas[p]) > 1 or p in em_outra)
     na_soma = {i for p in de_varias for i in cobertas[p]} | (set(invoices) if em_outra else set())
-    livres = [p for p in pls if p not in de_varias]
     grupos: list[tuple[Fonte | None, Fonte | None]] = []
     for inv in invoices:
         pl = next((p for p in livres if _pl_da_invoice(p.doc, inv.doc)), None)
@@ -46,7 +47,7 @@ def parear(
             avisos.append(f"{nome_doc(inv)} sem packing list correspondente.")
         elif pl and invoices and pl not in de_varias:
             avisos.append(f"{nome_doc(pl)} sem invoice correspondente.")
-    return grupos
+    return grupos, avisos
 
 
 def pls_em_outra_numeracao(invoices: list[Fonte], pls: list[Fonte]) -> list[Fonte]:

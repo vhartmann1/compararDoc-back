@@ -39,7 +39,7 @@ from app.services.comparacao.documentos.versoes_com_valor_diferente import (
 )
 from app.services.comparacao.partes.capital_nos_documentos import divergencias_da_capital
 from app.services.comparacao.partes.conferencia_do_notify import avisos_do_notify, divergencias_do_notify
-from app.services.comparacao.tipos import Contexto, Fonte
+from app.services.comparacao.tipos import Apontamentos, Contexto, Fonte
 
 
 @dataclass
@@ -92,32 +92,28 @@ def comparar(
 ) -> ResultadoComparacao:
     """`extracoes` na ordem em que os arquivos foram enviados."""
     escolha = escolher_documentos(extracoes)
-    avisos = escolha.avisos
     por_tipo = escolha.por_tipo
     conhecimentos = por_tipo["conhecimento"]
-    grupos = parear(por_tipo["invoice"], por_tipo["packing_list"], avisos)
-
-    comparacoes: list[Comparacao] = []
-    divergencias: list[Divergencia] = []
-    for comparacao_id, prefixo, colunas in montar_comparacoes(grupos, conhecimentos):
-        ctx = Contexto(comparacao_id, prefixo, avisos, modalidade)
-        comparacoes.append(comparar_colunas(ctx, colunas))
-        divergencias.extend(ctx.divergencias)
-
-    itens, divergencias_itens = comparar_todos_os_itens(grupos, conhecimentos, avisos)
-    divergencias.extend(divergencias_itens)
+    grupos, do_pareamento = parear(por_tipo["invoice"], por_tipo["packing_list"])
+    comparados = [
+        comparar_colunas(Contexto(comparacao_id, prefixo, modalidade), colunas)
+        for comparacao_id, prefixo, colunas in montar_comparacoes(grupos, conhecimentos)
+    ]
+    comparacoes = [comparacao for comparacao, _ in comparados]
+    itens, dos_itens = comparar_todos_os_itens(grupos, conhecimentos)
+    apontamentos = sum((a for _, a in comparados), Apontamentos(escolha.avisos + do_pareamento)) + dos_itens
 
     usados = sorted((f for fs in por_tipo.values() for f in fs), key=lambda f: f.ordem)
     processo = _Processo(por_tipo, grupos, usados, escolha.fora_da_soma, modalidade)
-    divergencias.extend(d for conferir in _DIVERGENCIAS for d in conferir(processo))
-    avisos.extend(a for conferir in _AVISOS for a in conferir(processo))
+    divergencias = apontamentos.divergencias + [d for conferir in _DIVERGENCIAS for d in conferir(processo)]
+    avisos = apontamentos.avisos + [a for conferir in _AVISOS for a in conferir(processo)]
     return ResultadoComparacao(
         status=_status_geral(por_tipo, comparacoes, divergencias),
         documentos=[ref_documento(f) for f in usados],
         comparacoes=comparacoes,
         itens=itens,
         divergencias=divergencias,
-        avisos=avisos,
+        avisos=list(dict.fromkeys(avisos)),  # o mesmo aviso só uma vez (ex.: valor tirado da duplicata)
     )
 
 

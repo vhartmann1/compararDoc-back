@@ -130,24 +130,22 @@ def juntar_porto(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col
 
 def comparador_de_ncm(ctx: Contexto, valores: list[Valor]) -> Comparador:
     """NCM comparado e escrito pelos dígitos que todos os documentos trazem."""
-    digitos = _digitos_ncm(ctx, valores)
-    return Comparador(_iguais_nos_digitos(digitos), lambda ordenados, _: texto_ncm(ordenados, digitos))
+    digitos = _digitos_ncm(valores)
+    aviso = None if digitos == 8 else (
+        f"{ctx.prefixo}NCM comparado pelos {digitos} primeiros dígitos "
+        "(algum documento traz só o HS Code ou a posição)."
+    )
+    return Comparador(_iguais_nos_digitos(digitos), lambda ordenados, _: texto_ncm(ordenados, digitos), aviso)
 
 
 def _iguais_nos_digitos(digitos: int) -> Iguais:
     return lambda a, b: {c[:digitos] for c in a} == {c[:digitos] for c in b}
 
 
-def _digitos_ncm(ctx: Contexto, valores: list[Valor]) -> int:
+def _digitos_ncm(valores: list[Valor]) -> int:
     """Compara com 8 dígitos; se algum documento só traz HS (6) ou posição (4), compara por aí."""
     menor = min(len(c) for v in valores for c in v.chave)
-    digitos = 8 if menor >= 8 else 6 if menor >= 6 else 4
-    if digitos < 8:
-        ctx.avisos.append(
-            f"{ctx.prefixo}NCM comparado pelos {digitos} primeiros dígitos "
-            "(algum documento traz só o HS Code ou a posição)."
-        )
-    return digitos
+    return 8 if menor >= 8 else 6 if menor >= 6 else 4
 
 
 def colunas_com_pl_em_outra_numeracao(colunas: list[Col]) -> set[str]:
