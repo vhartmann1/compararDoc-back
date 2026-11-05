@@ -1,5 +1,8 @@
 """Compara Invoice × Packing List × Conhecimento: campos, itens, coerência e inconsistências internas."""
 
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+
 from app.schemas import (
     ArquivoEntrada,
     Comparacao,
@@ -39,6 +42,51 @@ from app.services.comparacao.partes.conferencia_do_notify import avisos_do_notif
 from app.services.comparacao.tipos import Contexto, Fonte
 
 
+@dataclass
+class _Processo:
+    """Os documentos escolhidos e pareados, que cada conferência do processo lê."""
+
+    por_tipo: dict[TipoDocumento, list[Fonte]]
+    grupos: list[tuple[Fonte | None, Fonte | None]]
+    usados: list[Fonte]
+    fora_da_soma: list[Fonte]
+    modalidade: Modalidade | None
+
+    @property
+    def invoices(self) -> list[Fonte]:
+        return self.por_tipo["invoice"]
+
+    @property
+    def conhecimentos(self) -> list[Fonte]:
+        return self.por_tipo["conhecimento"]
+
+    @property
+    def conferidos_por_dentro(self) -> list[Fonte]:
+        return self.usados + self.fora_da_soma
+
+
+_DIVERGENCIAS: list[Callable[[_Processo], Iterable[Divergencia]]] = [
+    lambda p: divergencias_de_coerencia(p.grupos, p.conhecimentos),
+    lambda p: (d for f in p.conferidos_por_dentro for d in divergencias_internas(f)),
+    lambda p: (d for f in p.conferidos_por_dentro for d in divergencias_das_somas(f)),
+    lambda p: divergencias_entre_versoes(p.usados),
+    lambda p: divergencias_do_checklist(p.invoices),
+    lambda p: divergencias_de_frete_no_total(p.invoices),
+    lambda p: divergencias_da_capital(p.grupos, p.conhecimentos, p.modalidade),
+    lambda p: divergencias_do_notify(p.invoices, p.conhecimentos),
+]
+
+_AVISOS: list[Callable[[_Processo], Iterable[str]]] = [
+    lambda p: avisos_entre_versoes(p.usados),
+    lambda p: avisos_do_cabecalho(p.conferidos_por_dentro),
+    lambda p: avisos_das_somas(p.conferidos_por_dentro),
+    lambda p: avisos_amostras(p.invoices),
+    lambda p: avisos_pais_origem(p.invoices),
+    lambda p: avisos_do_checklist(p.grupos, p.conhecimentos),
+    lambda p: avisos_do_notify(p.invoices, p.invoices + p.por_tipo["packing_list"], p.conhecimentos),
+]
+
+
 def comparar(
     extracoes: list[tuple[ArquivoEntrada, ExtracaoArquivo]], modalidade: Modalidade | None = None
 ) -> ResultadoComparacao:
@@ -46,8 +94,8 @@ def comparar(
     avisos: list[str] = []
     escolha = escolher_documentos(extracoes, avisos)
     por_tipo = escolha.por_tipo
-    invoices, pls, conhecimentos = por_tipo["invoice"], por_tipo["packing_list"], por_tipo["conhecimento"]
-    grupos = parear(invoices, pls, avisos)
+    conhecimentos = por_tipo["conhecimento"]
+    grupos = parear(por_tipo["invoice"], por_tipo["packing_list"], avisos)
 
     comparacoes: list[Comparacao] = []
     divergencias: list[Divergencia] = []
@@ -60,22 +108,9 @@ def comparar(
     divergencias.extend(divergencias_itens)
 
     usados = sorted((f for fs in por_tipo.values() for f in fs), key=lambda f: f.ordem)
-    divergencias.extend(divergencias_de_coerencia(grupos, conhecimentos))
-    divergencias.extend(d for f in usados + escolha.fora_da_soma for d in divergencias_internas(f))
-    divergencias.extend(d for f in usados + escolha.fora_da_soma for d in divergencias_das_somas(f))
-    divergencias.extend(divergencias_entre_versoes(usados))
-    divergencias.extend(divergencias_do_checklist(por_tipo["invoice"]))
-    divergencias.extend(divergencias_de_frete_no_total(por_tipo["invoice"]))
-    divergencias.extend(divergencias_da_capital(grupos, conhecimentos, modalidade))
-    divergencias.extend(divergencias_do_notify(por_tipo["invoice"], conhecimentos))
-    avisos.extend(avisos_entre_versoes(usados))
-    avisos.extend(avisos_do_cabecalho(usados + escolha.fora_da_soma))
-    avisos.extend(avisos_das_somas(usados + escolha.fora_da_soma))
-    avisos.extend(avisos_amostras(por_tipo["invoice"]))
-    avisos.extend(avisos_pais_origem(por_tipo["invoice"]))
-    avisos.extend(avisos_do_checklist(grupos, conhecimentos))
-    invoices_e_pls = por_tipo["invoice"] + por_tipo["packing_list"]
-    avisos.extend(avisos_do_notify(por_tipo["invoice"], invoices_e_pls, conhecimentos))
+    processo = _Processo(por_tipo, grupos, usados, escolha.fora_da_soma, modalidade)
+    divergencias.extend(d for conferir in _DIVERGENCIAS for d in conferir(processo))
+    avisos.extend(a for conferir in _AVISOS for a in conferir(processo))
     return ResultadoComparacao(
         status=_status_geral(por_tipo, comparacoes, divergencias),
         documentos=[ref_documento(f) for f in usados],
