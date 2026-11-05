@@ -1,8 +1,10 @@
 """Pedaços que se repetem nas mensagens: o que pedir, o que conferir e a divergência interna de um documento."""
 
-from app.schemas import Divergencia
+from dataclasses import dataclass
+
+from app.schemas import CategoriaDivergencia, Divergencia, NomeCampo
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.tipos import Fonte
+from app.services.comparacao.tipos import Fonte, prefixo_da_origem
 
 
 ARTIGOS = (("Packing Lists", "os"), ("Packing List", "o"), ("Invoices", "as"), ("Invoice", "a"), ("Proforma", "a"))
@@ -45,19 +47,68 @@ def trecho(texto: str, outro: str) -> str:
     return corte.rstrip(" ,;-") + "…"
 
 
+@dataclass(frozen=True)
+class Diferenca:
+    """O que difere e, se houver, o que fazer ('pedir correção')."""
+
+    detalhe: str
+    acao: str | None = None
+
+    def texto(self) -> str:
+        return f"{self.detalhe}; {self.acao}." if self.acao else self.detalhe
+
+
+def pedido(detalhe: str, o_que: str) -> Diferenca:
+    """'a soma não bate', 'correção' -> a diferença com a ação 'pedir correção'."""
+    return Diferenca(detalhe, f"pedir {o_que}")
+
+
 def pedir(mensagem: str, o_que: str) -> str:
     """'a soma não bate', 'correção' -> 'a soma não bate; pedir correção.'"""
-    return f"{mensagem}; pedir {o_que}."
+    return pedido(mensagem, o_que).texto()
 
 
 def confira(mensagem: str, como: str | None = None) -> str:
     """'unidades diferentes', 'manualmente' -> 'unidades diferentes; confira manualmente.'"""
-    return f"{mensagem}; confira {como}." if como else f"{mensagem}; confira."
+    return Diferenca(mensagem, f"confira {como}" if como else "confira").texto()
+
+
+def _mensagem(inicio: str, rotulo: str | None, diferenca: Diferenca) -> str:
+    """A única montagem da mensagem a partir das partes."""
+    return inicio + (f"{rotulo}: " if rotulo else "") + diferenca.texto()
+
+
+def divergencia(
+    categoria: CategoriaDivergencia, comparacao_id: str | None, campo: NomeCampo | None, origem: str | None,
+    rotulo: str | None, diferenca: Diferenca, **resto,
+) -> Divergencia:
+    """Divergência entre documentos: 'Origem — Rótulo: detalhe; ação.'"""
+    return Divergencia(categoria=categoria, comparacao_id=comparacao_id, campo=campo,
+                       mensagem=_mensagem(prefixo_da_origem(origem), rotulo, diferenca), origem=origem, rotulo=rotulo,
+                       detalhe=diferenca.detalhe, acao=diferenca.acao, **resto)
+
+
+def divergencia_do_documento(
+    f: Fonte, diferenca: Diferenca, categoria: CategoriaDivergencia = "interna", campo: NomeCampo | None = None,
+    **resto,
+) -> Divergencia:
+    """Problema de um documento: 'Documento: detalhe; ação.'"""
+    origem = nome_doc(f)
+    return Divergencia(categoria=categoria, comparacao_id=None, campo=campo,
+                       mensagem=_mensagem(f"{origem}: ", None, diferenca), origem=origem, detalhe=diferenca.detalhe,
+                       acao=diferenca.acao, documento=ref_documento(f), **resto)
 
 
 def divergencia_interna(
-    f: Fonte, mensagem: str, evidencia: str | None = None, pagina: int | None = None
+    f: Fonte, diferenca: Diferenca, evidencia: str | None = None, pagina: int | None = None
 ) -> Divergencia:
     """Contradição dentro do próprio documento, com o nome dele na frente da mensagem."""
-    return Divergencia(categoria="interna", comparacao_id=None, campo=None, mensagem=f"{nome_doc(f)}: {mensagem}",
+    return divergencia_do_documento(f, diferenca, evidencia=evidencia, pagina=pagina)
+
+
+def divergencia_do_modelo(f: Fonte, texto: str, evidencia: str | None, pagina: int | None) -> Divergencia:
+    """Contradição escrita pela leitura: o texto vem pronto, só a origem é parte separada."""
+    origem = nome_doc(f)
+    return Divergencia(categoria="interna", comparacao_id=None, campo=None,
+                       mensagem=_mensagem(f"{origem}: ", None, Diferenca(texto)), origem=origem,
                        documento=ref_documento(f), evidencia=evidencia, pagina=pagina)

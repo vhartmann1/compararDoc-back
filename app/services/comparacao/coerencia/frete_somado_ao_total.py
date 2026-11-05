@@ -4,7 +4,7 @@ from itertools import combinations
 
 from app.schemas import Divergencia
 from app.services.comparacao.constantes import INCOTERMS_EF
-from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
+from app.services.comparacao.mensagens import divergencia_do_documento, pedido
 from app.services.comparacao.normalizacao.codigos import normalizar_incoterm
 from app.services.comparacao.normalizacao.dinheiro import fecham_no_centavo
 from app.services.comparacao.normalizacao.formatacao import formatar_dinheiro
@@ -26,11 +26,9 @@ def _frete_no_total(f: Fonte) -> Divergencia | None:
     moeda = total.moeda
     parcelas = " + ".join(f"{nome} {formatar_dinheiro(v, moeda)}" for nome, v in somados)
     conta = f"{formatar_dinheiro(total.valor, moeda)} = mercadoria {formatar_dinheiro(mercadoria, moeda)} + {parcelas}"
-    return Divergencia(
-        categoria="coerencia", comparacao_id=None, campo="incoterm", documento=ref_documento(f),
-        mensagem=f"{nome_doc(f)}: invoice {sigla} com frete/seguro somados ao total ({conta}); pedir para remover",
-        evidencia=total.texto_original, pagina=total.pagina,
-    )
+    diferenca = pedido(f"invoice {sigla} com frete/seguro somados ao total ({conta})", "para remover")
+    return divergencia_do_documento(f, diferenca, "coerencia", "incoterm", evidencia=total.texto_original,
+                                    pagina=total.pagina)
 
 
 def _soma_das_linhas(f: Fonte) -> float | None:

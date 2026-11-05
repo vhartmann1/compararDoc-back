@@ -7,6 +7,7 @@ from app.services.comparacao.campos.regras_por_campo.regra import (
     texto_dos_grupos,
     texto_soma,
 )
+from app.services.comparacao.mensagens import Diferenca
 from app.services.comparacao.normalizacao.codigos import normalizar_cnpj
 from app.services.comparacao.normalizacao.formatacao import formatar_cnpj
 from app.services.comparacao.partes.capital_nos_documentos import texto_sem_a_capital
@@ -58,6 +59,6 @@ def listas_de_partes_iguais(a: tuple, b: tuple) -> bool:
     return com_alternativas_iguais(a, b, lambda x, y: mesma_empresa_registrada(x[:2], y[:2]))
 
 
-def texto_do_consignatario(ordenados: Grupos, grupos: Grupos) -> str:
+def texto_do_consignatario(ordenados: Grupos, grupos: Grupos) -> Diferenca:
     """Capital de um lado e só o cliente do outro: o que pedir; senão, os valores."""
     return texto_sem_a_capital(ordenados) or texto_dos_grupos(ordenados)

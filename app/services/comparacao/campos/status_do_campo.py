@@ -2,13 +2,13 @@
 
 from dataclasses import replace
 
-from app.schemas import Divergencia, NomeCampo, StatusCampo
+from app.schemas import NomeCampo, StatusCampo
 from app.services.comparacao.campos.conhecimento_com_parte import conhecimentos_contidos
 from app.services.comparacao.campos.leitura_incerta_entre_documentos import aviso_de_leitura_incerta
 from app.services.comparacao.campos.regras_por_campo.exportador_consignatario import fabricantes_iguais
 from app.services.comparacao.campos.regras_por_campo.regra import Grupos, Iguais, Informados, Regra
 from app.services.comparacao.constantes import CAMPOS_SEM_AVISO_INSUFICIENTE, ROTULOS
-from app.services.comparacao.mensagens import maiuscula, sujeito
+from app.services.comparacao.mensagens import divergencia, maiuscula, sujeito
 from app.services.comparacao.tipos import Apontamentos, Col, Contexto, Valor
 
 
@@ -51,13 +51,9 @@ def _comparar_informados(ctx: Contexto, campo: NomeCampo, regra: Regra, informad
     if aviso := _aviso_sem_divergencia(ctx, campo, regra, grupos):
         return "INSUFICIENTE", antes + Apontamentos([aviso])
     ordenados = sorted(grupos, key=lambda g: len(g[0]))  # minoria primeiro
-    divergencia = Divergencia(
-        categoria="comparacao",
-        comparacao_id=ctx.comparacao_id,
-        campo=campo,
-        mensagem=f"{ctx.prefixo}{ROTULOS[campo]}: {comparador.texto(ordenados, grupos)}",
-    )
-    return "DIVERGENTE", antes + Apontamentos(divergencias=[divergencia])
+    apontada = divergencia("comparacao", ctx.comparacao_id, campo, ctx.origem, ROTULOS[campo],
+                           comparador.texto(ordenados, grupos))
+    return "DIVERGENTE", antes + Apontamentos(divergencias=[apontada])
 
 
 def _aviso_sem_divergencia(ctx: Contexto, campo: NomeCampo, regra: Regra, grupos: Grupos) -> str | None:

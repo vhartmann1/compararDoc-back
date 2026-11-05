@@ -2,7 +2,7 @@
 
 from app.schemas import Divergencia, Parte
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
-from app.services.comparacao.mensagens import confira
+from app.services.comparacao.mensagens import Diferenca, confira, divergencia
 from app.services.comparacao.partes.capital import parte_da_capital
 from app.services.comparacao.partes.mesma_empresa import relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
@@ -28,11 +28,10 @@ def _outro_que_o_da_invoice(conhecimento: Fonte, pedidos: list[Parte]) -> Diverg
     if any(relacao_entre_partes(notify, pedido) != "outra" for pedido in pedidos):
         return None
     nomes = " / ".join(dict.fromkeys(p.nome.strip() for p in pedidos))
-    return Divergencia(
-        categoria="comparacao", comparacao_id=None, campo="adquirente", documento=ref_documento(conhecimento),
-        mensagem=f"Notify do {nome_doc(conhecimento)} ({notify.nome.strip()}) diferente do notify da invoice ({nomes})",
-        pagina=notify.pagina,
-    )
+    diferenca = Diferenca(f"Notify do {nome_doc(conhecimento)} ({notify.nome.strip()}) diferente do notify da "
+                          f"invoice ({nomes})")
+    return divergencia("comparacao", None, "adquirente", None, None, diferenca,
+                       documento=ref_documento(conhecimento), pagina=notify.pagina)
 
 
 def _preenchidas(partes: list[Parte | None]) -> list[Parte]:

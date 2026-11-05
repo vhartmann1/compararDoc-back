@@ -1,6 +1,6 @@
 """Divergência de NCM dita pelo código que sobra ou falta em cada lado, não pelas duas listas inteiras."""
 
-from app.services.comparacao.mensagens import maiuscula, nos_documentos, pedir, sujeito
+from app.services.comparacao.mensagens import Diferenca, maiuscula, nos_documentos, pedido, sujeito
 from app.services.comparacao.normalizacao.formatacao import formatar_ncm
 from app.services.comparacao.tipos import Col, Valor
 
@@ -29,7 +29,7 @@ def _diferenca(nomes: list[str], sobra: list[str], falta: list[str], nomes_ref: 
     return f"{quem} não {cita} {_ncms(falta)}, que {_consta(falta)} {onde}"
 
 
-def texto_ncm(grupos: list[tuple[list[Col], Valor]], digitos: int) -> str:
+def texto_ncm(grupos: list[tuple[list[Col], Valor]], digitos: int) -> Diferenca:
     """Cada grupo contra o da maioria (o último da lista), terminando com o que pedir."""
     *outros, (cols_ref, ref) = grupos
     nomes_ref = [c.nome_curto for c in cols_ref]
@@ -38,4 +38,4 @@ def texto_ncm(grupos: list[tuple[list[Col], Valor]], digitos: int) -> str:
         for cols, valor in outros
         if (sobra := _fora(valor.chave, ref.chave, digitos)) + (falta := _fora(ref.chave, valor.chave, digitos))
     ]
-    return pedir(maiuscula("; ".join(partes)), "correção")
+    return pedido(maiuscula("; ".join(partes)), "correção")

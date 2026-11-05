@@ -5,7 +5,7 @@ import re
 from app.schemas import Divergencia
 from app.services.comparacao.dentro_do_documento.cabecalho_e_assinatura import divergencias_do_cabecalho
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
-from app.services.comparacao.mensagens import divergencia_interna
+from app.services.comparacao.mensagens import Diferenca, divergencia_do_modelo, divergencia_interna
 from app.services.comparacao.normalizacao.dinheiro import normalizar_moeda
 from app.services.comparacao.normalizacao.encurtar_texto import encurtar
 from app.services.comparacao.normalizacao.formatacao import formatar_dinheiro
@@ -15,7 +15,7 @@ from app.services.comparacao.tipos import Fonte
 
 def divergencias_internas(f: Fonte) -> list[Divergencia]:
     divergencias = [
-        divergencia_interna(f, sem_leitura_entre_parenteses(i.descricao), i.evidencia, i.pagina)
+        divergencia_do_modelo(f, sem_leitura_entre_parenteses(i.descricao), i.evidencia, i.pagina)
         for i in f.doc.inconsistencias_internas
     ]
     divergencias.extend(divergencias_do_cabecalho(f))
@@ -26,8 +26,8 @@ def divergencias_internas(f: Fonte) -> list[Divergencia]:
         if item.sem_valor_comercial and (item.valor_total or 0) > 0:
             identificacao = item.codigo or encurtar(item.descricao)
             valor = formatar_dinheiro(item.valor_total, moeda)
-            mensagem = f"item {identificacao} marcado como FOC (sem valor comercial), mas cobrado {valor}"
-            divergencias.append(divergencia_interna(f, mensagem, f"{identificacao} — FOC — {valor}", item.pagina))
+            foc = Diferenca(f"item {identificacao} marcado como FOC (sem valor comercial), mas cobrado {valor}")
+            divergencias.append(divergencia_interna(f, foc, f"{identificacao} — FOC — {valor}", item.pagina))
     return divergencias
 
 

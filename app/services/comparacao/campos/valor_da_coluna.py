@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, replace
 
-from app.schemas import Divergencia, NomeCampo
+from app.schemas import NomeCampo
 from app.services.comparacao.campos.regras_por_campo.regra import Regra
 from app.services.comparacao.constantes import (
     CAMPOS_DIVERGENTES_NA_SOMA,
@@ -12,6 +12,7 @@ from app.services.comparacao.constantes import (
     ROTULOS,
 )
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
+from app.services.comparacao.mensagens import Diferenca, divergencia
 from app.services.comparacao.tipos import Apontamentos, Col, Contexto, Fonte, Valor
 
 
@@ -87,14 +88,8 @@ def _somar(
     apontamentos = Apontamentos()
     if campo in CAMPOS_DIVERGENTES_NA_SOMA and len(soma.chave) > 1:
         partes = [f"{nome_doc(f)} {v.exibicao}" for f, v in zip(col.fontes, valores) if v is not None]
-        apontamentos.divergencias.append(
-            Divergencia(
-                categoria="comparacao",
-                comparacao_id=ctx.comparacao_id,
-                campo=campo,
-                mensagem=f"{ctx.prefixo}{ROTULOS[campo]}: {' × '.join(partes)}",
-            )
-        )
+        apontamentos.divergencias.append(divergencia("comparacao", ctx.comparacao_id, campo, ctx.origem,
+                                                     ROTULOS[campo], Diferenca(" × ".join(partes))))
     if campo in CAMPOS_UNICOS_NA_SOMA and len(soma.chave) > 1:
         apontamentos.avisos.append(
             f"{ctx.prefixo}{ROTULOS[campo]}: os documentos de \"{col.rotulo}\" "

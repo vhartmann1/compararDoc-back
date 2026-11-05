@@ -1,14 +1,16 @@
 """Campos do exportador com conhecimento triangular: ele só confere com as invoices/PLs da mesma empresa."""
 
-from app.schemas import Divergencia, NomeCampo, StatusCampo
+from app.schemas import NomeCampo, StatusCampo
 from app.services.comparacao.campos.regras_por_campo.regra import Regra
 from app.services.comparacao.campos.status_do_campo import Status, status_do_campo
 from app.services.comparacao.campos.valor_da_coluna import valor_do_documento
 from app.services.comparacao.constantes import ROTULOS
+from app.services.comparacao.mensagens import Diferenca, divergencia
 from app.services.comparacao.partes.operacao_triangular import (
     Triangulacao,
     coluna_das_proprias,
     da_mesma_empresa,
+    empresa_do_shipper,
     texto_contra_as_proprias,
 )
 from app.services.comparacao.tipos import Apontamentos, Col, Contexto, Fonte, Valor
@@ -47,13 +49,14 @@ def _conferir_com_as_proprias(
         return "OK", Apontamentos(avisos)
     lados, dos_lados = _lados_que_divergem(ctx, campo, regra, t, conhecimento)
     if lados:
-        mensagem = texto_contra_as_proprias(f"{ctx.prefixo}{ROTULOS[campo]}", t, conhecimento, lados,
-                                            cortar=campo == "endereco_exportador")
+        rotulo = f"{ROTULOS[campo]} ({empresa_do_shipper(t)})"
+        diferenca = texto_contra_as_proprias(t, conhecimento, lados, cortar=campo == "endereco_exportador")
     else:
-        mensagem = (f"{ctx.prefixo}{ROTULOS[campo]}: {t.conhecimento.nome_curto} {conhecimento.exibicao} × "
-                    f"{col.nome_curto} {proprias.exibicao}")
-    divergencia = Divergencia(categoria="comparacao", comparacao_id=ctx.comparacao_id, campo=campo, mensagem=mensagem)
-    return "DIVERGENTE", Apontamentos(avisos + dos_lados, [divergencia])
+        rotulo = ROTULOS[campo]
+        diferenca = Diferenca(f"{t.conhecimento.nome_curto} {conhecimento.exibicao} × "
+                              f"{col.nome_curto} {proprias.exibicao}")
+    apontada = divergencia("comparacao", ctx.comparacao_id, campo, ctx.origem, rotulo, diferenca)
+    return "DIVERGENTE", Apontamentos(avisos + dos_lados, [apontada])
 
 
 def _lados_que_divergem(

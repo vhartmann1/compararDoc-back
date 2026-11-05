@@ -43,8 +43,17 @@ class Col:
 @dataclass
 class Contexto:
     comparacao_id: str
-    prefixo: str  # "Invoice L30518777 — " ou ""
+    origem: str | None  # "Invoice 1", "Consolidado" ou None na comparação única
     modalidade: Modalidade | None = None
+
+    @property
+    def prefixo(self) -> str:
+        return prefixo_da_origem(self.origem)
+
+
+def prefixo_da_origem(origem: str | None) -> str:
+    """'Invoice 1' -> 'Invoice 1 — ': o começo das mensagens de uma comparação."""
+    return f"{origem} — " if origem else ""
 
 
 @dataclass

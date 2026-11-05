@@ -289,6 +289,10 @@ class Divergencia(BaseModel):
     evidencia: str | None = None  # interna: trechos citados
     pagina: int | None = None
     item_chave: str | None = None  # item: LinhaItem.chave da linha divergente
+    origem: str | None = None  # com comparacao_id, a comparação ("Invoice 1 — "); sem, o documento ("Invoice 1: ")
+    rotulo: str | None = None  # o campo: "Endereço do exportador", "Item 7700100"
+    detalhe: str | None = None  # o que difere: "BL 'ROOM 202…' × Invoice '2ND FLOOR…'"
+    acao: str | None = None  # o que fazer: "pedir correção", "confira manualmente"
 
 
 class ResultadoComparacao(BaseModel):

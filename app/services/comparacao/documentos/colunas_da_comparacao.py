@@ -6,16 +6,16 @@ from app.services.comparacao.tipos import Col, Fonte
 
 def montar_comparacoes(
     grupos: list[tuple[Fonte | None, Fonte | None]], conhecimentos: list[Fonte]
-) -> list[tuple[str, str, list[Col]]]:
-    """Lista de (id, prefixo das mensagens, colunas)."""
+) -> list[tuple[str, str | None, list[Col]]]:
+    """Lista de (id, origem das mensagens, colunas)."""
     cols_conhecimento = colunas_conhecimento(conhecimentos)
     if len(grupos) <= 1:
         inv, pl = grupos[0] if grupos else (None, None)
         colunas = colunas_par(inv, pl) + cols_conhecimento
-        return [("unica", "", colunas)] if colunas else []
+        return [("unica", None, colunas)] if colunas else []
 
-    resultado: list[tuple[str, str, list[Col]]] = [
-        (comparacao_id, prefixo, colunas_par(inv, pl)) for comparacao_id, prefixo, inv, pl in listar_pares(grupos)
+    resultado: list[tuple[str, str | None, list[Col]]] = [
+        (comparacao_id, origem, colunas_par(inv, pl)) for comparacao_id, origem, inv, pl in listar_pares(grupos)
     ]
 
     if conhecimentos:
@@ -28,18 +28,17 @@ def montar_comparacoes(
             colunas.append(
                 coluna_soma("soma_packing_lists", pls, "Packing Lists", "dos", "packing list", "packing lists")
             )
-        resultado.append(("consolidado", "Consolidado — ", colunas + cols_conhecimento))
+        resultado.append(("consolidado", "Consolidado", colunas + cols_conhecimento))
     return resultado
 
 
-def listar_pares(grupos: list[tuple[Fonte | None, Fonte | None]]) -> list[tuple[str, str, Fonte | None, Fonte | None]]:
-    """(id da comparação, prefixo das mensagens, invoice, packing list) de cada par."""
+def listar_pares(
+    grupos: list[tuple[Fonte | None, Fonte | None]],
+) -> list[tuple[str, str | None, Fonte | None, Fonte | None]]:
+    """(id da comparação, origem das mensagens, invoice, packing list) de cada par."""
     if len(grupos) <= 1:
-        return [("unica", "", inv, pl) for inv, pl in grupos]
-    resultado = []
-    for n, (inv, pl) in enumerate(grupos, start=1):
-        resultado.append((f"par-{n}", f"{nome_doc(inv or pl)} — ", inv, pl))
-    return resultado
+        return [("unica", None, inv, pl) for inv, pl in grupos]
+    return [(f"par-{n}", nome_doc(inv or pl), inv, pl) for n, (inv, pl) in enumerate(grupos, start=1)]
 
 
 def colunas_par(inv: Fonte | None, pl: Fonte | None) -> list[Col]:

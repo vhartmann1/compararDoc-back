@@ -4,6 +4,7 @@ from app.schemas import Divergencia
 from app.services.comparacao.constantes import INCOTERMS_CD, INCOTERMS_EF
 from app.services.comparacao.documentos.colunas_da_comparacao import listar_pares
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, ref_documento
+from app.services.comparacao.mensagens import Diferenca, divergencia
 from app.services.comparacao.normalizacao.codigos import normalizar_incoterm
 from app.services.comparacao.normalizacao.portos import nome_do_porto, normalizar_porto, so_o_pais
 from app.services.comparacao.tipos import Fonte
@@ -21,23 +22,17 @@ def _frete_normalizado(texto: str) -> str | None:
 def divergencias_de_coerencia(grupos: list[tuple[Fonte | None, Fonte | None]], conhecimentos: list[Fonte]) -> list[Divergencia]:
     divergencias: list[Divergencia] = []
     varios = len(grupos) > 1
-    for comparacao_id, prefixo, inv, pl in listar_pares(grupos):
+    for comparacao_id, origem, inv, pl in listar_pares(grupos):
         fonte = next((f for f in (inv, pl) if f and f.doc.incoterm and normalizar_incoterm(f.doc.incoterm.codigo)), None)
         if fonte is None:
             continue
         id_conhecimento = "consolidado" if varios else comparacao_id
         for comp_id, mensagem in _coerencia_incoterm(fonte, [f for f in (inv, pl) if f], conhecimentos):
-            divergencias.append(
-                Divergencia(
-                    categoria="coerencia",
-                    comparacao_id=id_conhecimento if comp_id == "conhecimento" else comparacao_id,
-                    campo="incoterm",
-                    mensagem=(prefixo if comp_id == "par" else "") + mensagem,
-                    documento=ref_documento(fonte),
-                    evidencia=fonte.doc.incoterm.texto_original,
-                    pagina=fonte.doc.incoterm.pagina,
-                )
-            )
+            divergencias.append(divergencia(
+                "coerencia", id_conhecimento if comp_id == "conhecimento" else comparacao_id, "incoterm",
+                origem if comp_id == "par" else None, None, Diferenca(mensagem), documento=ref_documento(fonte),
+                evidencia=fonte.doc.incoterm.texto_original, pagina=fonte.doc.incoterm.pagina,
+            ))
     return divergencias
 
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from app.schemas import NomeCampo, Parte
 from app.services.comparacao.campos.regras_por_campo.exportador_consignatario import fabricante_alternativo
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
-from app.services.comparacao.mensagens import pedir, trecho
+from app.services.comparacao.mensagens import Diferenca, pedido, trecho
 from app.services.comparacao.normalizacao.enderecos import enderecos_de_texto_parecido
 from app.services.comparacao.partes.mesma_empresa import relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
@@ -99,14 +99,18 @@ def da_mesma_empresa(t: Triangulacao) -> list[Fonte]:
             if any(relacao_entre_partes(t.shipper, p) == "mesma" for p in _partes_do_exportador(f))]
 
 
+def empresa_do_shipper(t: Triangulacao) -> str:
+    """O nome do shipper pelas palavras que o distinguem, para pôr ao lado do rótulo."""
+    return " ".join(palavras_distintivas(t.shipper.nome)) or t.shipper.nome.strip()
+
+
 def texto_contra_as_proprias(
-    rotulo: str, t: Triangulacao, conhecimento: Valor, lados: list[tuple[Fonte, Valor]], cortar: bool
-) -> str:
-    """Rótulo (EMPRESA): BL 'X…' × Invoice 1 'Y…'; pedir correção. Só o endereço é cortado."""
+    t: Triangulacao, conhecimento: Valor, lados: list[tuple[Fonte, Valor]], cortar: bool
+) -> Diferenca:
+    """BL 'X…' × Invoice 1 'Y…', pedindo correção. Só o endereço é cortado."""
     def mostrar(v: Valor, outro: Valor) -> str:
         return trecho(v.exibicao, outro.exibicao) if cortar else v.exibicao
 
-    empresa = " ".join(palavras_distintivas(t.shipper.nome)) or t.shipper.nome.strip()
     partes = [f"{t.conhecimento.nome_curto} '{mostrar(conhecimento, lados[0][1])}'"]
     partes += [f"{nome_doc(f)} '{mostrar(v, conhecimento)}'" for f, v in lados]
-    return pedir(f"{rotulo} ({empresa}): {' × '.join(partes)}", "correção")
+    return pedido(" × ".join(partes), "correção")

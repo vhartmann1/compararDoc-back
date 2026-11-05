@@ -96,8 +96,8 @@ def comparar(
     conhecimentos = por_tipo["conhecimento"]
     grupos, do_pareamento = parear(por_tipo["invoice"], por_tipo["packing_list"])
     comparados = [
-        comparar_colunas(Contexto(comparacao_id, prefixo, modalidade), colunas)
-        for comparacao_id, prefixo, colunas in montar_comparacoes(grupos, conhecimentos)
+        comparar_colunas(Contexto(comparacao_id, origem, modalidade), colunas)
+        for comparacao_id, origem, colunas in montar_comparacoes(grupos, conhecimentos)
     ]
     comparacoes = [comparacao for comparacao, _ in comparados]
     itens, dos_itens = comparar_todos_os_itens(grupos, conhecimentos)

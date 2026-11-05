@@ -4,7 +4,7 @@ from app.schemas import Medida, NomeCampo
 from app.services.comparacao.campos.regras_por_campo.regra import Grupos, Informados, texto_dos_grupos, texto_soma
 from app.services.comparacao.constantes import ROTULOS, TOLERANCIA_PESO_KG
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
-from app.services.comparacao.mensagens import confira
+from app.services.comparacao.mensagens import Diferenca, confira
 from app.services.comparacao.normalizacao.formatacao import formatar_contagem, formatar_kg
 from app.services.comparacao.normalizacao.quantidades import embalagem, para_kg, unidade_quantidade
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -117,9 +117,10 @@ def unidades_incomparaveis(ctx: Contexto, informados: Informados) -> str | None:
     return confira(f"{ctx.prefixo}Quantidade em unidades que não dá para comparar ({textos})", "manualmente")
 
 
-def texto_da_quantidade(ordenados: Grupos, grupos: Grupos) -> str:
+def texto_da_quantidade(ordenados: Grupos, grupos: Grupos) -> Diferenca:
     """Os valores, com a nota de unidade trocada quando diferem 1000×."""
-    return texto_dos_grupos(ordenados) + nota_fator_mil([(v.chave[1], v.exibicao, v.unidade) for _, v in grupos])
+    nota = nota_fator_mil([(v.chave[1], v.exibicao, v.unidade) for _, v in grupos])
+    return Diferenca(texto_dos_grupos(ordenados).detalhe + nota)
 
 
 def nota_fator_mil(valores: list[tuple[float, str, str | None]]) -> str:

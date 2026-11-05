@@ -3,7 +3,7 @@
 from app.schemas import Divergencia
 from app.services.comparacao.campos.regras_por_campo.ncm_invoice_po_portos import numeros_iguais
 from app.services.comparacao.documentos.identificacao_do_documento import e_proforma, nome_doc
-from app.services.comparacao.mensagens import divergencia_interna
+from app.services.comparacao.mensagens import Diferenca, divergencia_interna
 from app.services.comparacao.normalizacao.dinheiro import iguais_no_centavo, normalizar_moeda
 from app.services.comparacao.normalizacao.numeros_de_documento import numero_da_invoice_para_conferir
 from app.services.comparacao.tipos import Fonte
@@ -25,7 +25,7 @@ def _numeros_citados_diferentes(usada: Fonte) -> Divergencia | None:
     if len(lados) == 1:
         return None
     textos = [f"{f.arquivo.nome} {', '.join(f.doc.invoices_referenciadas)}" for f in lados]
-    return divergencia_interna(usada, f"duas versões citam nº de invoice diferente — {' × '.join(textos)}",
+    return divergencia_interna(usada, Diferenca(f"duas versões citam nº de invoice diferente — {' × '.join(textos)}"),
                                " × ".join(textos))
 
 
@@ -46,7 +46,8 @@ def _divergencia(usada: Fonte, outra: Fonte) -> Divergencia | None:
     if usada.doc.tipo != "invoice" or e_proforma(outra.doc) or not _valores_diferentes(usada, outra):
         return None
     lados = sorted((usada, outra), key=lambda f: f.ordem)
-    return divergencia_interna(usada, f"duas versões com valores diferentes — {' × '.join(map(_valor, lados))}",
+    valores = " × ".join(map(_valor, lados))
+    return divergencia_interna(usada, Diferenca(f"duas versões com valores diferentes — {valores}"),
                                " × ".join(f"{f.arquivo.nome}: {_precos(f)}" for f in lados))
 
 

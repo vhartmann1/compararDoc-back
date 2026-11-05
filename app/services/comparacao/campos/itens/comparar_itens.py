@@ -18,10 +18,11 @@ from app.services.comparacao.documentos.colunas_da_comparacao import (
     listar_pares,
 )
 from app.services.comparacao.documentos.identificacao_do_documento import ref_documento
+from app.services.comparacao.mensagens import Diferenca, divergencia
 from app.services.comparacao.normalizacao.encurtar_texto import encurtar
 from app.services.comparacao.normalizacao.item import normalizar_codigo_item
 from app.services.comparacao.normalizacao.quantidades import unidade_quantidade
-from app.services.comparacao.tipos import Apontamentos, Col, Fonte
+from app.services.comparacao.tipos import Apontamentos, Col, Fonte, prefixo_da_origem
 
 
 DiferencasDaLinha = Callable[[Linha, list[ColItens], list[ColItens]], list[tuple[str, str]]]
@@ -36,24 +37,25 @@ def comparar_todos_os_itens(
     ]
     cols_conhecimento = [c for c in cols_conhecimento if c.itens]
     comparados = [
-        _comparar_se_der(comparacao_id, prefixo, _agrupar_par(colunas_par(inv, pl)),
+        _comparar_se_der(comparacao_id, origem, _agrupar_par(colunas_par(inv, pl)),
                          cols_conhecimento if comparacao_id == "unica" else [], _diferencas_no_par)
-        for comparacao_id, prefixo, inv, pl in listar_pares(grupos)
+        for comparacao_id, origem, inv, pl in listar_pares(grupos)
     ]
     if len(grupos) > 1 and cols_conhecimento:
-        comparados.append(_comparar_se_der("consolidado", "Consolidado — ", _colunas_das_somas(grupos),
+        comparados.append(_comparar_se_der("consolidado", "Consolidado", _colunas_das_somas(grupos),
                                            cols_conhecimento, _diferencas_no_consolidado))
     feitos = [c for c in comparados if c]
     return [itens for itens, _ in feitos], sum((a for _, a in feitos), Apontamentos())
 
 
 def _comparar_se_der(
-    comparacao_id: str, prefixo: str, base: list[ColItens], extras: list[ColItens], diferencas: DiferencasDaLinha
+    comparacao_id: str, origem: str | None, base: list[ColItens], extras: list[ColItens],
+    diferencas: DiferencasDaLinha,
 ) -> tuple[ComparacaoItens, Apontamentos] | None:
     """None quando não há dois documentos com itens para comparar."""
     base = [c for c in base if c.itens]
     if len(base) == 2 or (base and extras):
-        return _comparar_itens(comparacao_id, prefixo, base, extras, diferencas)
+        return _comparar_itens(comparacao_id, origem, base, extras, diferencas)
     return None
 
 
@@ -144,12 +146,13 @@ def _valor_item(item: ItemAgrupado | None) -> ValorItem | None:
 
 def _comparar_itens(
     comparacao_id: str,
-    prefixo: str,
+    origem: str | None,
     base: list[ColItens],
     conhecimentos: list[ColItens],
     diferencas: DiferencasDaLinha,
 ) -> tuple[ComparacaoItens, Apontamentos]:
     linhas = casar_base(base)
+    prefixo = prefixo_da_origem(origem)
     avisos = [f"{prefixo}{texto}" for texto in _unidades_sem_conversao(base, linhas)]
     for c in conhecimentos:
         avisos += _casar_conhecimento(prefixo, linhas, c)
@@ -175,16 +178,9 @@ def _comparar_itens(
             )
         )
         if difs:
-            divergencias.append(
-                Divergencia(
-                    categoria="item",
-                    comparacao_id=comparacao_id,
-                    campo=None,
-                    mensagem=f"{prefixo}Item {chave}: {'; '.join(texto for _, texto in difs)}",
-                    pagina=primeiro.pagina,
-                    item_chave=chave,
-                )
-            )
+            diferenca = Diferenca("; ".join(texto for _, texto in difs))
+            divergencias.append(divergencia("item", comparacao_id, None, origem, f"Item {chave}", diferenca,
+                                            pagina=primeiro.pagina, item_chave=chave))
     colunas_saida = [
         Coluna(chave=c.col.chave, rotulo=c.col.rotulo, documentos=[ref_documento(f) for f in c.col.fontes]) for c in colunas
     ]

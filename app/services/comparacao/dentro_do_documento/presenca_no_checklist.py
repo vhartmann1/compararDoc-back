@@ -4,7 +4,7 @@ import re
 
 from app.schemas import Divergencia
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
-from app.services.comparacao.mensagens import divergencia_interna, pedir
+from app.services.comparacao.mensagens import Diferenca, divergencia_interna, pedir
 from app.services.comparacao.normalizacao.texto import sem_acento
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Fonte
@@ -15,18 +15,18 @@ SEM_NOME = re.compile(
 
 
 def divergencias_do_checklist(invoices: list[Fonte]) -> list[Divergencia]:
-    return [_interna(f, m) for f in invoices if (m := _sem_cnpj(f))]
+    return [_interna(f, d) for f in invoices if (d := _sem_cnpj(f))]
 
 
-def _sem_cnpj(f: Fonte) -> str | None:
+def _sem_cnpj(f: Fonte) -> Diferenca | None:
     p = f.doc.consignatario
     if not parte_preenchida(p) or (p.cnpj and p.cnpj.strip()):
         return None
-    return "consignatário sem CNPJ (o checklist da fatura pede o importador com CNPJ)"
+    return Diferenca("consignatário sem CNPJ (o checklist da fatura pede o importador com CNPJ)")
 
 
-def _interna(f: Fonte, mensagem: str) -> Divergencia:
-    return divergencia_interna(f, mensagem, pagina=f.doc.paginas[0] if f.doc.paginas else None)
+def _interna(f: Fonte, diferenca: Diferenca) -> Divergencia:
+    return divergencia_interna(f, diferenca, pagina=f.doc.paginas[0] if f.doc.paginas else None)
 
 
 def avisos_do_checklist(grupos: list[tuple[Fonte | None, Fonte | None]], conhecimentos: list[Fonte]) -> list[str]:

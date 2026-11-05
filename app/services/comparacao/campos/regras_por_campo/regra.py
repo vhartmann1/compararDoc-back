@@ -5,12 +5,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.schemas import NomeCampo
+from app.services.comparacao.mensagens import Diferenca
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
 Informados = list[tuple[Col, Valor]]
 Grupos = list[tuple[list[Col], Valor]]
 Iguais = Callable[[Any, Any], bool]
-TextoDaDivergencia = Callable[[Grupos, Grupos], str]  # (minoria primeiro, na ordem das colunas) -> texto
+TextoDaDivergencia = Callable[[Grupos, Grupos], Diferenca]  # (minoria primeiro, na ordem das colunas)
 
 
 @dataclass
@@ -22,9 +23,10 @@ class Comparador:
     aviso: str | None = None  # como a comparação foi feita, quando foge do comum
 
 
-def texto_dos_grupos(ordenados: Grupos, grupos: Grupos | None = None) -> str:
+def texto_dos_grupos(ordenados: Grupos, grupos: Grupos | None = None) -> Diferenca:
     """'Invoice/PL 10 KG × BL 12 KG': cada grupo com as colunas que trazem o valor."""
-    return " × ".join(f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in ordenados)
+    grupos_escritos = (f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in ordenados)
+    return Diferenca(" × ".join(grupos_escritos))
 
 
 @dataclass
