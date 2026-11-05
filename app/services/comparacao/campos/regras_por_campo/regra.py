@@ -7,15 +7,46 @@ from typing import Any
 from app.schemas import NomeCampo
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
 
+Informados = list[tuple[Col, Valor]]
+Grupos = list[tuple[list[Col], Valor]]
+Iguais = Callable[[Any, Any], bool]
+TextoDaDivergencia = Callable[[Grupos, Grupos], str]  # (minoria primeiro, na ordem das colunas) -> texto
+
+
+@dataclass
+class Comparador:
+    """Como os valores informados se comparam e como a divergência entre eles é escrita."""
+
+    iguais: Iguais
+    texto: TextoDaDivergencia
+
+
+def texto_dos_grupos(ordenados: Grupos, grupos: Grupos | None = None) -> str:
+    """'Invoice/PL 10 KG × BL 12 KG': cada grupo com as colunas que trazem o valor."""
+    return " × ".join(f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in ordenados)
+
 
 @dataclass
 class Regra:
     obter: Callable[[Fonte, NomeCampo, Contexto], Valor | None]
     juntar: Callable[[list[Valor], NomeCampo, Contexto, Col], Valor | None]
-    iguais: Callable[[Any, Any], bool]
+    iguais: Iguais
     soma_alternativas: bool = False  # o grupo de documentos iguais leva as alternativas (fabricante) de todos
     conhecimento_e_referencia: bool = False  # invoice e PL conferem com o conhecimento, não entre si
     contido_no_outro: Callable[[Any, Any], bool] | None = None  # o conhecimento pode trazer só parte (PO, NCM)
+    # ganchos dos campos com caso próprio; None é o comportamento comum
+    vazio_em: Callable[[list[Col]], set[str]] | None = None  # chaves das colunas em que o campo não se confere
+    separar_aceitos: Callable[[Contexto, Informados], tuple[Informados, str | None]] | None = None
+    incomparavel: Callable[[Contexto, Informados], str | None] | None = None  # aviso que deixa INSUFICIENTE
+    comparador: Callable[[Contexto, list[Valor]], Comparador] | None = None  # igualdade que depende dos valores
+    incomparavel_nos_grupos: Callable[[Contexto, Grupos], str | None] | None = None
+    texto_da_divergencia: TextoDaDivergencia | None = None
+    avisos_da_comparacao: Callable[[list[Col]], list[str]] | None = None  # depois do status, sem o prefixo
+
+    def comparador_para(self, ctx: Contexto, valores: list[Valor]) -> Comparador:
+        if self.comparador:
+            return self.comparador(ctx, valores)
+        return Comparador(self.iguais, self.texto_da_divergencia or texto_dos_grupos)
 
 
 def primeira_pagina(f: Fonte) -> int | None:

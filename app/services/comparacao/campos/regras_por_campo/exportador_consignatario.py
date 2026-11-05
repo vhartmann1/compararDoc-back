@@ -1,9 +1,15 @@
 """Regras de exportador e consignatário."""
 
 from app.schemas import NomeCampo, Parte
-from app.services.comparacao.campos.regras_por_campo.regra import com_alternativas_iguais, texto_soma
+from app.services.comparacao.campos.regras_por_campo.regra import (
+    Grupos,
+    com_alternativas_iguais,
+    texto_dos_grupos,
+    texto_soma,
+)
 from app.services.comparacao.normalizacao.codigos import normalizar_cnpj
 from app.services.comparacao.normalizacao.formatacao import formatar_cnpj
+from app.services.comparacao.partes.capital_nos_documentos import texto_sem_a_capital
 from app.services.comparacao.partes.mesma_empresa import mesma_empresa_registrada, relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -50,3 +56,8 @@ def _exibir_partes(itens: list[tuple[str, str | None, bool]]) -> str:
 
 def listas_de_partes_iguais(a: tuple, b: tuple) -> bool:
     return com_alternativas_iguais(a, b, lambda x, y: mesma_empresa_registrada(x[:2], y[:2]))
+
+
+def texto_do_consignatario(ordenados: Grupos, grupos: Grupos) -> str:
+    """Capital de um lado e só o cliente do outro: o que pedir; senão, os valores."""
+    return texto_sem_a_capital(ordenados) or texto_dos_grupos(ordenados)

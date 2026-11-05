@@ -1,9 +1,10 @@
 """Regras de peso, volumes e quantidade."""
 
 from app.schemas import NomeCampo
-from app.services.comparacao.campos.regras_por_campo.regra import texto_soma
+from app.services.comparacao.campos.regras_por_campo.regra import Grupos, Informados, texto_dos_grupos, texto_soma
 from app.services.comparacao.constantes import ROTULOS, TOLERANCIA_PESO_KG
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
+from app.services.comparacao.mensagens import confira
 from app.services.comparacao.normalizacao.formatacao import formatar_contagem, formatar_kg
 from app.services.comparacao.normalizacao.quantidades import embalagem, para_kg, unidade_quantidade
 from app.services.comparacao.tipos import Col, Contexto, Fonte, Valor
@@ -46,6 +47,14 @@ def embalagens_distintas(valores: list[Valor]) -> bool:
     return None not in embalagens and len(set(embalagens)) == len(embalagens)
 
 
+def embalagens_incomparaveis(ctx: Contexto, grupos: Grupos) -> str | None:
+    """Volumes em paletes × caixas: não é divergência, é para conferir à mão."""
+    if not embalagens_distintas([valor for _, valor in grupos]):
+        return None
+    textos = " × ".join(f"{'/'.join(c.nome_curto for c in cols)} {valor.exibicao}" for cols, valor in grupos)
+    return confira(f"{ctx.prefixo}Volumes em embalagens diferentes ({textos})", "manualmente")
+
+
 def somar_volumes(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor:
     total = sum(v.chave for v in valores)
     unidades = list(dict.fromkeys(v.unidade for v in valores if v.unidade))
@@ -85,6 +94,19 @@ def somar_quantidade(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col:
 
 def quantidades_iguais(a: tuple[str, float], b: tuple[str, float]) -> bool:
     return a[0] == b[0] and abs(a[1] - b[1]) < 1e-6
+
+
+def unidades_incomparaveis(ctx: Contexto, informados: Informados) -> str | None:
+    """Quantidade em unidades que não se convertem (peças × kg): conferir à mão."""
+    if len({v.chave[0] for _, v in informados}) <= 1:
+        return None
+    textos = " × ".join(f"{col.nome_curto} {v.exibicao}" for col, v in informados)
+    return confira(f"{ctx.prefixo}Quantidade em unidades que não dá para comparar ({textos})", "manualmente")
+
+
+def texto_da_quantidade(ordenados: Grupos, grupos: Grupos) -> str:
+    """Os valores, com a nota de unidade trocada quando diferem 1000×."""
+    return texto_dos_grupos(ordenados) + nota_fator_mil([(v.chave[1], v.exibicao, v.unidade) for _, v in grupos])
 
 
 def nota_fator_mil(valores: list[tuple[float, str, str | None]]) -> str:

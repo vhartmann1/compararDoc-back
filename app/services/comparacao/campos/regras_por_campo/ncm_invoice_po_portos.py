@@ -3,7 +3,15 @@
 import re
 
 from app.schemas import NomeCampo
-from app.services.comparacao.campos.regras_por_campo.regra import primeira_pagina, texto_soma, valor_conjunto
+from app.services.comparacao.campos.mensagem_de_ncm import texto_ncm
+from app.services.comparacao.campos.regras_por_campo.regra import (
+    Comparador,
+    Iguais,
+    primeira_pagina,
+    texto_soma,
+    valor_conjunto,
+)
+from app.services.comparacao.documentos.pareamento_invoice_packing_list import pls_em_outra_numeracao
 from app.services.comparacao.normalizacao.codigos import normalizar_ncm
 from app.services.comparacao.normalizacao.formatacao import formatar_ncm
 from app.services.comparacao.normalizacao.numeros_de_documento import (
@@ -118,3 +126,33 @@ def portos_iguais(a: frozenset, b: frozenset) -> bool:
 def juntar_porto(valores: list[Valor], campo: NomeCampo, ctx: Contexto, col: Col) -> Valor:
     chave = frozenset().union(*(v.chave for v in valores))
     return Valor(chave, " / ".join(sorted({v.exibicao for v in valores})), texto_soma(valores), None, None)
+
+
+def comparador_de_ncm(ctx: Contexto, valores: list[Valor]) -> Comparador:
+    """NCM comparado e escrito pelos dígitos que todos os documentos trazem."""
+    digitos = _digitos_ncm(ctx, valores)
+    return Comparador(_iguais_nos_digitos(digitos), lambda ordenados, _: texto_ncm(ordenados, digitos))
+
+
+def _iguais_nos_digitos(digitos: int) -> Iguais:
+    return lambda a, b: {c[:digitos] for c in a} == {c[:digitos] for c in b}
+
+
+def _digitos_ncm(ctx: Contexto, valores: list[Valor]) -> int:
+    """Compara com 8 dígitos; se algum documento só traz HS (6) ou posição (4), compara por aí."""
+    menor = min(len(c) for v in valores for c in v.chave)
+    digitos = 8 if menor >= 8 else 6 if menor >= 6 else 4
+    if digitos < 8:
+        ctx.avisos.append(
+            f"{ctx.prefixo}NCM comparado pelos {digitos} primeiros dígitos "
+            "(algum documento traz só o HS Code ou a posição)."
+        )
+    return digitos
+
+
+def colunas_com_pl_em_outra_numeracao(colunas: list[Col]) -> set[str]:
+    """Colunas com PL que cita as invoices por outra numeração: não têm nº de invoice para conferir."""
+    fontes = [f for col in colunas for f in col.fontes]
+    invoices = [f for f in fontes if f.doc.tipo == "invoice"]
+    sem_numero = pls_em_outra_numeracao(invoices, [f for f in fontes if f.doc.tipo == "packing_list"])
+    return {col.chave for col in colunas if any(f in sem_numero for f in col.fontes)}
