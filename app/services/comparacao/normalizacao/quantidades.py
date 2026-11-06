@@ -30,7 +30,7 @@ UNIDADES_QUANTIDADE: dict[str, tuple[str, float]] = {
     **dict.fromkeys(["BAG", "BAGS", "SACO", "SACOS", "BOLSA", "BOLSAS", "SACA", "SACAS"], ("SACOS", 1.0)),
     **dict.fromkeys(
         ["CARTON", "CARTONS", "CTN", "CTNS", "CAR", "CASE", "CASES", "CAJA", "CAJAS", "CAIXA", "CAIXAS", "CX", "CXS",
-         "BOX", "BOXES", "CARTONE", "CARTONI"],
+         "BOX", "BOXES", "CARTONE", "CARTONI", "CARTONES", "CARTOON", "CARTOONS"],
         ("CAIXAS", 1.0),
     ),
     **dict.fromkeys(["DRUM", "DRUMS", "TAMBOR", "TAMBORES"], ("TAMBORES", 1.0)),
@@ -60,8 +60,11 @@ EMBALAGENS = {"SACOS", "CAIXAS", "PALETES", "TAMBORES", "PECAS"}  # espécies de
 
 def embalagem(unidade: str) -> str | None:
     """'CTNS' -> 'CAIXAS'; 'PIECES' -> 'PECAS'; 'PACKAGES' (genérica) ou desconhecida -> None."""
-    canonica, _ = unidade_quantidade(unidade)
-    return canonica if canonica in EMBALAGENS else None
+    for chave in (unidade, *unidade.split()[-1:]):  # 'PLASTIC PALLETS': o material antes da espécie
+        canonica, _ = unidade_quantidade(chave)
+        if canonica in EMBALAGENS:
+            return canonica
+    return None
 
 
 def unidade_quantidade(unidade: str) -> tuple[str, float]:

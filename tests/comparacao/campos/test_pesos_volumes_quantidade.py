@@ -90,3 +90,14 @@ def test_volumes_em_tambores_e_em_paletes_nao_divergem():
 
 def test_volumes_em_tambores_com_numero_diferente_divergem():
     assert campo(volumes_em((160, "DRUMS"), (160, "TAMBORES"), (150, "DRUMS")).comparacoes[0], "volumes").status == "DIVERGENTE"
+
+
+def test_caixas_com_grafia_errada_e_paletes_com_material_sao_embalagens_diferentes():
+    r = volumes_em((50, "CARTOONS"), (50, "CARTONS"), (3, "PLASTIC PALLETS"))
+    assert campo(r.comparacoes[0], "volumes").status == "INSUFICIENTE"
+    assert any("Volumes em embalagens diferentes" in a for a in r.avisos)
+
+
+def test_caixas_com_numero_diferente_continuam_divergindo():
+    for caixas in ((50, "CARTONS"), (48, "CARTONS")), ((50, "CARTOONS"), (48, "CARTONES")):
+        assert campo(volumes_em(*caixas, (3, "PALLETS")).comparacoes[0], "volumes").status == "DIVERGENTE"

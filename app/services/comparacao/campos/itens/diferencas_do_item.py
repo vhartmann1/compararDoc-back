@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.services.comparacao.campos.itens.medidas_do_item import descricoes_iguais_pela_medida
+from app.services.comparacao.campos.itens.palavras_em_outra_ordem import mesma_descricao_em_outra_ordem
 from app.services.comparacao.campos.itens.nome_do_modelo import nome_comeca_o_outro, unidades_de_familias_diferentes
 from app.services.comparacao.campos.itens.produto_e_modelo import mesmo_produto_e_modelo
 from app.services.comparacao.campos.itens.tipos import ColItens, ItemAgrupado, Linha
@@ -50,6 +51,8 @@ def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
         return False  # mesmo código não salva: a potência, a tensão ou o tamanho mudou
     if descricoes_iguais_pela_medida(a.descricao, b.descricao):
         return True  # só a notação da medida muda: '.800 MM x 1250 MM' e '0.800x1250'
+    if mesma_descricao_em_outra_ordem(a.descricao, b.descricao):
+        return True
     if _so_o_modelo(a, b) or _so_o_modelo(b, a) or nome_comeca_o_outro(a, b) or mesmo_produto_e_modelo(a, b):
         return True
     ra, rb = _referencia_de_modelo(a), _referencia_de_modelo(b)
