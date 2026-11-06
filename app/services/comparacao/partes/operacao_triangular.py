@@ -7,7 +7,8 @@ from app.services.comparacao.campos.regras_por_campo.exportador_consignatario im
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc
 from app.services.comparacao.mensagens import Diferenca, pedido, trecho
 from app.services.comparacao.normalizacao.enderecos import enderecos_de_texto_parecido
-from app.services.comparacao.partes.mesma_empresa import relacao_entre_partes
+from app.services.comparacao.normalizacao.paises import normalizar_pais
+from app.services.comparacao.partes.mesma_empresa import mesmo_grupo, relacao_entre_partes
 from app.services.comparacao.partes.parte_preenchida import parte_preenchida
 from app.services.comparacao.partes.razao_social import palavras_distintivas
 from app.services.comparacao.tipos import Col, Fonte, Valor
@@ -23,6 +24,7 @@ class Triangulacao:
     shipper: Parte
     outras: list[Fonte]  # invoice/PL de outra empresa: só aviso
     proprias: list[Fonte]  # invoice/PL da mesma empresa (ou incerta): comparadas com o conhecimento
+    acompanham: list[Col]  # colunas só com documentos do shipper (o PL da fábrica): saem da comparação geral
 
 
 def triangulacoes(colunas: list[Col]) -> list[Triangulacao]:
@@ -35,8 +37,15 @@ def triangulacoes(colunas: list[Col]) -> list[Triangulacao]:
             continue
         proprias, outras = separar_por_empresa(shipper, referencias)
         if outras:
-            resultado.append(Triangulacao(col, shipper, outras, proprias))
+            resultado.append(Triangulacao(col, shipper, outras, proprias, _do_shipper(shipper, colunas)))
     return resultado
+
+
+def _do_shipper(shipper: Parte, colunas: list[Col]) -> list[Col]:
+    """Colunas de invoice/PL em que todo documento é da empresa do shipper pelo nome (só o endereço não basta)."""
+    def dele(f: Fonte) -> bool:
+        return any(relacao_entre_partes(shipper, p) == "mesma" for p in _partes_do_exportador(f))
+    return [col for col in colunas if not col.so_conhecimento() and col.fontes and all(map(dele, col.fontes))]
 
 
 def separar_por_empresa(shipper: Parte, fontes: list[Fonte]) -> tuple[list[Fonte], list[Fonte]]:
@@ -57,7 +66,19 @@ def _de_outra_empresa(shipper: Parte, f: Fonte) -> bool:
     partes = _partes_do_exportador(f)
     if not partes or not _tem_endereco(shipper):
         return False
-    return all(relacao_entre_partes(shipper, p) == "outra" and not _endereco_de_texto_parecido(shipper, p) for p in partes)
+    return all(_outra_empresa(shipper, p) and not _endereco_de_texto_parecido(shipper, p) for p in partes)
+
+
+def _outra_empresa(shipper: Parte, p: Parte) -> bool:
+    """Outra pelo nome, ou do mesmo grupo (palavra igual, não digitação) em outro país."""
+    relacao = relacao_entre_partes(shipper, p)
+    return relacao == "outra" or (relacao == "incerta" and mesmo_grupo(shipper.nome, p.nome)
+                                  and _paises_diferentes(shipper, p))
+
+
+def _paises_diferentes(a: Parte, b: Parte) -> bool:
+    pa, pb = (normalizar_pais(p.pais) if p.pais else "" for p in (a, b))
+    return bool(pa and pb) and pa != pb
 
 
 def _tem_endereco(parte: Parte) -> bool:

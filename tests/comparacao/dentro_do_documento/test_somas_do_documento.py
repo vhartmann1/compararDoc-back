@@ -98,3 +98,17 @@ def test_outras_despesas_e_descontos_entram_na_soma():
 def test_despesa_que_nao_explica_a_diferenca_continua_acusando():
     d = _invoice(1530.00, 1000.00, 500.00, despesas=(25.0,))
     assert len(mensagens(rodar([d], escaneado=False), "interna")) == 1
+
+
+def test_versao_ignorada_com_valor_diferente_tambem_confere_a_soma():
+    certa, errada = _invoice(1550.00, 1000.00, 500.00, 50.00), _invoice(1500.00, 1000.00, 500.00, 50.00)
+    r = rodar([errada], [errada], [certa], escaneado=False)
+    somas = [m for m in mensagens(r, "interna") if "soma das linhas" in m]
+    assert somas == ["Invoice INV-7: a soma das linhas (USD 1.550,00) não bate com o total (USD 1.500,00); "
+                     "pedir correção."]
+
+
+def test_versao_ignorada_com_o_mesmo_total_nao_e_conferida():
+    errada = _invoice(1500.00, 1000.00, 500.00, 50.00)
+    r = rodar([errada], [_invoice(1500.00, 1000.00, 450.00, 50.00)], escaneado=False)
+    assert not [m for m in mensagens(r, "interna") if "soma das linhas" in m]

@@ -13,6 +13,7 @@ from app.services.comparacao.documentos.fora_da_comparacao import (
 )
 from app.services.comparacao.documentos.identificacao_do_documento import nome_doc, numero_normalizado
 from app.services.comparacao.documentos.paginas_juntadas import juntar_paginas
+from app.services.comparacao.documentos.pl_da_versao_ignorada import sem_pls_das_versoes_ignoradas
 from app.services.comparacao.documentos.preferencia_entre_versoes import motivo, preferencia
 from app.services.comparacao.normalizacao.dinheiro import iguais_no_centavo
 from app.services.comparacao.tipos import Fonte
@@ -35,7 +36,9 @@ def escolher_documentos(extracoes: list[tuple[ArquivoEntrada, ExtracaoArquivo]])
     por_tipo["invoice"] = resumos.ficam
     fora_da_soma = [max(g, key=preferencia) for g in grupos_de_duplicatas(proformas.saem + resumos.saem, citados)]
     escolhidos, das_versoes = _melhores_versoes(por_tipo, citados)
-    avisos = de_outro_tipo + saida.avisos + proformas.avisos + resumos.avisos + das_versoes
+    pls = sem_pls_das_versoes_ignoradas(escolhidos["invoice"], escolhidos["packing_list"])
+    escolhidos["packing_list"] = pls.ficam
+    avisos = de_outro_tipo + saida.avisos + proformas.avisos + resumos.avisos + das_versoes + pls.avisos
     return DocumentosEscolhidos(escolhidos, fora_da_soma, avisos)
 
 

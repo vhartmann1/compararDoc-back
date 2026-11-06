@@ -36,6 +36,7 @@ from app.services.comparacao.documentos.pareamento_invoice_packing_list import p
 from app.services.comparacao.documentos.versoes_com_valor_diferente import (
     avisos_entre_versoes,
     divergencias_entre_versoes,
+    versoes_com_valor_diferente,
 )
 from app.services.comparacao.partes.capital_nos_documentos import divergencias_da_capital
 from app.services.comparacao.partes.conferencia_do_notify import avisos_do_notify, divergencias_do_notify
@@ -64,11 +65,16 @@ class _Processo:
     def conferidos_por_dentro(self) -> list[Fonte]:
         return self.usados + self.fora_da_soma
 
+    @property
+    def somas_conferidas(self) -> list[Fonte]:
+        """Também a versão ignorada com outro valor: a soma das linhas mostra qual das duas está errada."""
+        return self.conferidos_por_dentro + versoes_com_valor_diferente(self.usados)
+
 
 _DIVERGENCIAS: list[Callable[[_Processo], Iterable[Divergencia]]] = [
     lambda p: divergencias_de_coerencia(p.grupos, p.conhecimentos),
     lambda p: (d for f in p.conferidos_por_dentro for d in divergencias_internas(f)),
-    lambda p: (d for f in p.conferidos_por_dentro for d in divergencias_das_somas(f)),
+    lambda p: (d for f in p.somas_conferidas for d in divergencias_das_somas(f)),
     lambda p: divergencias_entre_versoes(p.usados),
     lambda p: divergencias_do_checklist(p.invoices),
     lambda p: divergencias_de_frete_no_total(p.invoices),
@@ -79,7 +85,7 @@ _DIVERGENCIAS: list[Callable[[_Processo], Iterable[Divergencia]]] = [
 _AVISOS: list[Callable[[_Processo], Iterable[str]]] = [
     lambda p: avisos_entre_versoes(p.usados),
     lambda p: avisos_do_cabecalho(p.conferidos_por_dentro),
-    lambda p: avisos_das_somas(p.conferidos_por_dentro),
+    lambda p: avisos_das_somas(p.somas_conferidas),
     lambda p: avisos_amostras(p.invoices),
     lambda p: avisos_pais_origem(p.invoices),
     lambda p: avisos_do_checklist(p.grupos, p.conhecimentos),

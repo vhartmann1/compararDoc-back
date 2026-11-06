@@ -14,6 +14,19 @@ def divergencias_entre_versoes(fontes: list[Fonte]) -> list[Divergencia]:
     return valores + [d for f in fontes if (d := _numeros_citados_diferentes(f))]
 
 
+def versoes_com_valor_diferente(fontes: list[Fonte]) -> list[Fonte]:
+    """Versões ignoradas de invoice com valor diferente da usada, uma por conteúdo: também são conferidas por dentro."""
+    unicas: dict[tuple, Fonte] = {}
+    for versao in sorted((dup for f in fontes for dup in f.duplicatas if _divergencia(f, dup)), key=lambda v: v.ordem):
+        unicas.setdefault(_conteudo(versao), versao)
+    return list(unicas.values())
+
+
+def _conteudo(f: Fonte) -> tuple:
+    total = f.doc.valor_total
+    return f.doc.numero, total.valor if total else None, tuple(sorted(i.valor_total or 0 for i in f.doc.itens))
+
+
 def _numeros_citados_diferentes(usada: Fonte) -> Divergencia | None:
     """Uma divergência por documento, com a versão usada e cada número diferente que outra versão cita."""
     if not _citados(usada):

@@ -21,7 +21,7 @@ def status_com_triangulacao(
     triangulares: list[Triangulacao], divergente_na_soma: bool = False,
 ) -> Status:
     """Conhecimento triangular fora da comparação geral; só confere com as invoices/PLs da mesma empresa."""
-    chaves = {t.conhecimento.chave for t in triangulares}
+    chaves = {c.chave for t in triangulares for c in (t.conhecimento, *t.acompanham)}
     restantes = [col for col in colunas if col.chave not in chaves]
     geral = _informados(restantes, valores) > 1
     conferidos = [status_do_campo(ctx, campo, regra, restantes, valores, divergente_na_soma)] if geral else []

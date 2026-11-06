@@ -2,6 +2,7 @@
 
 from app.schemas import NomeCampo
 from app.services.comparacao.campos.chegada_por_dta import separar_chegada_por_dta
+from app.services.comparacao.campos.po_que_e_numero_da_invoice import separar_po_que_e_numero_da_invoice
 from app.services.comparacao.campos.regras_por_campo.endereco_pais_moeda_incoterm import (
     juntar_enderecos,
     listas_de_enderecos_iguais,
@@ -68,7 +69,8 @@ REGRAS: dict[NomeCampo, Regra] = {
     "numero_invoice": Regra(
         obter_numero_invoice, juntar_conjunto, numeros_iguais, vazio_em=colunas_com_pl_em_outra_numeracao
     ),
-    "po": Regra(obter_po, juntar_conjunto, numeros_iguais, contido_no_outro=numeros_contidos),
+    "po": Regra(obter_po, juntar_conjunto, numeros_iguais, contido_no_outro=numeros_contidos,
+                separar_aceitos=separar_po_que_e_numero_da_invoice),
     "incoterm": Regra(obter_incoterm, juntar_conjunto, conjuntos_iguais),
     "moeda": Regra(obter_moeda, juntar_conjunto, conjuntos_iguais),
     "exportador": Regra(obter_parte, juntar_partes, listas_de_partes_iguais, soma_alternativas=True),

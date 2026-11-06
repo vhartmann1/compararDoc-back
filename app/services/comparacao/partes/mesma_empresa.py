@@ -31,6 +31,16 @@ def _quase_iguais(x: str, y: str) -> bool:
     return abs(len(x) - len(y)) <= limite and distancia_de_edicao(x, y) <= limite
 
 
+def mesmo_grupo(a: str, b: str) -> bool:
+    """Uma palavra distintiva igual e, dos dois lados, alguma sem par quase igual: empresas do grupo, não digitação."""
+    pa, pb = palavras_distintivas(a), palavras_distintivas(b)
+    return bool(set(pa) & set(pb)) and _alguma_sem_par(pa, pb) and _alguma_sem_par(pb, pa)
+
+
+def _alguma_sem_par(xs: tuple[str, ...], ys: tuple[str, ...]) -> bool:
+    return any(not any(_quase_iguais(x, y) for y in ys) for x in xs)
+
+
 def relacao_entre_partes(a: Parte, b: Parte) -> Relacao:
     """O mesmo CNPJ/Tax ID decide; senão, o nome."""
     ca, cb = normalizar_cnpj(a.cnpj), normalizar_cnpj(b.cnpj)

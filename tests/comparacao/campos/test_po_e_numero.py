@@ -41,3 +41,20 @@ def test_serie_que_nao_e_ano_ou_numero_diferente_continua_divergindo():
     assert not _numeros("AB1234/417203", "417203")
     assert not _numeros("AB2026417203", "6417203")
     assert not _numeros("AB2026417203", "417203")  # série com o ano só vale separada do número por barra
+
+
+def _po_com_bl(po_do_bl):
+    r = rodar([doc("invoice", numero="77-ABC-0042", po="PO-2025-XY-9"), doc("packing_list", refs=["77-ABC-0042"],
+                                                                         po="PO-2025-XY-9")],
+              [doc("conhecimento", subtipo="BL", po=po_do_bl)])
+    return campo(r.comparacoes[0], "po").status, r
+
+
+def test_po_do_bl_que_e_o_numero_da_invoice_nao_diverge():
+    status, r = _po_com_bl("PO#77-ABC-0042")
+    assert status == "OK"
+    assert any("é o nº da invoice" in a for a in r.avisos)
+
+
+def test_po_do_bl_que_nao_e_nenhum_numero_do_processo_continua_divergindo():
+    assert _po_com_bl("PO#77-ABC-0043")[0] == "DIVERGENTE"

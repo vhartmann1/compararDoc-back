@@ -244,3 +244,38 @@ def test_trecho_corta_depois_de_onde_os_enderecos_diferem():
     longo = "Bloco 7, Parque Industrial Lagoa Seca, Avenida Central 400, Distrito Norte"
     assert trecho(longo, "Bloco 7, Parque Industrial Lagoa Seca, Avenida Central 401") == "Bloco 7, Parque Industrial Lagoa Seca, Avenida Central 400, Distrito…"
     assert trecho(longo, "Sala 2") == "Bloco 7, Parque Industrial Lagoa Seca…"
+
+
+def _grupo(nome_do_bl, endereco_do_bl, pais_do_bl):
+    vendedor = dict(exportador="Pinhal Moveis America Inc", endereco_exportador="12 Oak Road, Springfield",
+                    pais_exportador="UNITED STATES")
+    fabrica = dict(exportador=nome_do_bl, endereco_exportador=endereco_do_bl, pais_exportador=pais_do_bl)
+    return rodar([doc("invoice", 100, 110, numero="A1", **vendedor)],
+                 [doc("packing_list", 100, 110, refs=["A1"], **fabrica)], [_bl(**fabrica)])
+
+
+def test_fabrica_do_mesmo_grupo_em_outro_pais_com_endereco_proprio_e_triangular():
+    r = _grupo("Pinhal Moveis Fabrica Vietnam Ltd", "Lote 9, Parque Industrial Leste", "VIETNAM")
+    assert not _do_exportador(r)
+    assert any("operação triangular" in a for a in r.avisos)
+
+
+def test_nome_com_erro_de_digitacao_em_outro_pais_nao_vira_triangular():
+    r = _grupo("Pinhal Moevis America Inc", "Lote 9, Parque Industrial Leste", "VIETNAM")
+    assert _do_exportador(r)
+    assert not any("operação triangular" in a for a in r.avisos)
+
+
+def test_mesmo_grupo_no_mesmo_pais_continua_divergindo():
+    r = _grupo("Pinhal Moveis Fabrica Texas Inc", "77 Elm Street, Houston", "UNITED STATES")
+    assert _do_exportador(r)
+
+
+def test_pl_com_nome_do_vendedor_e_endereco_do_shipper_continua_divergindo_da_invoice():
+    vendedor = dict(exportador="Pinhal Moveis Ltd", endereco_exportador="Rua A 10, Centro", pais_exportador="CHINA")
+    trading = dict(exportador="Ceu Azul Trading Ltd", endereco_exportador="Sala 5, Avenida B 200",
+                   pais_exportador="CHINA")
+    pl = dict(vendedor, endereco_exportador=trading["endereco_exportador"])
+    r = rodar([doc("invoice", 100, 110, numero="A1", **vendedor)], [doc("packing_list", 100, 110, refs=["A1"], **pl)],
+              [_bl(**trading)])
+    assert [d for d in r.divergencias if d.campo == "endereco_exportador"]
