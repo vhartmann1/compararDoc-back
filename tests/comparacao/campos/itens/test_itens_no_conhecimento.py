@@ -48,7 +48,7 @@ def test_caso_6_descricao_do_bl_diverge():
     assert divergencia.item_chave == "52871046"
     assert divergencia.mensagem.startswith(
         "Item 52871046: descrição Invoice POLIRMX HD 475 / 25 kg SA RESINA DE PVC × "
-        "Packing List POLIREX YK 455 × BL POLIREX ZK 455;"
+        "Packing List POLIREX YK 455 × BL POLIREX ZK 455 — Invoice 475 × Packing List 455;"
     )
     assert not any("descreve" in a for a in r.avisos)
 

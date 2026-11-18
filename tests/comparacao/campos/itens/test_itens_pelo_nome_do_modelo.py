@@ -24,8 +24,8 @@ def _itens(r):
 
 def test_nome_do_modelo_casa_com_a_variante_e_avisa_a_unidade():
     r = _rodar(INVOICE, PL)
-    [sobra] = _itens(r)  # o nome não começa o outro: é o par que sobrou, com a descrição apontada
-    assert sobra.startswith("Item ZX Turbo: descrição Invoice ZX Turbo") and "ZX Pro Turbo-3pack" in sobra
+    assert _itens(r) == []  # 'ZX Turbo' × 'ZX Pro Turbo' é palavra a mais: entra no aviso de escrita diferente
+    assert any("4 descrições escritas de forma diferente" in a for a in r.avisos)
     assert any("quantidade em unidades diferentes (Invoice CAIXAS × Packing List DZ)" in a for a in r.avisos)
 
 

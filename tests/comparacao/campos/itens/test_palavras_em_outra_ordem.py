@@ -1,4 +1,4 @@
-"""Linha do PL sem código com as palavras da invoice em outra ordem: casa pela medida, palavras e quantidade."""
+"""Linha do PL sem código com as palavras da invoice em outra ordem: casa pelo texto em comum."""
 
 from tests.comparacao.apoio import doc, item, mensagens, rodar
 
@@ -37,30 +37,26 @@ def test_tamanho_diferente_nao_casa():
     assert _par("Gong 14\" K-30 - Nimbo Series", "Nimbo series - 15'' Gong")
 
 
-def test_quantidade_diferente_nao_casa_pela_palavra():
+def test_quantidade_diferente_casa_pelo_texto_e_acusa_a_quantidade():
     pl = [*PL[:3], item(None, "Nimbo series - 14'' Gong", 7, "PCS")]
-    assert any("ZQ-NB-GG14" in m for m in _itens(INVOICE, pl))
+    [mensagem] = _itens(INVOICE, pl)
+    assert mensagem.startswith("Item ZQ-NB-GG14: quantidade Invoice 8 × Packing List 7 PCS")
 
 
-def test_palavra_so_de_um_lado_nao_casa():
+def test_negacao_ou_grau_diferente_continua_erro():
     assert _par("Plate 12\" Anodized Velo", "Velo - 12'' Plate NOT ANODIZED")
     assert _par("Plate 12\" with Grip Velo", "Velo - 12'' Plate without Grip")
-    assert _par("Sheet 12\" PE Velo", "Velo - 12'' Sheet POLYESTER EMBOSSED")
     assert _par("Sheet 12\" Grade 430 Velo", "Velo - 12'' Sheet Grade 304")
-    assert _par("Plate 12\" Velo Red", "Velo - 12'' Plate")
+
+
+def test_palavra_a_mais_de_um_lado_so_e_o_mesmo_item():
+    assert _par("Plate 12\" Velo Red", "Velo - 12'' Plate") == []
+    assert _par("Gong 14\" K-30 drilled Nimbo", "Nimbo - 14'' Gong") == []
+
+
+def test_erro_de_digitacao_numa_palavra_e_o_mesmo_item():
+    assert _par("Tamborine 06\" K-30 - Nimbo Series", "Nimbo series - 6'' Tambourine") == []
 
 
 def test_codigos_diferentes_dos_dois_lados_nao_casam():
     assert _par("Gong 14\" K-30 Nimbo", "Nimbo - 14'' Gong K31")
-
-
-def test_criterio_das_palavras():
-    from app.services.comparacao.campos.itens.palavras_em_outra_ordem import mesmas_palavras
-    assert mesmas_palavras("Hi hat 13\" K-30 - Nimbo Series", "Nimbo series - 13'' Hihat")
-    assert not mesmas_palavras("Plate Anodized Velo", "Velo Plate NOT ANODIZED")
-    assert not mesmas_palavras("Plate with Grip", "Plate without Grip")
-    assert not mesmas_palavras("Sheet PE Velo", "Velo Sheet POLYESTER EMBOSSED")
-    assert not mesmas_palavras("Sheet Grade 430", "Sheet Grade 304")
-    assert not mesmas_palavras("Plate Velo Red", "Velo Plate")
-    assert not mesmas_palavras("Gong K-30 Nimbo", "Nimbo Gong K31")
-    assert not mesmas_palavras("Gong drilled K-30 Nimbo", "Nimbo Gong")

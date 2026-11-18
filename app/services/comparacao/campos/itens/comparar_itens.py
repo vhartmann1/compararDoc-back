@@ -7,9 +7,13 @@ from app.services.comparacao.campos.itens.agrupar_linhas_do_mesmo_item import ag
 from app.services.comparacao.campos.itens.casar_itens import casar, casar_base
 from app.services.comparacao.campos.itens.categoria_do_conhecimento import descreve_categoria
 from app.services.comparacao.campos.itens.chave_da_linha import chaves_unicas
-from app.services.comparacao.campos.itens.diferencas_do_item import diferencas_com_o_conhecimento, diferencas_item
+from app.services.comparacao.campos.itens.diferencas_do_item import (
+    DiferencasDoItem,
+    diferencas_com_o_conhecimento,
+    diferencas_item,
+)
 from app.services.comparacao.campos.itens.linhas_detalhadas import linhas_a_juntar
-from app.services.comparacao.campos.itens.nome_do_modelo import unidades_de_familias_diferentes
+from app.services.comparacao.campos.itens.quantidade_do_item import unidades_de_familias_diferentes
 from app.services.comparacao.campos.itens.tipos import ColItens, ItemAgrupado, Linha
 from app.services.comparacao.documentos.colunas_da_comparacao import (
     coluna_soma,
@@ -25,7 +29,7 @@ from app.services.comparacao.normalizacao.quantidades import unidade_quantidade
 from app.services.comparacao.tipos import Apontamentos, Col, Fonte, prefixo_da_origem
 
 
-DiferencasDaLinha = Callable[[Linha, list[ColItens], list[ColItens]], list[tuple[str, str]]]
+DiferencasDaLinha = Callable[[Linha, list[ColItens], list[ColItens]], DiferencasDoItem]
 
 
 def comparar_todos_os_itens(
@@ -71,17 +75,17 @@ def _colunas_das_somas(grupos: list[tuple[Fonte | None, Fonte | None]]) -> list[
     return [ColItens(c, agrupar_itens(c.fontes)) for c in somas]
 
 
-def _diferencas_no_par(linha: Linha, base: list[ColItens], conhecimentos: list[ColItens]) -> list[tuple[str, str]]:
+def _diferencas_no_par(linha: Linha, base: list[ColItens], conhecimentos: list[ColItens]) -> DiferencasDoItem:
     """Todas as diferenças; o item que só um dos dois documentos traz é 'ausente'."""
     difs = diferencas_item(linha, base + conhecimentos)
     if len(base) == 2 and sum(c.col.chave in linha for c in base) == 1:
-        difs.insert(0, ("ausente", "só na Invoice" if base[0].col.chave in linha else "só no Packing List"))
+        difs.erros.insert(0, ("ausente", "só na Invoice" if base[0].col.chave in linha else "só no Packing List"))
     return difs
 
 
 def _diferencas_no_consolidado(
     linha: Linha, base: list[ColItens], conhecimentos: list[ColItens]
-) -> list[tuple[str, str]]:
+) -> DiferencasDoItem:
     """Invoice × PL já foram comparados em cada par: aqui só interessa o que envolve o conhecimento."""
     return diferencas_com_o_conhecimento(linha, base + conhecimentos)
 
@@ -131,6 +135,16 @@ def _unidades_sem_conversao(base: list[ColItens], linhas: list) -> list[str]:
     ]
 
 
+def _aviso_de_escrita_diferente(escritas: list[tuple[str, str]]) -> list[str]:
+    """Um aviso só por comparação: descrições do mesmo item com palavras diferentes, sem nada que se contradiga."""
+    if not escritas:
+        return []
+    a, b = escritas[0]
+    quantos = "1 descrição escrita" if len(escritas) == 1 else f"{len(escritas)} descrições escritas"
+    return [f"Itens: {quantos} de forma diferente entre os documentos (ex.: '{a}' × '{b}'); medidas e modelos "
+            "não se contradizem — confira se é o mesmo produto."]
+
+
 def _valor_item(item: ItemAgrupado | None) -> ValorItem | None:
     if item is None:
         return None
@@ -166,9 +180,13 @@ def _comparar_itens(
             for linha, itens_base in zip(linhas, bases)
         ]
     )
+    escritas: list[tuple[str, str]] = []
     for linha, itens_base, chave in zip(linhas, bases, chaves):
         primeiro = itens_base[0]
-        difs = diferencas(linha, base, conhecimentos)
+        do_item = diferencas(linha, base, conhecimentos)
+        difs = do_item.erros
+        if do_item.escrita_diferente:
+            escritas.append(do_item.escrita_diferente)
         linhas_item.append(
             LinhaItem(
                 chave=chave,
@@ -184,6 +202,7 @@ def _comparar_itens(
     colunas_saida = [
         Coluna(chave=c.col.chave, rotulo=c.col.rotulo, documentos=[ref_documento(f) for f in c.col.fontes]) for c in colunas
     ]
+    avisos += [f"{prefixo}{aviso}" for aviso in _aviso_de_escrita_diferente(escritas)]
     titulo = "Itens — " + " × ".join(c.col.rotulo for c in colunas)
     return (
         ComparacaoItens(comparacao_id=comparacao_id, titulo=titulo, colunas=colunas_saida, linhas=linhas_item),

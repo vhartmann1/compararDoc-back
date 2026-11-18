@@ -1,27 +1,23 @@
 """Diferenças entre os atributos de um item nos documentos."""
 
-import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
-from app.services.comparacao.campos.itens.medidas_do_item import descricoes_iguais_pela_medida
-from app.services.comparacao.campos.itens.palavras_em_outra_ordem import mesma_descricao_em_outra_ordem
-from app.services.comparacao.campos.itens.nome_do_modelo import nome_comeca_o_outro, unidades_de_familias_diferentes
-from app.services.comparacao.campos.itens.produto_e_modelo import mesmo_produto_e_modelo
+from app.services.comparacao.campos.itens.descricoes_do_item import IGUAL, GRAVIDADE, Veredito, comparar_descricoes
+from app.services.comparacao.campos.itens.quantidade_do_item import unidades_de_familias_diferentes
 from app.services.comparacao.campos.itens.tipos import ColItens, ItemAgrupado, Linha
 from app.services.comparacao.campos.regras_por_campo.pesos_volumes_quantidade import nota_fator_mil
 from app.services.comparacao.normalizacao.encurtar_texto import encurtar
 from app.services.comparacao.normalizacao.item import (
-    descricoes_equivalentes,
-    normalizar_codigo_item,
     normalizar_descricao,
     normalizar_lote,
     normalizar_referencia,
     normalizar_validade,
-    referencias_iguais,
 )
-from app.services.comparacao.normalizacao.texto import sem_acento
+
+Informado = tuple[ColItens, ItemAgrupado]
+ConferirPar = Callable[[ColItens, ColItens], bool]
 
 
 @dataclass
@@ -34,112 +30,20 @@ class Atributo:
     exibicao: Callable[[ItemAgrupado], str]
 
 
+@dataclass
+class DiferencasDoItem:
+    """As diferenças que são erro e, à parte, o par de descrições só escritas de outro jeito."""
+
+    erros: list[tuple[str, str]] = field(default_factory=list)  # (nome da diferença, mensagem)
+    escrita_diferente: tuple[str, str] | None = None
+
+
 def _validades(item: ItemAgrupado) -> list[str]:
     return list(dict.fromkeys(normalizar_validade(v) for v in item.validades))
 
 
 def _quantidades_comparaveis_diferentes(a: ItemAgrupado, b: ItemAgrupado) -> bool:
     return not unidades_de_familias_diferentes(a, b) and abs(a.quantidade[1] - b.quantidade[1]) > 1e-6
-
-
-def _descricoes_iguais(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """Idêntica é igual; medida diferente diverge; senão descrição contida, referências, código e semelhança."""
-    if normalizar_descricao(a.descricao) == normalizar_descricao(b.descricao) and _referencias_na_descricao(a, b):
-        return True  # descrição idêntica: a "referência" é só o trecho que cada leitura destacou
-    mesmo_codigo = bool(a.codigo and b.codigo and normalizar_codigo_item(a.codigo) == normalizar_codigo_item(b.codigo))
-    if _medidas_diferentes(a.descricao, b.descricao) or _atributos_diferentes(a.descricao, b.descricao):
-        return False  # mesmo código não salva: a potência, a tensão ou o tamanho mudou
-    if descricoes_iguais_pela_medida(a.descricao, b.descricao):
-        return True  # só a notação da medida muda: '.800 MM x 1250 MM' e '0.800x1250'
-    if mesma_descricao_em_outra_ordem(a.descricao, b.descricao):
-        return True
-    if _so_o_modelo(a, b) or _so_o_modelo(b, a) or nome_comeca_o_outro(a, b) or mesmo_produto_e_modelo(a, b):
-        return True
-    ra, rb = _referencia_de_modelo(a), _referencia_de_modelo(b)
-    sem_conflito = mesmo_codigo or not (ra and rb) or _referencia_da_curta(a, b)
-    if _uma_comeca_a_outra(a.descricao, b.descricao) and sem_conflito:
-        return True  # a "referência" lida difere (modelo × código do fabricante), mas o item é o mesmo
-    if ra and rb:
-        return referencias_iguais(ra, rb)
-    if mesmo_codigo:
-        return True
-    return descricoes_equivalentes(a.descricao, b.descricao)
-
-
-MEDIDA = re.compile(r"(?<![A-Z0-9.,])(\d+(?:[.,]\d+)?) ?(KW|W|V|MA|A|MM|CM|ML|KG|G|L|HZ|K)(?![A-Z0-9])")
-
-
-def _medidas(descricao: str) -> dict[str, set[float]]:
-    """'FONTE 24V 200W' -> {'V': {24}, 'W': {200}}."""
-    por_unidade: dict[str, set[float]] = {}
-    for valor, unidade in MEDIDA.findall(sem_acento(descricao).upper()):
-        por_unidade.setdefault(unidade, set()).add(float(valor.replace(",", ".")))
-    return por_unidade
-
-
-def _medidas_diferentes(a: str, b: str) -> bool:
-    """Uma unidade que aparece nas duas descrições com valores diferentes; a que só uma traz não conta."""
-    ma, mb = _medidas(a), _medidas(b)
-    return any(ma[u] != mb[u] for u in ma.keys() & mb.keys())
-
-
-ATRIBUTO = re.compile(r"\b([A-Z]{3,}) (\d+)\b(?![.,]\d)")
-
-
-def _atributos_diferentes(a: str, b: str) -> bool:
-    """'GRADE 430' × 'GRADE 304': a mesma palavra seguida de números diferentes."""
-    na, nb = (_atributos(x) for x in (a, b))
-    return any(na[p] != nb[p] for p in na.keys() & nb.keys())
-
-
-def _atributos(descricao: str) -> dict[str, set[str]]:
-    por_palavra: dict[str, set[str]] = {}
-    for palavra, numero in ATRIBUTO.findall(sem_acento(descricao).upper()):
-        por_palavra.setdefault(palavra, set()).add(numero)
-    return por_palavra
-
-
-def _referencia_de_modelo(x: ItemAgrupado) -> str | None:
-    """A referência lida, se não for a descrição inteira ('COBRE ANTIGO' como as duas coisas não é modelo)."""
-    if x.referencia and normalizar_referencia(x.referencia) != normalizar_referencia(x.descricao):
-        return x.referencia
-    return None
-
-
-def _referencias_na_descricao(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """Cada referência lida está dentro da própria descrição (ou falta num dos lados): não há referência a mais."""
-    return all(
-        not x.referencia or normalizar_referencia(x.referencia) in normalizar_referencia(x.descricao) for x in (a, b)
-    )
-
-
-def _uma_comeca_a_outra(a: str, b: str) -> bool:
-    """'CELULA DE CARGA MODELO XL-20' começa 'CELULA DE CARGA MODELO XL-20, CAPACIDADE 10 MN…': o documento só abreviou."""
-    curta, longa = sorted((_palavras(a), _palavras(b)), key=len)
-    return len(curta) >= 3 and longa[: len(curta)] == curta
-
-
-def _so_o_modelo(curto: ItemAgrupado, outro: ItemAgrupado) -> bool:
-    """'QX-77' × 'QX-77 - medidor': descrição = modelo lido; igual ao código do outro ou começo da descrição dele."""
-    modelo = normalizar_referencia(curto.descricao)
-    proprios = {normalizar_referencia(r) for r in (curto.referencia, curto.codigo) if r}
-    if not any(ch.isdigit() for ch in modelo) or not proprios or not proprios <= {modelo}:
-        return False
-    do_outro = {normalizar_referencia(r) for r in (outro.referencia, outro.codigo) if r}
-    palavras, longas = _palavras(curto.descricao), _palavras(outro.descricao)
-    return modelo in do_outro or longas[: len(palavras)] == palavras
-
-
-def _referencia_da_curta(a: ItemAgrupado, b: ItemAgrupado) -> bool:
-    """A referência da descrição mais curta é uma palavra inteira da mais longa (marca lida como modelo)."""
-    curto, longo = sorted((a, b), key=lambda x: len(_palavras(x.descricao)))
-    ref = _referencia_de_modelo(curto)
-    palavras = {normalizar_referencia(p) for p in re.split(r"[\s,;:()]+", longo.descricao)}
-    return bool(ref) and normalizar_referencia(ref) in palavras
-
-
-def _palavras(descricao: str) -> list[str]:
-    return re.findall(r"[A-Z0-9]+", sem_acento(descricao).upper())
 
 
 def _descricao_generica(x: ItemAgrupado) -> bool:
@@ -154,12 +58,11 @@ def _exibir_descricao(x: ItemAgrupado) -> str:
     return encurtar(x.descricao)
 
 
-ATRIBUTOS_ITEM = [
-    Atributo(
-        "descricao", "descrição", lambda x: bool(x.descricao),
-        _descricoes_iguais,
-        lambda x: (normalizar_referencia(x.referencia or ""), normalizar_descricao(x.descricao)), _exibir_descricao,
-    ),
+def _chave_da_descricao(x: ItemAgrupado) -> tuple[str, str]:
+    return normalizar_referencia(x.referencia or ""), normalizar_descricao(x.descricao)
+
+
+OUTROS_ATRIBUTOS = [
     Atributo(
         "quantidade", "quantidade", lambda x: x.quantidade is not None,
         lambda a, b: not _quantidades_comparaveis_diferentes(a, b),  # unidades diferentes: não dá para comparar
@@ -178,43 +81,79 @@ ATRIBUTOS_ITEM = [
 ]
 
 
-def diferencas_item(linha: Linha, colunas: list[ColItens]) -> list[tuple[str, str]]:
-    """(nome da diferença, mensagem) entre quaisquer duas colunas."""
+def diferencas_item(linha: Linha, colunas: list[ColItens]) -> DiferencasDoItem:
+    """As diferenças entre quaisquer duas colunas."""
     return _diferencas(linha, colunas, lambda c1, c2: True)
 
 
-def diferencas_com_o_conhecimento(linha: Linha, colunas: list[ColItens]) -> list[tuple[str, str]]:
-    """(nome da diferença, mensagem), só entre pares de colunas em que uma é o conhecimento."""
+def diferencas_com_o_conhecimento(linha: Linha, colunas: list[ColItens]) -> DiferencasDoItem:
+    """As diferenças só entre pares de colunas em que uma é o conhecimento."""
     return _diferencas(linha, colunas, lambda c1, c2: c1.conhecimento or c2.conhecimento)
 
 
-def _diferencas(
-    linha: Linha, colunas: list[ColItens], conferir_par: Callable[[ColItens, ColItens], bool]
-) -> list[tuple[str, str]]:
-    difs: list[tuple[str, str]] = []
-    for atributo in ATRIBUTOS_ITEM:
-        informados = [(c, linha[c.col.chave]) for c in colunas if c.col.chave in linha]
-        informados = [(c, x) for c, x in informados if atributo.informado(x)]
-        if atributo.nome == "descricao":
-            informados = [(c, x) for c, x in informados if not (c.conhecimento and _descricao_generica(x))]
-        diferentes = any(
-            not atributo.iguais(x, y)
-            for n, (c1, x) in enumerate(informados)
-            for c2, y in informados[n + 1:]
-            if conferir_par(c1, c2)
-        )
-        if diferentes:
+def _diferencas(linha: Linha, colunas: list[ColItens], conferir_par: ConferirPar) -> DiferencasDoItem:
+    presentes = [(c, linha[c.col.chave]) for c in colunas if c.col.chave in linha]
+    resultado = _diferenca_de_descricao(presentes, conferir_par)
+    for atributo in OUTROS_ATRIBUTOS:
+        informados = [(c, x) for c, x in presentes if atributo.informado(x)]
+        if any(not atributo.iguais(x, y) for (c1, x), (c2, y) in _pares(informados, conferir_par)):
             nota = ""
             if atributo.nome == "quantidade":
                 nota = nota_fator_mil([(x.quantidade[1], x.quantidade_exibicao or "", x.unidade) for _, x in informados])
-            difs.append((atributo.nome, f"{atributo.rotulo} {_texto_grupos(atributo, informados)}{nota}"))
-    return difs
+            grupos = _texto_grupos(informados, atributo.chave_exibicao, atributo.exibicao)
+            resultado.erros.append((atributo.nome, f"{atributo.rotulo} {grupos}{nota}"))
+    return resultado
 
 
-def _texto_grupos(atributo: Atributo, informados: list[tuple[ColItens, ItemAgrupado]]) -> str:
+def _pares(informados: list[Informado], conferir_par: ConferirPar) -> list[tuple[Informado, Informado]]:
+    return [(a, b) for n, a in enumerate(informados) for b in informados[n + 1:] if conferir_par(a[0], b[0])]
+
+
+def _diferenca_de_descricao(presentes: list[Informado], conferir_par: ConferirPar) -> DiferencasDoItem:
+    """Erro na contradição ou em outra mercadoria; a escrita diferente fica à parte, para o aviso."""
+    informados = [(c, x) for c, x in presentes if x.descricao and not (c.conhecimento and _descricao_generica(x))]
+    vereditos = [(_veredito_do_par(a[1], b[1], informados), a, b) for a, b in _pares(informados, conferir_par)]
+    if not vereditos:
+        return DiferencasDoItem()
+    pior, a, b = max(vereditos, key=lambda v: GRAVIDADE[v[0].classe])
+    if pior.diverge:
+        grupos = _texto_grupos(informados, _chave_da_descricao, _exibir_descricao)
+        return DiferencasDoItem([("descricao", f"descrição {grupos}{_nota_da_contradicao(pior, a, b)}")])
+    if pior.classe == "escrita_diferente":
+        return DiferencasDoItem(escrita_diferente=(encurtar(a[1].descricao), encurtar(b[1].descricao)))
+    return DiferencasDoItem()
+
+
+def _veredito_do_par(x: ItemAgrupado, y: ItemAgrupado, informados: list[Informado]) -> Veredito:
+    """Se um terceiro documento diz o mesmo que um dos dois, o par vale pelo melhor dos dois caminhos."""
+    veredito = comparar_descricoes(x, y)
+    if veredito.classe in ("igual", "contradicao"):
+        return veredito
+    outros = [z for _, z in informados if z is not x and z is not y]
+    pelo_terceiro = [comparar_descricoes(z, y) for z in outros if comparar_descricoes(x, z) == IGUAL]
+    pelo_terceiro += [comparar_descricoes(x, z) for z in outros if comparar_descricoes(z, y) == IGUAL]
+    return min([veredito, *pelo_terceiro], key=lambda v: GRAVIDADE[v.classe])
+
+
+def _nota_da_contradicao(veredito: Veredito, a: Informado, b: Informado) -> str:
+    """' — Invoice 150 W × Packing List 120 W' e, num caractere de diferença com scan, que pode ser leitura."""
+    c = veredito.contradicao
+    if c is None:
+        return ""
+    nota = f" — {a[0].col.nome_curto} {c.de_a} × {b[0].col.nome_curto} {c.de_b}"
+    escaneados = [col.col.nome_curto for col, _ in (a, b) if any(f.escaneado is True for f in col.col.fontes)]
+    if c.um_caractere and escaneados:
+        plural = "escaneado" if len(escaneados) == 1 else "escaneados"
+        nota += f"; {' e '.join(escaneados)} {plural}, pode ser leitura — conferir na imagem"
+    return nota
+
+
+def _texto_grupos(
+    informados: list[Informado], chave: Callable[[ItemAgrupado], Any], exibir: Callable[[ItemAgrupado], str]
+) -> str:
     """'Invoice POLIRMX HD 475 × Packing List/BL POLIREX YK 455' — minoria primeiro."""
     grupos: dict[Any, tuple[list[str], ItemAgrupado]] = {}
     for c, x in informados:
-        grupos.setdefault(atributo.chave_exibicao(x), ([], x))[0].append(c.col.nome_curto)
+        grupos.setdefault(chave(x), ([], x))[0].append(c.col.nome_curto)
     ordenados = sorted(grupos.values(), key=lambda g: len(g[0]))
-    return " × ".join(f"{'/'.join(nomes)} {atributo.exibicao(x)}" for nomes, x in ordenados)
+    return " × ".join(f"{'/'.join(nomes)} {exibir(x)}" for nomes, x in ordenados)

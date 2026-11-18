@@ -1,7 +1,7 @@
 """PL só com o nome do produto e o modelo casa com a linha da invoice que tem código, sem depender da ordem."""
 
-from app.services.comparacao.campos.itens.produto_e_modelo import modelos_iguais, mesmo_produto_e_modelo
-from app.services.comparacao.campos.itens.tipos import ItemAgrupado
+from app.services.comparacao.campos.itens.descricoes_do_item import entre_textos
+from app.services.comparacao.campos.itens.fichas_da_descricao import em_comum, quase_iguais
 from tests.comparacao.apoio import doc, item, mensagens, rodar
 
 INVOICE = [
@@ -43,26 +43,23 @@ def test_modelo_diferente_continua_apontado():
     assert _itens(INVOICE, pl)
 
 
-def _agrupado(codigo, descricao, referencia):
-    return ItemAgrupado(codigo, descricao, referencia, ("PCS", 8.0), "8", None, [], [], "a0", None)
-
-
-def test_palavra_a_mais_depois_do_modelo_nao_casa():
-    invoice = _agrupado("AB-200-02", "Chain Belt - Model: K41 - Brand: Talmex - With Grease", "K41")
-    assert mesmo_produto_e_modelo(invoice, _agrupado(None, "Chain Belt K41 38 L (with Grease)", "K41"))
-    assert not mesmo_produto_e_modelo(invoice, _agrupado(None, "Chain Belt K41 38 L (without Grease)", "K41"))
-    assert not mesmo_produto_e_modelo(invoice, _agrupado(None, "Chain Belt K41 NOT GREASED", "K41"))
+def test_negacao_depois_do_modelo_e_contradicao():
+    invoice = "Chain Belt - Model: K41 - Brand: Talmex - With Grease"
+    assert entre_textos(invoice, "Chain Belt K41 38 L (with Grease)").classe != "contradicao"
+    assert entre_textos(invoice, "Chain Belt K41 38 L (without Grease)").classe == "contradicao"
 
 
 def test_modelo_contido_so_com_a_sigla_da_serie_na_frente():
-    assert modelos_iguais(["550"], ["RX550"])
-    assert not modelos_iguais(["K4"], ["K40"])
-    assert not modelos_iguais(["550"], ["5500"])
+    assert em_comum("Guide Wheel - Model: 550", "Guide Wheel RX550").so_b == frozenset()
+    assert quase_iguais("K4", "K40") and quase_iguais("550", "5500")  # um dígito a mais é outro modelo
+    assert not quase_iguais("550", "E550")  # só a letra de série na frente
 
 
-def test_produto_com_outro_nome_continua_apontado():
+def test_palavra_a_mais_no_nome_do_produto_e_so_aviso():
     pl = [*PL[:3], item(None, "Guide Wheel Double RX550", 16, referencia="RX550"), *PL[4:]]
-    assert _itens(INVOICE, pl)
+    r = rodar([doc("invoice", numero="1", itens=INVOICE), doc("packing_list", refs=["1"], itens=pl)])
+    assert mensagens(r, "item") == []
+    assert any("3 descrições escritas de forma diferente" in a for a in r.avisos)  # as duas da corrente e esta
 
 
 def test_modelo_so_parecido_nao_conta_como_contido():

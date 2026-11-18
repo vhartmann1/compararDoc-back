@@ -84,7 +84,16 @@ def _juntar_linhas(linhas: list[ItemExtraido], arquivo_id: str) -> ItemAgrupado:
         validades=list(dict.fromkeys(v.strip() for l in linhas for v in l.validades if v.strip())),
         arquivo_id=arquivo_id,
         pagina=linhas[0].pagina,
+        descricoes=_descricoes_das_linhas(linhas),
     )
+
+
+def _descricoes_das_linhas(linhas: list[ItemExtraido]) -> tuple[str, ...]:
+    """Linhas juntas pelo mesmo código guardam cada descrição: a segunda pode trazer outro modelo."""
+    codigos = {normalizar_codigo_item(l.codigo) for l in linhas if l.codigo}
+    if len(codigos) != 1 or not all(l.codigo for l in linhas):
+        return ()
+    return tuple(dict.fromkeys(l.descricao.strip() for l in linhas))
 
 
 def _somar_quantidades_itens(linhas: list[ItemExtraido]) -> tuple[tuple[str, float] | None, str | None]:

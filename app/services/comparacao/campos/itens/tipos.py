@@ -19,6 +19,7 @@ class ItemAgrupado:
     validades: list[str]
     arquivo_id: str
     pagina: int | None
+    descricoes: tuple[str, ...] = ()  # a de cada linha junta pelo código, quando há mais de uma linha
 
 
 @dataclass

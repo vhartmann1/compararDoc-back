@@ -4,7 +4,6 @@ from app.schemas import Medida
 from app.services.comparacao.normalizacao.codigos import normalizar_ncm
 from app.services.comparacao.normalizacao.enderecos import enderecos_de_texto_parecido
 from app.services.comparacao.normalizacao.formatacao import formatar_cnpj, formatar_contagem, formatar_kg, formatar_ncm
-from app.services.comparacao.normalizacao.item import referencias_iguais
 from app.services.comparacao.normalizacao.numeros_de_documento import normalizar_numero_documento, normalizar_po
 from app.services.comparacao.normalizacao.portos import normalizar_porto
 from app.services.comparacao.normalizacao.quantidades import embalagem, para_kg, unidade_quantidade
@@ -168,21 +167,6 @@ def test_endereco_em_outra_ordem_e_com_o_pais_abreviado_e_o_mesmo():
 )
 def test_enderecos_de_texto_parecido(a, b, esperado):
     assert enderecos_de_texto_parecido(a, b) is esperado
-
-
-@pytest.mark.parametrize(
-    ("a", "b", "esperado"),
-    [
-        ("POLIREX ZK 455", "Polirex ZK-455", True),
-        ("POLIREX ZK 455", "POLIREX YK 455", False),
-        ("ZK 455", "POLIREX ZK 455", True),
-        ("Trail-Max 10", "TRAIL MAX 10", True),
-        ("Trail-Max 10", "Trail-Max 100", False),
-        ("Wind-Ride 500", "Wind-Ride 50O", False),
-    ],
-)
-def test_referencias_iguais(a, b, esperado):
-    assert referencias_iguais(a, b) is esperado
 
 
 def test_numero_sem_serie():

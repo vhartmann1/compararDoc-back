@@ -8,9 +8,6 @@ from app.services.comparacao.normalizacao.texto import sem_acento, similaridade,
 SIMILARIDADE_MINIMA_DESCRICAO = 0.85
 
 
-SIMILARIDADE_MINIMA_CASAMENTO = 0.80  # casar itens sem código pela descrição
-
-
 def normalizar_codigo_item(codigo: str) -> str:
     """'4200000001004 TW' -> '4200000001004': a sigla do país de origem no fim não faz parte do código."""
     partes = sem_acento(codigo).upper().rsplit(None, 1)
@@ -47,14 +44,6 @@ def normalizar_descricao(descricao: str) -> str:
 def normalizar_referencia(referencia: str) -> str:
     """'Polirex ZK-455' -> 'POLIREXZK455'."""
     return re.sub(r"[^A-Z0-9]", "", sem_acento(referencia).upper())
-
-
-def referencias_iguais(a: str, b: str) -> bool:
-    """Iguais após normalizar; tolera só a omissão de palavras inteiras (a marca), nunca troca de letra."""
-    if normalizar_referencia(a) == normalizar_referencia(b):
-        return True
-    pa, pb = set(so_letras_numeros(a).split()), set(so_letras_numeros(b).split())
-    return bool(pa and pb) and (pa <= pb or pb <= pa)
 
 
 def descricoes_equivalentes(a: str, b: str) -> bool:
